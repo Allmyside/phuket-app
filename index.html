@@ -54,21 +54,119 @@
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; transition: background 0.25s, color 0.25s; }
         .container { max-width: 760px; margin: 0 auto; padding-bottom: 45px; }
-        
+
+        /* Скрытие основного приложения до авторизации */
+        #mainAppContainer { display: none; }
+        #mainAppContainer.authenticated { display: block; animation: fadeIn 0.3s ease; }
+
+        /* Полноэкранное окно входа и регистрации («Дверь») */
+        .auth-gate-overlay {
+            position: fixed; inset: 0; z-index: 9999;
+            background: radial-gradient(circle at top, #1b2436 0%, var(--bg) 70%);
+            display: flex; align-items: center; justify-content: center; padding: 16px;
+        }
+        .auth-gate-overlay.hidden { display: none; }
+        .auth-card {
+            width: 100%; max-width: 420px; background: var(--card);
+            border: 1px solid var(--border); border-radius: 16px; padding: 24px 20px;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+        }
+        .auth-logo { text-align: center; font-size: 2.4rem; margin-bottom: 6px; }
+        .auth-title { text-align: center; font-size: 1.25rem; font-weight: 800; color: var(--heading); margin-bottom: 4px; }
+        .auth-subtitle { text-align: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 18px; }
+        .auth-mode-tabs {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 6px;
+            background: var(--card-alt); padding: 5px; border-radius: 10px;
+            border: 1px solid var(--border); margin-bottom: 16px;
+        }
+        .auth-mode-btn {
+            padding: 9px; border: none; border-radius: 7px; background: transparent;
+            color: var(--muted); font-size: 0.86rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+        }
+        .auth-mode-btn.active { background: var(--accent); color: #fff; }
+        .auth-field { margin-bottom: 12px; display: flex; flex-direction: column; }
+        .auth-field label { font-size: 0.76rem; color: var(--muted); margin-bottom: 5px; font-weight: 600; }
+        .auth-field input {
+            background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text);
+            padding: 10px 12px; border-radius: 8px; font-size: 0.95rem; outline: none; transition: border-color 0.2s;
+        }
+        .auth-field input:focus { border-color: var(--accent); }
+        .auth-field input.invalid { border-color: var(--danger); }
+        .auth-field input.valid { border-color: var(--success); }
+        .val-checklist {
+            background: var(--card-alt); border: 1px solid var(--border);
+            border-radius: 8px; padding: 8px 11px; margin-bottom: 12px; font-size: 0.76rem;
+        }
+        .val-item { display: flex; align-items: center; gap: 6px; color: var(--muted); margin: 3px 0; }
+        .val-item.ok { color: var(--success); font-weight: 600; }
+        .val-item.err { color: var(--danger); font-weight: 600; }
+        .auth-error-msg {
+            display: none; background: rgba(255, 59, 48, 0.14); border: 1px solid var(--danger);
+            color: var(--danger); padding: 8px 11px; border-radius: 8px; font-size: 0.8rem;
+            font-weight: 600; margin-bottom: 12px; text-align: center;
+        }
+
+        /* Верхняя шапка и меню профиля справа сверху */
         .top-header { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 10px 0; gap: 8px; flex-wrap: wrap; }
-        h1 { font-size: 1.15rem; margin: 0; color: var(--heading); }
-        .header-right { display: flex; align-items: center; gap: 6px; }
+        h1 { font-size: 1.12rem; margin: 0; color: var(--heading); }
+        .header-right { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
         .pwa-badge { font-size: 0.71rem; padding: 4px 9px; border-radius: 20px; background: var(--card); border: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; gap: 5px; }
         .pwa-badge.online { color: var(--success); border-color: rgba(52, 199, 89, 0.35); }
         .pwa-badge.offline { color: var(--warning); border-color: rgba(255, 159, 10, 0.45); background: rgba(255, 159, 10, 0.1); }
-        .theme-toggle-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 20px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
+        .theme-toggle-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 20px; padding: 5px 10px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
         .theme-toggle-btn:hover { border-color: var(--accent); }
+
+        .profile-menu-wrap { position: relative; }
+        .profile-trigger-btn {
+            display: flex; align-items: center; gap: 7px; background: var(--card);
+            border: 1px solid var(--border); padding: 4px 10px 4px 5px; border-radius: 24px;
+            cursor: pointer; color: var(--text); font-size: 0.8rem; font-weight: 700; transition: border-color 0.2s;
+        }
+        .profile-trigger-btn:hover { border-color: var(--accent); }
+        .profile-avatar-sm {
+            width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
+            background: var(--accent); color: #fff; display: flex; align-items: center;
+            justify-content: center; font-size: 0.76rem; font-weight: 800; overflow: hidden;
+        }
+        .profile-dropdown {
+            display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 240px;
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            box-shadow: 0 12px 30px rgba(0,0,0,0.5); padding: 6px; z-index: 1000;
+        }
+        .profile-dropdown.open { display: block; animation: fadeIn 0.18s ease; }
+        .pd-header { padding: 8px 10px; border-bottom: 1px solid var(--border); margin-bottom: 4px; }
+        .pd-name { font-size: 0.88rem; font-weight: 800; color: var(--heading); }
+        .pd-role { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+        .pd-item {
+            width: 100%; text-align: left; background: transparent; border: none;
+            color: var(--text); padding: 9px 10px; border-radius: 8px; font-size: 0.81rem;
+            font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;
+        }
+        .pd-item:hover { background: var(--card-alt); color: var(--accent); }
+        .pd-item.danger { color: var(--danger); }
+        .pd-item.danger:hover { background: rgba(255, 59, 48, 0.12); }
+
+        /* Модальные окна Профиля и Админ-панели */
+        .app-modal-backdrop {
+            display: none; position: fixed; inset: 0; z-index: 5000;
+            background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);
+            align-items: center; justify-content: center; padding: 15px;
+        }
+        .app-modal-backdrop.open { display: flex; animation: fadeIn 0.2s ease; }
+        .app-modal-card {
+            width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+            background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+            padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.55);
+        }
+        .admin-user-row {
+            background: var(--card-alt); border: 1px solid var(--border); border-radius: 10px;
+            padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between;
+            align-items: center; flex-wrap: wrap; gap: 8px;
+        }
 
         /* Навигация на 6 вкладок */
         .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--card-alt); padding: 6px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 14px; }
-        @media (min-width: 640px) {
-            .tabs { grid-template-columns: repeat(6, 1fr); }
-        }
+        @media (min-width: 640px) { .tabs { grid-template-columns: repeat(6, 1fr); } }
         .tab-btn { padding: 9px 6px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.79rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
         .tab-btn:hover { color: var(--text); }
         .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.35); }
@@ -76,13 +174,6 @@
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.22s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-        /* Панель авторизации (Логин/Пароль) */
-        .auth-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        .auth-inputs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex: 1; }
-        .auth-inputs input { background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text); padding: 6px 9px; border-radius: 6px; font-size: 0.82rem; width: 130px; outline: none; }
-        .auth-btn { padding: 6px 11px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: none; background: var(--accent); color: #fff; }
-        .auth-btn.logout { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.35); }
 
         /* Главная страница (Дашборд) */
         .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
@@ -92,7 +183,6 @@
         .dash-goto { background: rgba(0, 122, 255, 0.14); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; padding: 3px 8px; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
         .dash-goto:hover { background: rgba(0, 122, 255, 0.25); }
 
-        /* Ссылки на закатные смотровые площадки */
         .viewpoint-list { margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 5px; }
         .vp-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; background: var(--card-alt); padding: 4px 8px; border-radius: 6px; }
         .vp-link { color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.73rem; white-space: nowrap; }
@@ -124,13 +214,12 @@
         .spread-tag { display: inline-block; padding: 2px 6px; border-radius: 5px; font-size: 0.73rem; font-weight: 600; background: rgba(255, 159, 10, 0.14); color: var(--warning); margin-left: 6px; }
         .spread-tag.good { background: rgba(52, 199, 89, 0.14); color: var(--success); }
 
-        /* ==================== СТИЛИ ВКЛАДКИ ПЛАНИРОВАНИЯ (КАЛЕНДАРЬ И ИВЕНТЫ) ==================== */
+        /* Стили Вкладки Планирования (Календарь и Ивенты) */
         .cal-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
         .cal-nav-group { display: flex; align-items: center; gap: 6px; }
         .cal-nav-btn { background: var(--btn-sec-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 7px; padding: 6px 11px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
         .cal-nav-btn:hover { border-color: var(--accent); }
         .cal-month-title { font-size: 1rem; font-weight: 800; color: var(--heading); min-width: 145px; text-align: center; text-transform: capitalize; }
-        
         .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
         .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
         .cal-cell { min-height: 68px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; justify-content: flex-start; cursor: pointer; position: relative; transition: all 0.15s; overflow: hidden; }
@@ -144,7 +233,6 @@
         .cal-ev-pill { font-size: 0.62rem; font-weight: 600; color: #fff; padding: 2px 4px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
         .cal-ev-more { font-size: 0.62rem; color: var(--muted); font-weight: 700; text-align: center; }
 
-        /* Панель превью выбранного дня и модалка настройки дня */
         .day-preview-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px; margin-top: 12px; }
         .day-editor-modal { display: none; background: var(--card); border: 2px solid var(--accent); border-radius: 12px; padding: 15px; margin-top: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.45); animation: fadeIn 0.2s ease; }
         .day-editor-modal.open { display: block; }
@@ -154,7 +242,7 @@
         .ev-list-item { background: var(--card-alt); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .ev-del-btn { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
 
-        /* Стили Вкладки 3: Приливы, Отливы и Пляжи */
+        /* Стили Вкладки Приливы, Отливы и Пляжи */
         .tide-hero { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
         .tide-now-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
         .tide-stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 9px; text-align: center; }
@@ -193,7 +281,7 @@
         .map-links { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .map-link-a { flex: 1; text-align: center; padding: 7px 10px; background: rgba(0, 122, 255, 0.14); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; font-size: 0.78rem; font-weight: 600; text-decoration: none; }
 
-        /* Стили Вкладки 4: Погода и Windy */
+        /* Стили Вкладки Погода и Windy */
         .district-selector-box { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
         .district-select { background: var(--input-bg) !important; border: 1px solid var(--accent) !important; color: var(--text) !important; font-size: 0.94rem !important; font-weight: 600; padding: 10px 12px !important; border-radius: 8px !important; cursor: pointer; width: 100%; }
         .weather-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
@@ -252,7 +340,7 @@
         .sub-rate { color: var(--muted); font-size: 0.77rem; }
         .rate-info { font-size: 0.84rem; color: var(--muted); line-height: 1.4; }
 
-        /* Стили Вкладки 2: Планировщик отдыха (СТАТИЧНЫЙ БЛОК БЮДЖЕТА) */
+        /* Стили Вкладки Планировщик отдыха (СТАТИЧНЫЙ БЛОК БЮДЖЕТА) */
         .summary-static { position: static; background: var(--card); border: 1px solid var(--input-border); border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
         .sum-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
         .sum-box { background: var(--card-alt); padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border); }
@@ -293,12 +381,71 @@
     </style>
 </head>
 <body>
-    <div class="container">
+
+    <!-- ==================== ЭКРАН АВТОРИЗАЦИИ («ДВЕРЬ» В ПРИЛОЖЕНИЕ) ==================== -->
+    <div class="auth-gate-overlay" id="authGateOverlay">
+        <div class="auth-card">
+            <div class="auth-logo">🌴</div>
+            <div class="auth-title">Пхукет: Помощник</div>
+            <div class="auth-subtitle">Войдите в свой профиль или создайте новый</div>
+
+            <div class="auth-mode-tabs">
+                <button class="auth-mode-btn active" id="tabModeLogin" onclick="setAuthMode('login')">🔑 Вход</button>
+                <button class="auth-mode-btn" id="tabModeRegister" onclick="setAuthMode('register')">✨ Регистрация</button>
+            </div>
+
+            <div class="auth-error-msg" id="authErrorBox"></div>
+
+            <div class="auth-field">
+                <label>Ваш никнейм (поддерживается русский и английский)</label>
+                <input type="text" id="gateLoginInput" placeholder="Например: Александр или admin" autocomplete="username" oninput="validateAuthInputsLive()">
+            </div>
+
+            <div class="auth-field">
+                <label>Пароль</label>
+                <input type="password" id="gatePassInput" placeholder="Введите пароль..." autocomplete="current-password" oninput="validateAuthInputsLive()">
+            </div>
+
+            <div class="val-checklist" id="regValidationBox" style="display:none;">
+                <div style="font-weight:700; color:var(--heading); margin-bottom:4px;">Требования к учетной записи:</div>
+                <div class="val-item" id="chkLoginUnique">⚪ Уникальный никнейм (от 2 символов, не занят)</div>
+                <div class="val-item" id="chkPassLen">⚪ Минимум 5 символов</div>
+                <div class="val-item" id="chkPassLetters">⚪ Содержит буквы (русские или латинские)</div>
+                <div class="val-item" id="chkPassDigits">⚪ Содержит цифры (0–9)</div>
+                <div class="val-item" id="chkPassSpec">⚪ Содержит спецсимвол (!@#$%^&* и др.)</div>
+            </div>
+
+            <button class="action-btn" style="width:100%; padding:13px;" id="gateSubmitBtn" onclick="submitAuthGate()">Войти в приложение</button>
+        </div>
+    </div>
+
+    <!-- ==================== ОСНОВНОЙ КОНТЕЙНЕР ПРИЛОЖЕНИЯ ==================== -->
+    <div class="container" id="mainAppContainer">
         <div class="top-header">
-            <h1>🌴 Пхукет: Помощник путешественника</h1>
+            <h1>🌴 Пхукет: Помощник</h1>
             <div class="header-right">
                 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Переключить тему">☀️ Светлая</button>
                 <div class="pwa-badge online" id="networkBadge" title="Статус сети и PWA кэша">● Онлайн</div>
+
+                <!-- Иконка и меню профиля справа сверху -->
+                <div class="profile-menu-wrap" id="profileMenuWrap">
+                    <button class="profile-trigger-btn" onclick="toggleProfileDropdown(event)">
+                        <span class="profile-avatar-sm" id="headerAvatarBox">👤</span>
+                        <span id="headerUsernameLabel">Гость</span>
+                        <span style="font-size:0.65rem; color:var(--muted);">▼</span>
+                    </button>
+
+                    <div class="profile-dropdown" id="profileDropdown">
+                        <div class="pd-header">
+                            <div class="pd-name" id="pdUsername">Гость</div>
+                            <div class="pd-role" id="pdRoleLabel">Путешественник</div>
+                            <div style="font-size:0.68rem; color:var(--success); margin-top:2px;" id="autoSaveStatus">✓ Автосохранение активно</div>
+                        </div>
+                        <button class="pd-item" onclick="openProfileSettingsModal()">⚙️ Настроить профиль</button>
+                        <button class="pd-item" id="pdAdminBtn" style="display:none; color:var(--warning);" onclick="openAdminPanelModal()">🛠️ Настройки сервиса (Админ)</button>
+                        <button class="pd-item danger" onclick="logoutCurrentUser()">🚪 Выйти</button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -314,26 +461,6 @@
 
         <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
         <div id="tab-home" class="tab-content active">
-            
-            <!-- Панель простой авторизации (Логин и Пароль без почты) -->
-            <div class="auth-bar" id="authBar">
-                <div id="authLoggedOutView" style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
-                    <span style="font-size:0.8rem; font-weight:700; color:var(--accent);">🔐 Профиль (автосохранение данных):</span>
-                    <div class="auth-inputs">
-                        <input type="text" id="authLoginInput" placeholder="Логин">
-                        <input type="password" id="authPassInput" placeholder="Пароль">
-                        <button class="auth-btn" onclick="handleUserAuth()">Войти / Создать</button>
-                    </div>
-                </div>
-                <div id="authLoggedInView" style="display:none; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
-                    <div style="font-size:0.82rem;">
-                        👤 Вы вошли как: <b style="color:var(--success);" id="activeUserLabel">Гость</b>
-                        <span style="font-size:0.73rem; color:var(--muted); margin-left:6px;" id="autoSaveStatus">✓ Все изменения сохраняются автоматически</span>
-                    </div>
-                    <button class="auth-btn logout" onclick="handleUserLogout()">🚪 Выйти</button>
-                </div>
-            </div>
-
             <!-- Алерт высокого УФ-индекса -->
             <div id="homeUvAlertBox" class="uv-alert-banner" style="display:none;">
                 <div>
@@ -371,9 +498,8 @@
                 </div>
             </div>
 
-            <!-- 2. Главные сводки (Погода/Закат + Море/Приливы/Волны + Курсы + Бюджет) -->
+            <!-- 2. Главные сводки -->
             <div class="dash-grid">
-                <!-- Карточка Погоды, УФ, Таймера Заката и Смотровых площадок -->
                 <div class="dash-card">
                     <div>
                         <div class="dash-card-head">
@@ -393,7 +519,6 @@
                             </div>
                         </div>
 
-                        <!-- Топ смотровых площадок для заката с ссылками на карты -->
                         <div class="viewpoint-list">
                             <div style="font-size:0.71rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Лучшие места для заката (с точками на карте):</div>
                             <div class="vp-row">
@@ -416,7 +541,6 @@
                     </div>
                 </div>
 
-                <!-- Карточка Моря: Прилив/Отлив, Волны и Купание -->
                 <div class="dash-card">
                     <div>
                         <div class="dash-card-head">
@@ -435,7 +559,6 @@
                     </div>
                 </div>
 
-                <!-- Карточка Курсов Валют -->
                 <div class="dash-card">
                     <div>
                         <div class="dash-card-head">
@@ -451,7 +574,6 @@
                     </div>
                 </div>
 
-                <!-- Карточка Бюджета и Резерва -->
                 <div class="dash-card">
                     <div>
                         <div class="dash-card-head">
@@ -478,10 +600,9 @@
                 <div class="top3-grid" id="homeTop3Beaches"></div>
             </div>
 
-            <!-- 4. Сезонные предупреждения и безопасность -->
+            <!-- 4. Сезонные предупреждения -->
             <div class="seasonal-box" id="homeSeasonalBox"></div>
 
-            <!-- Быстрое обновление всех систем -->
             <div class="actions">
                 <button class="action-btn" id="refreshAllHomeBtn" onclick="refreshAllDashboard()">🔄 Обновить все сводки (Погода, Море, Курсы)</button>
                 <button class="action-btn sync" onclick="downloadServiceWorkerFile()" title="Скачать файл sw.js для размещения в папке с сайтом">📥 Скачать sw.js (PWA Offline)</button>
@@ -490,7 +611,6 @@
 
         <!-- ==================== ВКЛАДКА 1: КАЛЕНДАРЬ И ПЛАНИРОВАНИЕ ИВЕНТОВ ==================== -->
         <div id="tab-schedule" class="tab-content">
-            <!-- Блок дат отпуска и таймер отсчета прямо внутри Планирования -->
             <div class="trip-calendar-box">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
                     <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Даты отпуска и таймер обратного отсчета</span>
@@ -515,7 +635,6 @@
                 </div>
             </div>
 
-            <!-- Сетка календаря с подсветкой дней отпуска и интервалами событий -->
             <div class="box">
                 <div class="cal-header-bar">
                     <div class="cal-nav-group">
@@ -534,7 +653,6 @@
                 <div class="cal-grid" id="calendarGrid"></div>
             </div>
 
-            <!-- Шаг 1 при клике на день: Превью выбранного дня + кнопка «Настроить день» -->
             <div class="day-preview-box" id="dayPreviewBox">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
                     <div>
@@ -546,7 +664,6 @@
                 <div id="previewEventsList" style="font-size:0.83rem; color:var(--desc-text);"></div>
             </div>
 
-            <!-- Шаг 2: Карточка настройки дня (создание и удаление событий с выбором цвета и времени) -->
             <div class="day-editor-modal" id="dayEditorModal">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
                     <h3 style="margin:0; font-size:0.98rem; color:var(--accent);" id="editorModalTitle">Настройка дня</h3>
@@ -590,7 +707,6 @@
                 <button class="action-btn" style="width:100%;" onclick="addCalendarEvent()">➕ Сохранить событие в расписание дня</button>
             </div>
 
-            <!-- Общий список всех запланированных ивентов на поездку -->
             <div class="box" style="margin-top:12px;">
                 <h2><span>📋 Все запланированные события и экскурсии</span></h2>
                 <div id="allEventsSummaryList" style="font-size:0.82rem; color:var(--desc-text);"></div>
@@ -703,7 +819,6 @@
 
         <!-- ==================== ВКЛАДКА 3: ПЛАНИРОВЩИК БЮДЖЕТА (СТАТИЧНАЯ СВОДКА) ==================== -->
         <div id="tab-planner" class="tab-content">
-            <!-- Статичный блок сводки бюджета (не двигается при скролле на телефоне) -->
             <div class="summary-static">
                 <div class="sum-grid">
                     <div class="sum-box">
@@ -926,10 +1041,61 @@
                 </div>
             </div>
         </div>
-
     </div>
 
-    <script>
+    <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКА ПРОФИЛЯ ==================== -->
+    <div class="app-modal-backdrop" id="profileSettingsModal">
+        <div class="app-modal-card">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:1.05rem; color:var(--accent);">⚙️ Настройки профиля</h3>
+                <button class="cal-nav-btn" onclick="closeProfileSettingsModal()">✕</button>
+            </div>
+
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; background:var(--card-alt); padding:10px; border-radius:10px;">
+                <div class="profile-avatar-sm" id="modalAvatarPreview" style="width:52px; height:52px; font-size:1.4rem;">👤</div>
+                <div style="flex:1;">
+                    <div style="font-weight:800; color:var(--heading);" id="modalProfileName">Никнейм</div>
+                    <div style="font-size:0.76rem; color:var(--muted);" id="modalProfileBioPreview">Описание не указано</div>
+                </div>
+            </div>
+
+            <div class="auth-field">
+                <label>Картинка на аватар (ссылка URL или выберите фото с устройства)</label>
+                <input type="text" id="profAvatarUrlInput" placeholder="https://..." oninput="previewProfileAvatar(this.value)">
+                <input type="file" accept="image/*" style="margin-top:6px; font-size:0.78rem;" onchange="uploadProfileAvatarFile(this)">
+            </div>
+
+            <div class="auth-field">
+                <label>Описание о себе (статус / заметка)</label>
+                <textarea id="profBioInput" rows="2" placeholder="Летим на Ката в декабре, любим сифуд и снорклинг!"></textarea>
+            </div>
+
+            <div class="auth-field">
+                <label>Новый пароль (оставьте пустым, если не меняете)</label>
+                <input type="password" id="profNewPassInput" placeholder="Мин. 5 символов: буквы, цифры, спецсимвол">
+            </div>
+
+            <div id="profModalMsg" style="font-size:0.8rem; margin-bottom:10px; display:none;"></div>
+
+            <button class="action-btn" style="width:100%;" onclick="saveProfileSettings()">💾 Сохранить изменения профиля</button>
+        </div>
+    </div>
+
+    <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ СЕРВИСА (АДМИН-ПАНЕЛЬ) ==================== -->
+    <div class="app-modal-backdrop" id="adminPanelModal">
+        <div class="app-modal-card" style="max-width:640px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                <h3 style="margin:0; font-size:1.05rem; color:var(--warning);">🛠️ Управление сервисом (Администратор)</h3>
+                <button class="cal-nav-btn" onclick="closeAdminPanelModal()">✕</button>
+            </div>
+            <div style="font-size:0.78rem; color:var(--muted); margin-bottom:10px;">
+                Список всех зарегистрированных пользователей. Вы можете сбросить/заменить пароль любому участнику или переключиться на редактирование его данных.
+            </div>
+            <div id="adminUsersListContainer"></div>
+        </div>
+    </div>
+<!-- ==================== КОНЕЦ ЧАСТИ 1 (ВСТАВЬТЕ ЧАСТЬ 2 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
+ <script>
         function fmt(num, digits = 2) {
             return num.toLocaleString('ru-RU', {minimumFractionDigits: digits, maximumFractionDigits: digits});
         }
@@ -943,10 +1109,10 @@
             const btn = document.getElementById('themeToggleBtn');
             const meta = document.getElementById('metaThemeColor');
             if (theme === 'light') {
-                btn.innerText = '🌙 Темная';
+                if (btn) btn.innerText = '🌙 Темная';
                 if (meta) meta.setAttribute('content', '#f2f5f9');
             } else {
-                btn.innerText = '☀️ Светлая';
+                if (btn) btn.innerText = '☀️ Светлая';
                 if (meta) meta.setAttribute('content', '#0f1115');
             }
         }
@@ -958,27 +1124,199 @@
             saveUserDataState();
         }
 
-        /* ==================== АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛЬСКОЕ ХРАНИЛИЩЕ ==================== */
-        const USERS_DB_KEY = 'phuket_users_database_v3';
-        const ACTIVE_USER_KEY = 'phuket_active_user_v3';
-        let currentUser = localStorage.getItem(ACTIVE_USER_KEY) || 'guest';
+        /* ==================== ШАГ 1: АВТОРИЗАЦИЯ, ВАЛИДАЦИЯ, РОУТЕР И АДМИН ==================== */
+        const USERS_DB_KEY = 'phuket_users_database_v4';
+        const ACTIVE_SESSION_KEY = 'phuket_active_session_v4';
+
+        let authMode = 'login'; // 'login' | 'register'
+        let currentUser = null; // Никнейм вошедшего пользователя
+        let inspectedUserByAdmin = null; // Выбранный админом профиль для редактирования
         let calendarEvents = {}; // { 'YYYY-MM-DD': [ { id, title, start, end, color, desc } ] }
+
+        // Регулярные выражения для валидации
+        const LOGIN_REGEX = /^[a-zA-Zа-яА-ЯёЁ0-9_\-\s]{2,25}$/;
+        const HAS_LETTER_REGEX = /[a-zA-Zа-яА-ЯёЁ]/;
+        const HAS_DIGIT_REGEX = /[0-9]/;
+        const HAS_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
         function getUsersDb() {
             try {
                 return JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
             } catch (e) { return {}; }
         }
+
         function setUsersDb(db) {
             try {
                 localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
             } catch (e) {}
         }
 
+        // Гарантированное создание учетной записи администратора (admin / Admin!2026)
+        function ensureAdminAccountExists() {
+            const db = getUsersDb();
+            if (!db['admin']) {
+                db['admin'] = {
+                    displayName: 'admin',
+                    password: 'Admin!2026',
+                    role: 'admin',
+                    bio: 'Администратор сервиса Пхукет Помощник',
+                    avatar: '',
+                    createdAt: Date.now(),
+                    data: {}
+                };
+                setUsersDb(db);
+            }
+        }
+
+        function findUserKeyCaseInsensitive(db, nickname) {
+            const target = nickname.trim().toLowerCase();
+            return Object.keys(db).find(k => k.toLowerCase() === target) || null;
+        }
+
+        function validatePasswordRules(pass) {
+            const minLen = pass.length >= 5;
+            const hasLet = HAS_LETTER_REGEX.test(pass);
+            const hasDig = HAS_DIGIT_REGEX.test(pass);
+            const hasSpec = HAS_SPECIAL_REGEX.test(pass);
+            return {
+                minLen, hasLet, hasDig, hasSpec,
+                isValid: minLen && hasLet && hasDig && hasSpec
+            };
+        }
+
+        function setAuthMode(mode) {
+            authMode = mode;
+            document.getElementById('tabModeLogin').classList.toggle('active', mode === 'login');
+            document.getElementById('tabModeRegister').classList.toggle('active', mode === 'register');
+            document.getElementById('regValidationBox').style.display = mode === 'register' ? 'block' : 'none';
+            document.getElementById('gateSubmitBtn').innerText = mode === 'login' ? 'Войти в приложение' : 'Зарегистрироваться и войти';
+            document.getElementById('authErrorBox').style.display = 'none';
+            validateAuthInputsLive();
+        }
+
+        function showAuthError(msg) {
+            const box = document.getElementById('authErrorBox');
+            box.innerText = msg;
+            box.style.display = 'block';
+        }
+
+        function validateAuthInputsLive() {
+            const loginEl = document.getElementById('gateLoginInput');
+            const passEl = document.getElementById('gatePassInput');
+            const login = loginEl.value.trim();
+            const pass = passEl.value;
+            document.getElementById('authErrorBox').style.display = 'none';
+
+            if (authMode === 'login') {
+                loginEl.classList.remove('invalid', 'valid');
+                passEl.classList.remove('invalid', 'valid');
+                return true;
+            }
+
+            const db = getUsersDb();
+            const existingKey = findUserKeyCaseInsensitive(db, login);
+            const isFormatOk = LOGIN_REGEX.test(login);
+            const isUnique = isFormatOk && !existingKey;
+
+            const chkLogin = document.getElementById('chkLoginUnique');
+            if (!login) {
+                chkLogin.className = 'val-item';
+                chkLogin.innerText = '⚪ Уникальный никнейм (рус/лат, от 2 символов)';
+                loginEl.classList.remove('invalid', 'valid');
+            } else if (!isFormatOk) {
+                chkLogin.className = 'val-item err';
+                chkLogin.innerText = '❌ Только русские/латинские буквы и цифры (2–25 симв.)';
+                loginEl.classList.add('invalid');
+                loginEl.classList.remove('valid');
+            } else if (existingKey) {
+                chkLogin.className = 'val-item err';
+                chkLogin.innerText = `❌ Ник «${login}» уже занят! Выберите другой`;
+                loginEl.classList.add('invalid');
+                loginEl.classList.remove('valid');
+            } else {
+                chkLogin.className = 'val-item ok';
+                chkLogin.innerText = `✅ Ник «${login}» свободен`;
+                loginEl.classList.add('valid');
+                loginEl.classList.remove('invalid');
+            }
+
+            const pRules = validatePasswordRules(pass);
+            const setItemState = (id, ok, text) => {
+                const el = document.getElementById(id);
+                el.className = 'val-item ' + (pass ? (ok ? 'ok' : 'err') : '');
+                el.innerText = `${!pass ? '⚪' : (ok ? '✅' : '❌')} ${text}`;
+            };
+
+            setItemState('chkPassLen', pRules.minLen, 'Минимум 5 символов');
+            setItemState('chkPassLetters', pRules.hasLet, 'Содержит буквы (русские или латинские)');
+            setItemState('chkPassDigits', pRules.hasDig, 'Содержит цифры (0–9)');
+            setItemState('chkPassSpec', pRules.hasSpec, 'Содержит спецсимвол (!@#$%^&* и др.)');
+
+            if (pass) {
+                passEl.classList.toggle('valid', pRules.isValid);
+                passEl.classList.toggle('invalid', !pRules.isValid);
+            } else {
+                passEl.classList.remove('valid', 'invalid');
+            }
+
+            return isUnique && pRules.isValid;
+        }
+
+        function submitAuthGate() {
+            ensureAdminAccountExists();
+            const login = document.getElementById('gateLoginInput').value.trim();
+            const pass = document.getElementById('gatePassInput').value;
+            const db = getUsersDb();
+
+            if (!login || !pass) {
+                showAuthError('Пожалуйста, заполните логин и пароль.');
+                return;
+            }
+
+            if (authMode === 'login') {
+                const userKey = findUserKeyCaseInsensitive(db, login);
+                if (!userKey) {
+                    showAuthError('Пользователь с таким ником не найден. Переключитесь на вкладку «Регистрация».');
+                    return;
+                }
+                if (db[userKey].password !== pass) {
+                    showAuthError('Неверный пароль! Проверьте раскладку и регистр.');
+                    return;
+                }
+                completeLoginSession(userKey);
+            } else {
+                if (!LOGIN_REGEX.test(login)) {
+                    showAuthError('Никнейм должен быть от 2 до 25 символов (русские или латинские буквы, цифры).');
+                    return;
+                }
+                if (findUserKeyCaseInsensitive(db, login)) {
+                    showAuthError(`Никнейм «${login}» уже занят! Пожалуйста, выберите другой.`);
+                    return;
+                }
+                const pRules = validatePasswordRules(pass);
+                if (!pRules.isValid) {
+                    showAuthError('Пароль должен содержать минимум 5 символов, включая буквы, цифры и спецсимвол.');
+                    return;
+                }
+
+                db[login] = {
+                    displayName: login,
+                    password: pass,
+                    role: 'user',
+                    bio: '',
+                    avatar: '',
+                    createdAt: Date.now(),
+                    data: collectCurrentInputsState()
+                };
+                setUsersDb(db);
+                completeLoginSession(login);
+            }
+        }
+
         function collectCurrentInputsState() {
             const inputs = {};
-            document.querySelectorAll('input, select').forEach(el => {
-                if (el.id && el.id !== 'authLoginInput' && el.id !== 'authPassInput' && !el.id.startsWith('ev')) {
+            document.querySelectorAll('#mainAppContainer input, #mainAppContainer select').forEach(el => {
+                if (el.id && !el.id.startsWith('ev')) {
                     inputs[el.id] = el.value;
                 }
             });
@@ -990,15 +1328,18 @@
         }
 
         function saveUserDataState() {
+            if (!currentUser) return;
+            const targetKey = inspectedUserByAdmin || currentUser;
             const db = getUsersDb();
-            if (!db[currentUser]) db[currentUser] = { password: '' };
-            db[currentUser].data = collectCurrentInputsState();
+            if (!db[targetKey]) return;
+
+            db[targetKey].data = collectCurrentInputsState();
             setUsersDb(db);
 
             const statusEl = document.getElementById('autoSaveStatus');
             if (statusEl) {
                 const t = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-                statusEl.innerText = `✓ Автосохранено (${t})`;
+                statusEl.innerText = `✓ Сохранено (${t})`;
             }
         }
 
@@ -1028,60 +1369,210 @@
             renderAllEventsSummary();
         }
 
-        function updateAuthUI() {
-            const outView = document.getElementById('authLoggedOutView');
-            const inView = document.getElementById('authLoggedInView');
-            const lbl = document.getElementById('activeUserLabel');
-            if (currentUser && currentUser !== 'guest') {
-                outView.style.display = 'none';
-                inView.style.display = 'flex';
-                lbl.innerText = currentUser;
+        function completeLoginSession(userKey) {
+            currentUser = userKey;
+            inspectedUserByAdmin = null;
+            localStorage.setItem(ACTIVE_SESSION_KEY, currentUser);
+
+            document.getElementById('gateLoginInput').value = '';
+            document.getElementById('gatePassInput').value = '';
+            document.getElementById('authGateOverlay').classList.add('hidden');
+            document.getElementById('mainAppContainer').classList.add('authenticated');
+
+            loadUserDataState(currentUser);
+            renderHeaderProfileUI();
+            switchTab('home');
+        }
+
+        function logoutCurrentUser() {
+            saveUserDataState();
+            currentUser = null;
+            inspectedUserByAdmin = null;
+            localStorage.removeItem(ACTIVE_SESSION_KEY);
+
+            document.getElementById('profileDropdown').classList.remove('open');
+            document.getElementById('mainAppContainer').classList.remove('authenticated');
+            document.getElementById('authGateOverlay').classList.remove('hidden');
+            setAuthMode('login');
+        }
+
+        /* ==================== МЕНЮ ПРОФИЛЯ И АДМИН-ПАНЕЛЬ ==================== */
+        function renderHeaderProfileUI() {
+            if (!currentUser) return;
+            const db = getUsersDb();
+            const u = db[currentUser] || {};
+            const isAdmin = u.role === 'admin' || currentUser.toLowerCase() === 'admin';
+
+            const targetLabel = inspectedUserByAdmin && isAdmin
+                ? `${u.displayName || currentUser} (правки: ${inspectedUserByAdmin})`
+                : (u.displayName || currentUser);
+
+            document.getElementById('headerUsernameLabel').innerText = targetLabel;
+            document.getElementById('pdUsername').innerText = u.displayName || currentUser;
+            document.getElementById('pdRoleLabel').innerText = isAdmin ? '🛡️ Администратор сервиса' : (u.bio || 'Путешественник');
+            document.getElementById('pdAdminBtn').style.display = isAdmin ? 'flex' : 'none';
+
+            const avBox = document.getElementById('headerAvatarBox');
+            if (u.avatar) {
+                avBox.innerHTML = `<img src="${u.avatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
             } else {
-                outView.style.display = 'flex';
-                inView.style.display = 'none';
+                avBox.innerText = (u.displayName || currentUser).charAt(0).toUpperCase();
             }
         }
 
-        function handleUserAuth() {
-            const login = document.getElementById('authLoginInput').value.trim();
-            const pass = document.getElementById('authPassInput').value.trim();
-            if (!login || !pass) {
-                alert('Введите логин и пароль.');
+        function toggleProfileDropdown(e) {
+            e.stopPropagation();
+            document.getElementById('profileDropdown').classList.toggle('open');
+        }
+
+        document.addEventListener('click', (e) => {
+            const wrap = document.getElementById('profileMenuWrap');
+            const dd = document.getElementById('profileDropdown');
+            if (wrap && dd && !wrap.contains(e.target)) {
+                dd.classList.remove('open');
+            }
+        });
+
+        function openProfileSettingsModal() {
+            document.getElementById('profileDropdown').classList.remove('open');
+            const db = getUsersDb();
+            const u = db[currentUser] || {};
+
+            document.getElementById('modalProfileName').innerText = u.displayName || currentUser;
+            document.getElementById('modalProfileBioPreview').innerText = u.bio || 'Описание пока не добавлено';
+            document.getElementById('profAvatarUrlInput').value = u.avatar || '';
+            document.getElementById('profBioInput').value = u.bio || '';
+            document.getElementById('profNewPassInput').value = '';
+            document.getElementById('profModalMsg').style.display = 'none';
+
+            previewProfileAvatar(u.avatar || '');
+            document.getElementById('profileSettingsModal').classList.add('open');
+        }
+
+        function closeProfileSettingsModal() {
+            document.getElementById('profileSettingsModal').classList.remove('open');
+        }
+
+        function previewProfileAvatar(url) {
+            const box = document.getElementById('modalAvatarPreview');
+            if (url && url.trim()) {
+                box.innerHTML = `<img src="${url.trim()}" style="width:100%;height:100%;object-fit:cover;">`;
+            } else {
+                box.innerText = (currentUser || 'U').charAt(0).toUpperCase();
+            }
+        }
+
+        function uploadProfileAvatarFile(inputEl) {
+            const file = inputEl.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                const dataUrl = ev.target.result;
+                document.getElementById('profAvatarUrlInput').value = dataUrl;
+                previewProfileAvatar(dataUrl);
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function saveProfileSettings() {
+            const db = getUsersDb();
+            const u = db[currentUser];
+            if (!u) return;
+
+            const newAvatar = document.getElementById('profAvatarUrlInput').value.trim();
+            const newBio = document.getElementById('profBioInput').value.trim();
+            const newPass = document.getElementById('profNewPassInput').value;
+            const msgEl = document.getElementById('profModalMsg');
+
+            if (newPass) {
+                const pRules = validatePasswordRules(newPass);
+                if (!pRules.isValid) {
+                    msgEl.style.display = 'block';
+                    msgEl.style.color = 'var(--danger)';
+                    msgEl.innerText = '❌ Новый пароль должен быть от 5 символов и включать буквы, цифры и спецсимвол!';
+                    return;
+                }
+                u.password = newPass;
+            }
+
+            u.avatar = newAvatar;
+            u.bio = newBio;
+            setUsersDb(db);
+            renderHeaderProfileUI();
+
+            msgEl.style.display = 'block';
+            msgEl.style.color = 'var(--success)';
+            msgEl.innerText = '✅ Профиль успешно сохранен!';
+            setTimeout(() => closeProfileSettingsModal(), 800);
+        }
+
+        function openAdminPanelModal() {
+            document.getElementById('profileDropdown').classList.remove('open');
+            renderAdminUsersList();
+            document.getElementById('adminPanelModal').classList.add('open');
+        }
+
+        function closeAdminPanelModal() {
+            document.getElementById('adminPanelModal').classList.remove('open');
+        }
+
+        function renderAdminUsersList() {
+            const db = getUsersDb();
+            const container = document.getElementById('adminUsersListContainer');
+            const keys = Object.keys(db);
+
+            container.innerHTML = keys.map(uKey => {
+                const u = db[uKey];
+                const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '327000';
+                const isBeingEdited = (inspectedUserByAdmin || currentUser) === uKey;
+                return `
+                    <div class="admin-user-row" style="${isBeingEdited ? 'border-color:var(--success);' : ''}">
+                        <div>
+                            <div style="font-weight:800; color:var(--heading);">
+                                👤 ${u.displayName || uKey} ${u.role === 'admin' ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">
+                                Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b>
+                            </div>
+                            ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text);">О себе: ${u.bio}</div>` : ''}
+                        </div>
+                        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            <button class="link-btn" onclick="adminResetUserPassword('${uKey}')">🔑 Сбросить/Изменить пароль</button>
+                            <button class="link-btn" style="color:var(--success); border-color:var(--success);" onclick="adminSwitchToUserContext('${uKey}')">
+                                ${isBeingEdited ? '✓ Активен для правок' : '✏️ Редактировать раздел'}
+                            </button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function adminResetUserPassword(targetKey) {
+            const newPass = prompt(`Введите новый пароль для пользователя «${targetKey}» (минимум 5 символов, буквы, цифры и спецсимвол):`, 'Temp!12345');
+            if (!newPass) return;
+            const pRules = validatePasswordRules(newPass);
+            if (!pRules.isValid) {
+                alert('Пароль должен содержать минимум 5 символов, буквы, цифры и спецсимвол!');
                 return;
             }
             const db = getUsersDb();
-            if (db[login]) {
-                if (db[login].password !== pass) {
-                    alert('Неверный пароль для этого пользователя!');
-                    return;
-                }
-                currentUser = login;
-                localStorage.setItem(ACTIVE_USER_KEY, currentUser);
-                loadUserDataState(currentUser);
-            } else {
-                // Создаем нового пользователя и переносим в него текущие настройки экрана
-                db[login] = {
-                    password: pass,
-                    data: collectCurrentInputsState()
-                };
+            if (db[targetKey]) {
+                db[targetKey].password = newPass;
                 setUsersDb(db);
-                currentUser = login;
-                localStorage.setItem(ACTIVE_USER_KEY, currentUser);
+                renderAdminUsersList();
+                alert(`Пароль пользователя «${targetKey}» успешно изменен на: ${newPass}`);
             }
-            document.getElementById('authLoginInput').value = '';
-            document.getElementById('authPassInput').value = '';
-            updateAuthUI();
         }
 
-        function handleUserLogout() {
+        function adminSwitchToUserContext(targetKey) {
             saveUserDataState();
-            currentUser = 'guest';
-            localStorage.setItem(ACTIVE_USER_KEY, 'guest');
-            loadUserDataState('guest');
-            updateAuthUI();
+            inspectedUserByAdmin = (targetKey === currentUser) ? null : targetKey;
+            loadUserDataState(inspectedUserByAdmin || currentUser);
+            renderHeaderProfileUI();
+            renderAdminUsersList();
         }
 
-        // Кэш состояния для работы оффлайн без интернета
+        /* ==================== КЭШ И РОУТЕР ВКЛАДОК ==================== */
         const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v2';
         function saveOfflineCache(section, payload) {
             try {
@@ -1097,8 +1588,13 @@
             } catch (e) { return null; }
         }
 
-        // Переключение 6 вкладок
         function switchTab(tab) {
+            if (!currentUser) {
+                document.getElementById('mainAppContainer').classList.remove('authenticated');
+                document.getElementById('authGateOverlay').classList.remove('hidden');
+                return;
+            }
+
             ['home', 'schedule', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', t === tab);
@@ -1130,9 +1626,9 @@
             }
         }
 
-        /* ==================== СИНХРОНИЗАЦИЯ ДАТ ОТПУСКА И КАЛЕНДАРЬ ПЛАНИРОВАНИЯ ==================== */
+        /* ==================== КАЛЕНДАРЬ ПЛАНИРОВАНИЯ И СОБЫТИЯ ==================== */
         let calViewYear = 2026;
-        let calViewMonth = 11; // 0..11 (11 = Декабрь)
+        let calViewMonth = 11;
         let selectedDateIso = '2026-12-16';
         let selectedEventColor = '#007aff';
 
@@ -1186,8 +1682,8 @@
 
             const firstDayOfMonth = new Date(calViewYear, calViewMonth, 1);
             const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
-            let startWeekDay = firstDayOfMonth.getDay(); // 0 (Вс) .. 6 (Сб)
-            startWeekDay = startWeekDay === 0 ? 6 : startWeekDay - 1; // 0 = Пн .. 6 = Вс
+            let startWeekDay = firstDayOfMonth.getDay();
+            startWeekDay = startWeekDay === 0 ? 6 : startWeekDay - 1;
 
             const todayIso = new Date().toISOString().slice(0, 10);
             let html = '';
@@ -1310,7 +1806,8 @@
                 start,
                 end,
                 color: selectedEventColor,
-                desc
+                desc,
+                author: currentUser || 'Гость'
             });
 
             document.getElementById('evTitleInput').value = '';
@@ -1422,7 +1919,6 @@
             switchTab('planner');
         }
 
-        // Астрономический расчет времени восхода и заката + обратный отсчет до заката и рассвета по Пхукету (UTC+7)
         function calcPhuketSunTimes(dateObj = new Date()) {
             const start = new Date(dateObj.getFullYear(), 0, 0);
             const dayOfYear = Math.floor((dateObj - start) / 86400000);
@@ -1437,7 +1933,7 @@
 
             const sunriseH = solarNoonLocal - halfDayHours;
             const sunsetH = solarNoonLocal + halfDayHours;
-            const viewpointH = sunsetH - 0.75; // за 45 минут до заката
+            const viewpointH = sunsetH - 0.75;
 
             const fmtTime = (hFloat) => {
                 const totalMin = Math.round(hFloat * 60);
@@ -1528,7 +2024,7 @@
             if (elWeather) elWeather.innerHTML = html;
         }
 
-        /* ==================== ЛОГИКА ПРИЛИВОВ, ОТЛИВОВ, ВОЛН И ПЛЯЖЕЙ ==================== */
+        /* ==================== ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ПЛЯЖИ ==================== */
         const westBeaches = [
             {
                 id: 'kata',
@@ -2032,7 +2528,7 @@
             }
         }
 
-        /* ==================== ЛОГИКА ПОГОДЫ, УФ-АЛЕРТА, ЗАКАТА И WINDY ==================== */
+        /* ==================== ПОГОДА, УФ-АЛЕРТ, ЗАКАТ И РАДАР WINDY ==================== */
         const phuketDistricts = {
             kata: {
                 name: 'Ката (Kata Beach)',
@@ -2378,6 +2874,7 @@
             }
         }
 
+        /* ==================== КУРСЫ ВАЛЮТ И ОФИЦИАЛЬНЫЙ БЕНЧМАРК ==================== */
         function copyFromExchangeTab() {
             document.getElementById('plan_budget').value = document.getElementById('budget').value;
             document.getElementById('plan_currency').value = document.getElementById('currency').value;
@@ -2683,7 +3180,7 @@
             });
         }
 
-        /* ==================== ЛОГИКА ПЛАНИРОВЩИКА БЮДЖЕТА ==================== */
+        /* ==================== ПЛАНИРОВЩИК БЮДЖЕТА ==================== */
         const categoriesData = [
             {
                 id: 'food_daily', icon: '🍜', name: 'Еда на каждый день (кафе, стритфуд, фудкорты)', maxThb: 60000, step: 500, val: 23000,
@@ -2979,7 +3476,7 @@
 
         /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v3';
+const CACHE_NAME = 'phuket-pwa-cache-v4';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -3046,7 +3543,7 @@ self.addEventListener('fetch', (event) => {
                 });
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v3').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v4').then(cache => cache.add(location.href)).catch(() => {});
             }
 
             const updateNetStatus = () => {
@@ -3064,10 +3561,11 @@ self.addEventListener('fetch', (event) => {
             updateNetStatus();
         }
 
-        // Инициализация приложения
+        // Инициализация приложения и проверка авторизации («Дверь» при входе)
         (function initApp() {
             initPlannerUI();
             initPwaAndOfflineSupport();
+            ensureAdminAccountExists();
 
             if (window.Telegram && window.Telegram.WebApp) {
                 const tg = window.Telegram.WebApp;
@@ -3079,22 +3577,39 @@ self.addEventListener('fetch', (event) => {
                 } catch (e) {}
             }
 
-            updateAuthUI();
-            loadUserDataState(currentUser);
+            // Поддержка нажатия Enter в полях окна авторизации
+            ['gateLoginInput', 'gatePassInput'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    el.addEventListener('keydown', (e) => {
+                        if (e.key === 'Enter') submitAuthGate();
+                    });
+                }
+            });
 
-            // Мгновенное автосохранение при любом вводе или изменении селектов
+            // Проверяем сохраненную сессию
+            const savedSessionUser = localStorage.getItem(ACTIVE_SESSION_KEY);
+            const db = getUsersDb();
+            if (savedSessionUser && db[savedSessionUser]) {
+                completeLoginSession(savedSessionUser);
+            } else {
+                document.getElementById('mainAppContainer').classList.remove('authenticated');
+                document.getElementById('authGateOverlay').classList.remove('hidden');
+            }
+
+            // Мгновенное автосохранение за текущим пользователем при любом вводе
             document.addEventListener('input', (e) => {
-                if (e.target && e.target.id && !e.target.id.startsWith('auth') && !e.target.id.startsWith('ev')) {
+                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev')) {
                     saveUserDataState();
                 }
             });
             document.addEventListener('change', (e) => {
-                if (e.target && e.target.id && !e.target.id.startsWith('auth') && !e.target.id.startsWith('ev')) {
+                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev')) {
                     saveUserDataState();
                 }
             });
 
-            // Запуск сводок на Главной странице
+            // Фоновое обновление сводок
             updateTripCountdown();
             renderSeasonalWarnings();
             renderCalendarGrid();
