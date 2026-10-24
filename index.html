@@ -1,45 +1,88 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="theme-color" content="#0f1115">
+    <meta name="theme-color" content="#0f1115" id="metaThemeColor">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Phuket Helper">
     <link id="pwaManifestLink" rel="manifest" href="">
-    <title>Пхукет: Дашборд, Курсы, Пляжи и Погода</title>
+    <title>Пхукет: Дашборд, Планировщик, Курсы и Погода</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg: #0f1115; --card: #181b21; --card-alt: #13161c; --accent: #007aff;
-            --text: #e6e8eb; --muted: #8b949e; --success: #34c759; --warning: #ff9f0a; --danger: #ff3b30;
+            --bg: #0f1115;
+            --card: #181b21;
+            --card-alt: #13161c;
+            --input-bg: #0f1115;
+            --accent: #007aff;
+            --text: #e6e8eb;
+            --heading: #ffffff;
+            --muted: #8b949e;
+            --desc-text: #c9d1d9;
+            --success: #34c759;
+            --warning: #ff9f0a;
+            --danger: #ff3b30;
             --border: #282e39;
+            --input-border: #363d49;
+            --btn-sec-bg: #21262d;
+            --hero-grad: linear-gradient(145deg, #171d29, #13161f);
+            --chart-bg: #0d1016;
         }
+
+        [data-theme="light"] {
+            --bg: #f2f5f9;
+            --card: #ffffff;
+            --card-alt: #e9eef5;
+            --input-bg: #f8fafc;
+            --accent: #0066dc;
+            --text: #1c2026;
+            --heading: #0f1419;
+            --muted: #5c6672;
+            --desc-text: #2e3640;
+            --success: #1f9d45;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --border: #d5dce6;
+            --input-border: #c2cbd6;
+            --btn-sec-bg: #e2e8f0;
+            --hero-grad: linear-gradient(145deg, #e8f0fe, #f1f5f9);
+            --chart-bg: #f8fafc;
+        }
+
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; }
-        .container { max-width: 740px; margin: 0 auto; padding-bottom: 45px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; transition: background 0.25s, color 0.25s; }
+        .container { max-width: 760px; margin: 0 auto; padding-bottom: 45px; }
         
         .top-header { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 10px 0; gap: 8px; flex-wrap: wrap; }
-        h1 { font-size: 1.2rem; margin: 0; }
-        .pwa-badge { font-size: 0.72rem; padding: 4px 9px; border-radius: 20px; background: #1c212b; border: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; gap: 5px; }
+        h1 { font-size: 1.15rem; margin: 0; color: var(--heading); }
+        .header-right { display: flex; align-items: center; gap: 6px; }
+        .pwa-badge { font-size: 0.71rem; padding: 4px 9px; border-radius: 20px; background: var(--card); border: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; gap: 5px; }
         .pwa-badge.online { color: var(--success); border-color: rgba(52, 199, 89, 0.35); }
         .pwa-badge.offline { color: var(--warning); border-color: rgba(255, 159, 10, 0.45); background: rgba(255, 159, 10, 0.1); }
+        .theme-toggle-btn { background: var(--card); border: 1px solid var(--border); color: var(--text); border-radius: 20px; padding: 4px 10px; font-size: 0.75rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 4px; transition: all 0.2s; }
+        .theme-toggle-btn:hover { border-color: var(--accent); }
 
-        /* Навигация на 5 вкладок */
+        /* Навигация на 6 вкладок */
         .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--card-alt); padding: 6px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 14px; }
-        .tabs .tab-btn:first-child { grid-column: span 2; }
-        @media (min-width: 620px) {
-            .tabs { grid-template-columns: repeat(5, 1fr); }
-            .tabs .tab-btn:first-child { grid-column: span 1; }
+        @media (min-width: 640px) {
+            .tabs { grid-template-columns: repeat(6, 1fr); }
         }
-        .tab-btn { padding: 9px 6px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.81rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
+        .tab-btn { padding: 9px 6px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.79rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
         .tab-btn:hover { color: var(--text); }
         .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.35); }
 
         .tab-content { display: none; }
         .tab-content.active { display: block; animation: fadeIn 0.22s ease; }
         @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Панель авторизации (Логин/Пароль) */
+        .auth-bar { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 10px 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .auth-inputs { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; flex: 1; }
+        .auth-inputs input { background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text); padding: 6px 9px; border-radius: 6px; font-size: 0.82rem; width: 130px; outline: none; }
+        .auth-btn { padding: 6px 11px; border-radius: 6px; font-size: 0.78rem; font-weight: 600; cursor: pointer; border: none; background: var(--accent); color: #fff; }
+        .auth-btn.logout { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.35); }
 
         /* Главная страница (Дашборд) */
         .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
@@ -48,6 +91,12 @@
         .dash-card-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
         .dash-goto { background: rgba(0, 122, 255, 0.14); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; padding: 3px 8px; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
         .dash-goto:hover { background: rgba(0, 122, 255, 0.25); }
+
+        /* Ссылки на закатные смотровые площадки */
+        .viewpoint-list { margin-top: 8px; padding-top: 7px; border-top: 1px dashed var(--border); display: flex; flex-direction: column; gap: 5px; }
+        .vp-row { display: flex; justify-content: space-between; align-items: center; font-size: 0.75rem; background: var(--card-alt); padding: 4px 8px; border-radius: 6px; }
+        .vp-link { color: var(--accent); text-decoration: none; font-weight: 700; font-size: 0.73rem; white-space: nowrap; }
+        .vp-link:hover { text-decoration: underline; }
 
         /* УФ Алерт */
         .uv-alert-banner { background: linear-gradient(135deg, rgba(255, 59, 48, 0.22), rgba(255, 159, 10, 0.18)); border: 1px solid var(--danger); border-left: 5px solid var(--danger); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; animation: uvPulse 2.2s infinite; }
@@ -59,81 +108,110 @@
         .w-card.uv-warn { background: rgba(255, 159, 10, 0.14); border-color: var(--warning); }
 
         /* Календарь поездки */
-        .trip-calendar-box { background: linear-gradient(145deg, #171d29, #13161f); border: 1px solid #2d384c; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .trip-calendar-box { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
         .trip-countdown-badge { background: rgba(52, 199, 89, 0.12); border: 1px solid rgba(52, 199, 89, 0.35); border-radius: 9px; padding: 10px 12px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
-        input[type="date"] { background: var(--bg); border: 1px solid #363d49; color: var(--text); padding: 7px 9px; border-radius: 6px; font-size: 0.88rem; width: 100%; font-family: inherit; color-scheme: dark; }
+        input[type="date"], input[type="time"], input[type="text"], input[type="password"], textarea { background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text); padding: 7px 9px; border-radius: 6px; font-size: 0.88rem; width: 100%; font-family: inherit; outline: none; }
+        input[type="date"]:focus, input[type="time"]:focus, input[type="text"]:focus, textarea:focus { border-color: var(--accent); }
 
         /* Сезонные предупреждения и Топ-3 пляжа */
         .seasonal-box { background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.35); border-left: 4px solid var(--warning); border-radius: 10px; padding: 11px 13px; margin-bottom: 12px; font-size: 0.81rem; line-height: 1.42; }
         .top3-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
         @media (max-width: 580px) { .top3-grid { grid-template-columns: 1fr; } }
-        .top3-item { background: var(--card-alt); border: 1px solid #2b3342; border-top: 3px solid var(--success); border-radius: 9px; padding: 9px 10px; font-size: 0.79rem; }
+        .top3-item { background: var(--card-alt); border: 1px solid var(--border); border-top: 3px solid var(--success); border-radius: 9px; padding: 9px 10px; font-size: 0.79rem; }
 
         /* Официальный кросс-курс (бенчмарк) */
-        .forex-benchmark { background: linear-gradient(145deg, #151a24, #12151d); border: 1px solid #2c364a; border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.82rem; }
+        .forex-benchmark { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.82rem; }
         .spread-tag { display: inline-block; padding: 2px 6px; border-radius: 5px; font-size: 0.73rem; font-weight: 600; background: rgba(255, 159, 10, 0.14); color: var(--warning); margin-left: 6px; }
         .spread-tag.good { background: rgba(52, 199, 89, 0.14); color: var(--success); }
 
+        /* ==================== СТИЛИ ВКЛАДКИ ПЛАНИРОВАНИЯ (КАЛЕНДАРЬ И ИВЕНТЫ) ==================== */
+        .cal-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; gap: 8px; flex-wrap: wrap; }
+        .cal-nav-group { display: flex; align-items: center; gap: 6px; }
+        .cal-nav-btn { background: var(--btn-sec-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 7px; padding: 6px 11px; font-size: 0.82rem; font-weight: 700; cursor: pointer; }
+        .cal-nav-btn:hover { border-color: var(--accent); }
+        .cal-month-title { font-size: 1rem; font-weight: 800; color: var(--heading); min-width: 145px; text-align: center; text-transform: capitalize; }
+        
+        .cal-weekdays { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; text-align: center; font-size: 0.72rem; font-weight: 700; color: var(--muted); margin-bottom: 4px; }
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+        .cal-cell { min-height: 68px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; justify-content: flex-start; cursor: pointer; position: relative; transition: all 0.15s; overflow: hidden; }
+        .cal-cell:hover { border-color: var(--accent); }
+        .cal-cell.empty { background: transparent; border-color: transparent; cursor: default; min-height: 20px; }
+        .cal-cell.in-vacation { background: rgba(0, 122, 255, 0.13); border-color: rgba(0, 122, 255, 0.38); }
+        .cal-cell.is-today { box-shadow: inset 0 0 0 1.5px var(--warning); }
+        .cal-cell.selected { border: 2px solid var(--success); box-shadow: 0 0 10px rgba(52, 199, 89, 0.25); }
+        .cal-day-num { font-size: 0.78rem; font-weight: 700; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
+        .cal-vac-tag { font-size: 0.62rem; color: var(--accent); font-weight: 700; }
+        .cal-ev-pill { font-size: 0.62rem; font-weight: 600; color: #fff; padding: 2px 4px; border-radius: 4px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.15; }
+        .cal-ev-more { font-size: 0.62rem; color: var(--muted); font-weight: 700; text-align: center; }
+
+        /* Панель превью выбранного дня и модалка настройки дня */
+        .day-preview-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px; margin-top: 12px; }
+        .day-editor-modal { display: none; background: var(--card); border: 2px solid var(--accent); border-radius: 12px; padding: 15px; margin-top: 12px; box-shadow: 0 10px 30px rgba(0,0,0,0.45); animation: fadeIn 0.2s ease; }
+        .day-editor-modal.open { display: block; }
+        .color-picker-row { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+        .color-dot { width: 26px; height: 26px; border-radius: 50%; cursor: pointer; border: 2px solid transparent; transition: transform 0.15s; }
+        .color-dot.active { transform: scale(1.18); border-color: var(--heading); }
+        .ev-list-item { background: var(--card-alt); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
+        .ev-del-btn { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+
         /* Стили Вкладки 3: Приливы, Отливы и Пляжи */
-        .tide-hero { background: linear-gradient(145deg, #161c28, #12151e); border: 1px solid #2b3548; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
+        .tide-hero { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
         .tide-now-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
-        .tide-stat { background: rgba(15, 17, 21, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 9px; text-align: center; }
+        .tide-stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 9px; text-align: center; }
         .tide-stat-lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 3px; }
         .tide-stat-val { font-size: 0.96rem; font-weight: 700; color: var(--text); }
-        .tide-chart-box { margin-top: 12px; background: #0d1016; border: 1px solid #232a36; border-radius: 8px; padding: 10px; }
+        .tide-chart-box { margin-top: 12px; background: var(--chart-bg); border: 1px solid var(--border); border-radius: 8px; padding: 10px; }
         .extremes-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
         @media (min-width: 520px) { .extremes-row { grid-template-columns: repeat(4, 1fr); } }
         .ext-badge { background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 2px; }
         .ext-badge b { font-size: 0.9rem; }
 
         .swim-verdict-banner { padding: 8px 11px; border-radius: 8px; font-size: 0.81rem; font-weight: 600; margin-bottom: 9px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
-        .swim-yes { background: rgba(52, 199, 89, 0.14); border: 1px solid rgba(52, 199, 89, 0.38); color: #4cd964; }
-        .swim-caution { background: rgba(255, 159, 10, 0.14); border: 1px solid rgba(255, 159, 10, 0.38); color: #ff9f0a; }
-        .swim-no { background: rgba(255, 59, 48, 0.16); border: 1px solid rgba(255, 59, 48, 0.45); color: #ff5b52; }
+        .swim-yes { background: rgba(52, 199, 89, 0.14); border: 1px solid rgba(52, 199, 89, 0.38); color: var(--success); }
+        .swim-caution { background: rgba(255, 159, 10, 0.14); border: 1px solid rgba(255, 159, 10, 0.38); color: var(--warning); }
+        .swim-no { background: rgba(255, 59, 48, 0.16); border: 1px solid rgba(255, 59, 48, 0.45); color: var(--danger); }
 
-        .beach-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); transition: border-color 0.2s; }
-        .beach-card:hover { border-color: #3e4859; }
+        .beach-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); transition: border-color 0.2s; }
         .beach-header { display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-        .beach-title { font-size: 1.05rem; font-weight: 700; color: #fff; }
+        .beach-title { font-size: 1.05rem; font-weight: 700; color: var(--heading); }
         .beach-sub { font-size: 0.76rem; color: var(--muted); margin-top: 2px; }
         .status-pill { padding: 4px 9px; border-radius: 20px; font-size: 0.74rem; font-weight: 700; white-space: nowrap; }
-        .pill-good { background: rgba(52, 199, 89, 0.16); color: #4cd964; border: 1px solid rgba(52, 199, 89, 0.35); }
-        .pill-warn { background: rgba(255, 159, 10, 0.16); color: #ff9f0a; border: 1px solid rgba(255, 159, 10, 0.35); }
-        .pill-bad { background: rgba(255, 59, 48, 0.16); color: #ff5b52; border: 1px solid rgba(255, 59, 48, 0.35); }
+        .pill-good { background: rgba(52, 199, 89, 0.16); color: var(--success); border: 1px solid rgba(52, 199, 89, 0.35); }
+        .pill-warn { background: rgba(255, 159, 10, 0.16); color: var(--warning); border: 1px solid rgba(255, 159, 10, 0.35); }
+        .pill-bad { background: rgba(255, 59, 48, 0.16); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.35); }
 
-        .beach-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card-alt); padding: 8px 10px; border-radius: 8px; border: 1px solid #222630; margin-bottom: 10px; font-size: 0.78rem; }
+        .beach-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; background: var(--card-alt); padding: 8px 10px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 10px; font-size: 0.78rem; }
         .bm-item { display: flex; flex-direction: column; }
         .bm-lbl { font-size: 0.68rem; color: var(--muted); }
         .bm-val { font-weight: 700; color: var(--text); margin-top: 1px; }
 
-        .beach-desc { font-size: 0.81rem; color: #c9d1d9; line-height: 1.4; margin-bottom: 10px; }
-        .beach-expand-btn { width: 100%; padding: 9px; background: #21262f; color: var(--accent); border: 1px solid #323a48; border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
-        .beach-expand-btn:hover { background: #282f3b; }
+        .beach-desc { font-size: 0.81rem; color: var(--desc-text); line-height: 1.4; margin-bottom: 10px; }
+        .beach-expand-btn { width: 100%; padding: 9px; background: var(--btn-sec-bg); color: var(--accent); border: 1px solid var(--border); border-radius: 8px; font-size: 0.82rem; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: background 0.2s; }
         .beach-details { display: none; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--border); animation: fadeIn 0.25s ease; }
         .beach-details.open { display: block; }
-        .map-frame { width: 100%; height: 220px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #0f1115; margin-top: 8px; }
+        .map-frame { width: 100%; height: 220px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: var(--input-bg); margin-top: 8px; }
         .map-links { display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap; }
         .map-link-a { flex: 1; text-align: center; padding: 7px 10px; background: rgba(0, 122, 255, 0.14); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; font-size: 0.78rem; font-weight: 600; text-decoration: none; }
 
         /* Стили Вкладки 4: Погода и Windy */
-        .district-selector-box { background: linear-gradient(145deg, #181d27, #14171f); border: 1px solid #2e384b; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-        .district-select { background: #0f1115 !important; border: 1px solid var(--accent) !important; color: #fff !important; font-size: 0.96rem !important; font-weight: 600; padding: 11px 12px !important; border-radius: 8px !important; cursor: pointer; width: 100%; }
+        .district-selector-box { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .district-select { background: var(--input-bg) !important; border: 1px solid var(--accent) !important; color: var(--text) !important; font-size: 0.94rem !important; font-weight: 600; padding: 10px 12px !important; border-radius: 8px !important; cursor: pointer; width: 100%; }
         .weather-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
         @media (max-width: 520px) { .weather-grid { grid-template-columns: repeat(2, 1fr); } }
         .w-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transition: all 0.2s; }
         .w-lbl { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
-        .w-val { font-size: 1.02rem; font-weight: 700; color: #fff; }
+        .w-val { font-size: 1.02rem; font-weight: 700; color: var(--heading); }
         .w-sub { font-size: 0.71rem; color: var(--muted); margin-top: 2px; }
         .verdict-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 10px; padding: 13px 15px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.45; }
-        .verdict-box h3 { margin: 0 0 6px 0; font-size: 0.94rem; color: #fff; display: flex; align-items: center; gap: 6px; }
+        .verdict-box h3 { margin: 0 0 6px 0; font-size: 0.94rem; color: var(--heading); display: flex; align-items: center; gap: 6px; }
         .windy-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
         .windy-layer-btns { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 10px; }
-        .layer-btn { flex: 1; min-width: 90px; padding: 7px 8px; background: #21262d; color: var(--text); border: 1px solid #363d49; border-radius: 6px; font-size: 0.76rem; font-weight: 600; cursor: pointer; }
+        .layer-btn { flex: 1; min-width: 90px; padding: 7px 8px; background: var(--btn-sec-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 6px; font-size: 0.76rem; font-weight: 600; cursor: pointer; }
         .layer-btn.active { background: var(--accent); color: #fff; border-color: var(--accent); }
         .hourly-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-top: 8px; }
         .h-pill { min-width: 74px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; text-align: center; font-size: 0.76rem; flex-shrink: 0; }
 
-        .status-bar { text-align: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; padding: 8px 12px; background: #14171d; border-radius: 8px; border: 1px solid var(--border); line-height: 1.4; transition: all 0.3s; }
+        .status-bar { text-align: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; padding: 8px 12px; background: var(--card-alt); border-radius: 8px; border: 1px solid var(--border); line-height: 1.4; transition: all 0.3s; }
         .status-bar.active { border-color: var(--success); color: var(--text); }
         
         .box { background: var(--card); border: 1px solid var(--border); padding: 14px; border-radius: 12px; margin-bottom: 12px; }
@@ -142,7 +220,7 @@
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .field { display: flex; flex-direction: column; }
         label { font-size: 0.72rem; color: var(--muted); margin-bottom: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        input[type="number"], select { background: var(--bg); border: 1px solid #363d49; color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 0.92rem; outline: none; width: 100%; transition: border-color 0.2s, box-shadow 0.2s; }
+        input[type="number"], select { background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text); padding: 8px 10px; border-radius: 6px; font-size: 0.92rem; outline: none; width: 100%; transition: border-color 0.2s, box-shadow 0.2s; }
         input[type="number"]:focus, select:focus { border-color: var(--accent); }
         input.updated { border-color: var(--success); box-shadow: 0 0 8px rgba(52, 199, 89, 0.35); }
         
@@ -150,7 +228,7 @@
         button.action-btn { flex: 1; min-width: 180px; padding: 11px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
         button.action-btn:hover { opacity: 0.92; }
         button.action-btn:active { transform: scale(0.98); }
-        button.action-btn.sync { background: #21262d; color: var(--text); border: 1px solid #363d49; }
+        button.action-btn.sync { background: var(--btn-sec-bg); color: var(--text); border: 1px solid var(--input-border); }
 
         /* Карточки результатов обмена */
         .card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid #444; border-radius: 10px; padding: 14px; margin-bottom: 10px; }
@@ -166,7 +244,7 @@
         .profit { color: var(--success); font-size: 0.8rem; margin-left: 5px; }
         
         .hierarchy-list { margin-top: 10px; background: var(--card-alt); border-radius: 6px; padding: 4px 0; }
-        .h-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; padding: 6px 10px; border-bottom: 1px solid #1c2028; gap: 8px; }
+        .h-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; padding: 6px 10px; border-bottom: 1px solid var(--border); gap: 8px; }
         .h-item:last-child { border-bottom: none; }
         .h-item span.h-name { color: var(--accent); font-weight: 600; }
         .h-item.h-best { background: rgba(52, 199, 89, 0.06); }
@@ -174,43 +252,43 @@
         .sub-rate { color: var(--muted); font-size: 0.77rem; }
         .rate-info { font-size: 0.84rem; color: var(--muted); line-height: 1.4; }
 
-        /* Стили Вкладки 2: Планировщик отдыха */
-        .summary-sticky { position: sticky; top: 8px; z-index: 50; background: rgba(24, 27, 33, 0.96); backdrop-filter: blur(10px); border: 1px solid #363d49; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
+        /* Стили Вкладки 2: Планировщик отдыха (СТАТИЧНЫЙ БЛОК БЮДЖЕТА) */
+        .summary-static { position: static; background: var(--card); border: 1px solid var(--input-border); border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
         .sum-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
-        .sum-box { background: var(--card-alt); padding: 10px 8px; border-radius: 8px; border: 1px solid #222730; }
+        .sum-box { background: var(--card-alt); padding: 10px 8px; border-radius: 8px; border: 1px solid var(--border); }
         .sum-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
         .sum-val { font-size: 1.05rem; font-weight: 700; }
         .sum-sub { font-size: 0.78rem; margin-top: 3px; color: var(--muted); }
 
         .progress-wrap { margin-top: 12px; }
-        .progress-bar-bg { width: 100%; height: 10px; background: #0f1115; border-radius: 6px; overflow: hidden; border: 1px solid #282e39; }
+        .progress-bar-bg { width: 100%; height: 10px; background: var(--input-bg); border-radius: 6px; overflow: hidden; border: 1px solid var(--border); }
         .progress-bar-fill { height: 100%; width: 0%; background: var(--success); transition: width 0.25s ease, background-color 0.25s ease; }
         .progress-meta { display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--muted); margin-top: 5px; flex-wrap: wrap; gap: 4px; }
 
         .presets-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
-        .preset-btn { flex: 1; min-width: 120px; padding: 8px 10px; background: #21262d; color: var(--text); border: 1px solid #363d49; border-radius: 7px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
-        .preset-btn:hover { border-color: var(--accent); color: #fff; }
+        .preset-btn { flex: 1; min-width: 120px; padding: 8px 10px; background: var(--btn-sec-bg); color: var(--text); border: 1px solid var(--input-border); border-radius: 7px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
+        .preset-btn:hover { border-color: var(--accent); }
         .link-btn { background: rgba(0, 122, 255, 0.15); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.4); padding: 4px 8px; border-radius: 5px; font-size: 0.72rem; cursor: pointer; font-weight: 600; }
         .link-btn:hover { background: rgba(0, 122, 255, 0.25); }
 
         .cat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin-bottom: 10px; transition: border-color 0.2s; }
-        .cat-card:hover { border-color: #3b4454; }
         .cat-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; flex-wrap: wrap; gap: 6px; }
-        .cat-title { font-size: 0.96rem; font-weight: 700; }
+        .cat-title { font-size: 0.96rem; font-weight: 700; color: var(--heading); }
         .cat-amounts { font-size: 1rem; font-weight: 700; }
         .cat-daily { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
         .cat-daily b { color: var(--text); }
 
         .slider-row { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
-        input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; background: #282e39; border-radius: 4px; outline: none; cursor: pointer; }
+        input[type="range"] { flex: 1; -webkit-appearance: none; appearance: none; height: 6px; background: var(--border); border-radius: 4px; outline: none; cursor: pointer; }
         input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 18px; height: 18px; border-radius: 50%; background: var(--accent); cursor: pointer; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(0,0,0,0.5); }
         .cat-num-input { width: 95px !important; text-align: right; padding: 5px 8px !important; font-size: 0.85rem !important; }
 
-        .cat-hint { background: var(--card-alt); border-left: 3px solid var(--accent); padding: 7px 10px; border-radius: 0 6px 6px 0; font-size: 0.79rem; color: #c9d1d9; line-height: 1.35; }
+        .cat-hint { background: var(--card-alt); border-left: 3px solid var(--accent); padding: 7px 10px; border-radius: 0 6px 6px 0; font-size: 0.79rem; color: var(--desc-text); line-height: 1.35; }
         .cat-hint span.tier-tag { font-weight: 700; margin-right: 5px; }
 
         @media (max-width: 550px) {
             .grid-3, .sum-grid { grid-template-columns: 1fr; }
+            .cal-cell { min-height: 58px; padding: 3px; }
         }
     </style>
 </head>
@@ -218,25 +296,49 @@
     <div class="container">
         <div class="top-header">
             <h1>🌴 Пхукет: Помощник путешественника</h1>
-            <div class="pwa-badge online" id="networkBadge" title="Статус сети и PWA кэша">● Онлайн • Кэш активен</div>
+            <div class="header-right">
+                <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Переключить тему">☀️ Светлая</button>
+                <div class="pwa-badge online" id="networkBadge" title="Статус сети и PWA кэша">● Онлайн</div>
+            </div>
         </div>
 
-        <!-- Навигация по 5 вкладкам -->
+        <!-- Навигация по 6 вкладкам -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('home')" id="tabBtnHome">🏠 Главная (Сводка)</button>
-            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы и обмен</button>
-            <button class="tab-btn" onclick="switchTab('planner')" id="tabBtnPlanner">🏖️ Бюджет и резерв</button>
-            <button class="tab-btn" onclick="switchTab('tides')" id="tabBtnTides">🌊 Приливы и Пляжи</button>
-            <button class="tab-btn" onclick="switchTab('weather')" id="tabBtnWeather">🌤️ Погода (Windy)</button>
+            <button class="tab-btn active" onclick="switchTab('home')" id="tabBtnHome">🏠 Главная</button>
+            <button class="tab-btn" onclick="switchTab('schedule')" id="tabBtnSchedule">📅 Планирование</button>
+            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы валют</button>
+            <button class="tab-btn" onclick="switchTab('planner')" id="tabBtnPlanner">🏖️ Бюджет</button>
+            <button class="tab-btn" onclick="switchTab('tides')" id="tabBtnTides">🌊 Приливы</button>
+            <button class="tab-btn" onclick="switchTab('weather')" id="tabBtnWeather">🌤️ Погода</button>
         </div>
 
         <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
         <div id="tab-home" class="tab-content active">
-            <!-- Алерт высокого УФ-индекса (показывается при УФ >= 6) -->
+            
+            <!-- Панель простой авторизации (Логин и Пароль без почты) -->
+            <div class="auth-bar" id="authBar">
+                <div id="authLoggedOutView" style="display:flex; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
+                    <span style="font-size:0.8rem; font-weight:700; color:var(--accent);">🔐 Профиль (автосохранение данных):</span>
+                    <div class="auth-inputs">
+                        <input type="text" id="authLoginInput" placeholder="Логин">
+                        <input type="password" id="authPassInput" placeholder="Пароль">
+                        <button class="auth-btn" onclick="handleUserAuth()">Войти / Создать</button>
+                    </div>
+                </div>
+                <div id="authLoggedInView" style="display:none; justify-content:space-between; align-items:center; width:100%; flex-wrap:wrap; gap:8px;">
+                    <div style="font-size:0.82rem;">
+                        👤 Вы вошли как: <b style="color:var(--success);" id="activeUserLabel">Гость</b>
+                        <span style="font-size:0.73rem; color:var(--muted); margin-left:6px;" id="autoSaveStatus">✓ Все изменения сохраняются автоматически</span>
+                    </div>
+                    <button class="auth-btn logout" onclick="handleUserLogout()">🚪 Выйти</button>
+                </div>
+            </div>
+
+            <!-- Алерт высокого УФ-индекса -->
             <div id="homeUvAlertBox" class="uv-alert-banner" style="display:none;">
                 <div>
-                    <div style="font-weight:800; font-size:0.9rem; color:#ff5b52;" id="homeUvAlertTitle">🚨 ВНИМАНИЕ: ЭКСТРЕМАЛЬНЫЙ УФ-ИНДЕКС!</div>
-                    <div style="font-size:0.79rem; color:#e6e8eb; margin-top:2px;" id="homeUvAlertDesc">Без защиты SPF 50+ ожог кожи за 15–20 минут. Ищите тень с 11:00 до 15:30.</div>
+                    <div style="font-weight:800; font-size:0.9rem; color:var(--danger);" id="homeUvAlertTitle">🚨 ВНИМАНИЕ: ЭКСТРЕМАЛЬНЫЙ УФ-ИНДЕКС!</div>
+                    <div style="font-size:0.79rem; color:var(--text); margin-top:2px;" id="homeUvAlertDesc">Без защиты SPF 50+ ожог кожи за 15–20 минут. Ищите тень с 11:00 до 15:30.</div>
                 </div>
                 <button class="dash-goto" onclick="switchTab('weather')">Радар УФ ➔</button>
             </div>
@@ -244,22 +346,25 @@
             <!-- 1. Календарь поездки и обратный отсчет -->
             <div class="trip-calendar-box">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Календарь вашей поездки на Пхукет</span>
-                    <button class="link-btn" onclick="syncTripDaysToPlanner()">🔄 Передать дни в Бюджет</button>
+                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Даты вашего отпуска на Пхукете</span>
+                    <div style="display:flex; gap:6px;">
+                        <button class="link-btn" onclick="switchTab('schedule')">📅 Открыть календарь ивентов</button>
+                        <button class="link-btn" onclick="syncTripDaysToPlanner()">🔄 Дни в Бюджет</button>
+                    </div>
                 </div>
                 <div class="grid-2">
                     <div class="field">
                         <label>Дата прилета на Пхукет</label>
-                        <input type="date" id="trip_start" value="2026-12-16" onchange="updateTripCountdown()">
+                        <input type="date" id="trip_start" value="2026-12-16" onchange="onTripDatesChanged('home')">
                     </div>
                     <div class="field">
                         <label>Дата вылета домой</label>
-                        <input type="date" id="trip_end" value="2027-01-08" onchange="updateTripCountdown()">
+                        <input type="date" id="trip_end" value="2027-01-08" onchange="onTripDatesChanged('home')">
                     </div>
                 </div>
                 <div class="trip-countdown-badge" id="tripCountdownBanner">
                     <div>
-                        <div style="font-size:0.98rem; font-weight:700; color:#fff;" id="tripStatusMain">Расчет дат поездки...</div>
+                        <div style="font-size:0.98rem; font-weight:700; color:var(--heading);" id="tripStatusMain">Расчет дат поездки...</div>
                         <div style="font-size:0.77rem; color:var(--muted); margin-top:2px;" id="tripStatusSub">--</div>
                     </div>
                     <span class="status-pill pill-good" id="tripDaysBadge">23 дня</span>
@@ -268,21 +373,45 @@
 
             <!-- 2. Главные сводки (Погода/Закат + Море/Приливы/Волны + Курсы + Бюджет) -->
             <div class="dash-grid">
-                <!-- Карточка Погоды, УФ и Заката -->
+                <!-- Карточка Погоды, УФ, Таймера Заката и Смотровых площадок -->
                 <div class="dash-card">
                     <div>
                         <div class="dash-card-head">
-                            <span>🌤️ Погода, УФ и Солнце (Ката)</span>
+                            <span>🌤️ Погода, Закат и Смотровые</span>
                             <button class="dash-goto" onclick="switchTab('weather')">Погода ➔</button>
                         </div>
                         <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
-                            <span style="font-size:1.35rem; font-weight:800;" id="homeTempVal">-- °C</span>
+                            <span style="font-size:1.35rem; font-weight:800; color:var(--heading);" id="homeTempVal">-- °C</span>
                             <span style="font-size:0.82rem; color:var(--muted);" id="homeWeatherDesc">Загрузка...</span>
                         </div>
-                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.45;">
+                        <div style="font-size:0.8rem; color:var(--desc-text); line-height:1.48;">
                             <div>☀️ <b>УФ-индекс:</b> <span id="homeUvBadge">--</span></div>
-                            <div>🌅 <b>Рассвет:</b> <span id="homeSunrise">--:--</span> • 🌇 <b>Закат:</b> <b style="color:var(--warning)" id="homeSunset">--:--</b></div>
-                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeSunsetTip">Выезд на смотровую Промтхеп: к 17:35</div>
+                            <div>🌅 <b>Рассвет:</b> <span id="homeSunrise">06:15</span> • 🌇 <b>Закат:</b> <b style="color:var(--warning)" id="homeSunset">18:15</b></div>
+                            <div style="margin-top:3px; font-size:0.77rem; background:var(--card-alt); padding:5px 8px; border-radius:6px; border:1px solid var(--border);">
+                                <div id="homeSunCountdowns">⏳ До заката: -- ч -- мин • До рассвета: -- ч -- мин</div>
+                                <div style="color:var(--warning); font-weight:700; margin-top:2px;" id="homeSunsetTip">📸 Приезжать на смотровую: к 17:30</div>
+                            </div>
+                        </div>
+
+                        <!-- Топ смотровых площадок для заката с ссылками на карты -->
+                        <div class="viewpoint-list">
+                            <div style="font-size:0.71rem; font-weight:700; color:var(--muted); text-transform:uppercase;">Лучшие места для заката (с точками на карте):</div>
+                            <div class="vp-row">
+                                <span>1. Мыс Промтхеп (Promthep Cape)</span>
+                                <a class="vp-link" href="https://www.google.com/maps/search/?api=1&query=7.7618,98.3053" target="_blank" rel="noopener">📍 Карта</a>
+                            </div>
+                            <div class="vp-row">
+                                <span>2. Смотровая с Ветряком (Windmill)</span>
+                                <a class="vp-link" href="https://www.google.com/maps/search/?api=1&query=7.7696,98.3064" target="_blank" rel="noopener">📍 Карта</a>
+                            </div>
+                            <div class="vp-row">
+                                <span>3. Карон Вьюпойнт (3 пляжа)</span>
+                                <a class="vp-link" href="https://www.google.com/maps/search/?api=1&query=7.7972,98.3022" target="_blank" rel="noopener">📍 Карта</a>
+                            </div>
+                            <div class="vp-row">
+                                <span>4. Бар After Beach (вид на Ката Ной)</span>
+                                <a class="vp-link" href="https://www.google.com/maps/search/?api=1&query=7.8012,98.3005" target="_blank" rel="noopener">📍 Карта</a>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -298,7 +427,7 @@
                             <span id="homeSwimVerdict">🟢 Купаться можно</span>
                             <span id="homeWaveSummary" style="font-size:0.75rem;">Волна: -- м</span>
                         </div>
-                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.45;">
+                        <div style="font-size:0.8rem; color:var(--desc-text); line-height:1.45;">
                             <div>🌊 <b>Фаза по острову:</b> <span id="homeTidePhase">--</span> (<b id="homeTideHeight">-- м</b>)</div>
                             <div>🌡️ <b>Температура воды:</b> <span id="homeSeaTemp">+29.2 °C</span></div>
                             <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeNextExtreme">Ближайший пик воды: --</div>
@@ -313,7 +442,7 @@
                             <span>💱 Курсы валют и Наценка</span>
                             <button class="dash-goto" onclick="switchTab('exchange')">Калькулятор ➔</button>
                         </div>
-                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.5;">
+                        <div style="font-size:0.8rem; color:var(--desc-text); line-height:1.5;">
                             <div>🌐 <b>Биржа Форекс:</b> <b style="color:var(--accent)" id="homeForexRate">1 ฿ = 2.49 ₽</b></div>
                             <div>💵 <b>Через нал USD:</b> <b style="color:var(--success)" id="homeBestCashRate">2.51 ₽/฿</b> <span id="homeCashSpread" class="spread-tag good">+0.8%</span></div>
                             <div>📲 <b>Онлайн СБП:</b> <b id="homeSbpRate">2.68 ₽/฿</b> <span id="homeSbpSpread" class="spread-tag">+7.5%</span></div>
@@ -329,7 +458,7 @@
                             <span>🏖️ Сводка бюджета отдыха</span>
                             <button class="dash-goto" onclick="switchTab('planner')">Планировщик ➔</button>
                         </div>
-                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.5;">
+                        <div style="font-size:0.8rem; color:var(--desc-text); line-height:1.5;">
                             <div>💰 <b>Общий бюджет:</b> <b id="homePlanTotal">0 ฿</b> (<span style="color:var(--success);font-weight:700;" id="homePlanTotalUsd">0 $</span>)</div>
                             <div>📊 <b>Расход в день:</b> <span id="homePlanDaily">0 ฿/день</span></div>
                             <div>🛡️ <b>Свободный резерв:</b> <b id="homePlanReserve" style="color:var(--success);">0 ฿</b></div>
@@ -359,15 +488,123 @@
             </div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 1: КУРСЫ И ОБМЕН ==================== -->
+        <!-- ==================== ВКЛАДКА 1: КАЛЕНДАРЬ И ПЛАНИРОВАНИЕ ИВЕНТОВ ==================== -->
+        <div id="tab-schedule" class="tab-content">
+            <!-- Блок дат отпуска и таймер отсчета прямо внутри Планирования -->
+            <div class="trip-calendar-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Даты отпуска и таймер обратного отсчета</span>
+                    <button class="link-btn" onclick="jumpCalendarToTripStart()">🎯 Перейти к месяцу отпуска</button>
+                </div>
+                <div class="grid-2">
+                    <div class="field">
+                        <label>Начало отпуска</label>
+                        <input type="date" id="cal_trip_start" value="2026-12-16" onchange="onTripDatesChanged('schedule')">
+                    </div>
+                    <div class="field">
+                        <label>Окончание отпуска</label>
+                        <input type="date" id="cal_trip_end" value="2027-01-08" onchange="onTripDatesChanged('schedule')">
+                    </div>
+                </div>
+                <div class="trip-countdown-badge" id="calCountdownBanner">
+                    <div>
+                        <div style="font-size:0.95rem; font-weight:700; color:var(--heading);" id="calTripStatusMain">Расчет...</div>
+                        <div style="font-size:0.76rem; color:var(--muted); margin-top:2px;" id="calTripStatusSub">--</div>
+                    </div>
+                    <span class="status-pill pill-good" id="calTripDaysBadge">23 дня</span>
+                </div>
+            </div>
+
+            <!-- Сетка календаря с подсветкой дней отпуска и интервалами событий -->
+            <div class="box">
+                <div class="cal-header-bar">
+                    <div class="cal-nav-group">
+                        <button class="cal-nav-btn" onclick="changeCalendarMonth(-1)">◀ Пред.</button>
+                        <div class="cal-month-title" id="calMonthLabel">Декабрь 2026</div>
+                        <button class="cal-nav-btn" onclick="changeCalendarMonth(1)">След. ▶</button>
+                    </div>
+                    <div style="font-size:0.74rem; color:var(--muted);">
+                        <span style="display:inline-block; width:10px; height:10px; background:rgba(0,122,255,0.28); border:1px solid var(--accent); border-radius:3px; margin-right:4px;"></span>— дни отпуска
+                    </div>
+                </div>
+
+                <div class="cal-weekdays">
+                    <div>Пн</div><div>Вт</div><div>Ср</div><div>Чт</div><div>Пт</div><div>Сб</div><div>Вс</div>
+                </div>
+                <div class="cal-grid" id="calendarGrid"></div>
+            </div>
+
+            <!-- Шаг 1 при клике на день: Превью выбранного дня + кнопка «Настроить день» -->
+            <div class="day-preview-box" id="dayPreviewBox">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                    <div>
+                        <div style="font-size:1rem; font-weight:800; color:var(--heading);" id="previewDateTitle">Выберите день в календаре</div>
+                        <div style="font-size:0.76rem; color:var(--accent); font-weight:600;" id="previewVacationBadge"></div>
+                    </div>
+                    <button class="auth-btn" onclick="openDayEditorModal()" id="openDayEditorBtn">⚙️ Настроить день / Добавить событие</button>
+                </div>
+                <div id="previewEventsList" style="font-size:0.83rem; color:var(--desc-text);"></div>
+            </div>
+
+            <!-- Шаг 2: Карточка настройки дня (создание и удаление событий с выбором цвета и времени) -->
+            <div class="day-editor-modal" id="dayEditorModal">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                    <h3 style="margin:0; font-size:0.98rem; color:var(--accent);" id="editorModalTitle">Настройка дня</h3>
+                    <button class="cal-nav-btn" onclick="closeDayEditorModal()">✕ Закрыть карточку</button>
+                </div>
+
+                <div class="grid-2" style="margin-bottom:8px;">
+                    <div class="field">
+                        <label>Название события (например: Симиланы / СПА / Ресторан)</label>
+                        <input type="text" id="evTitleInput" placeholder="Экскурсия на Пхи-Пхи">
+                    </div>
+                    <div class="field">
+                        <label>Цвет метки в календаре</label>
+                        <div class="color-picker-row" id="evColorPicker">
+                            <div class="color-dot active" data-color="#007aff" style="background:#007aff;" onclick="selectEventColor('#007aff')"></div>
+                            <div class="color-dot" data-color="#34c759" style="background:#34c759;" onclick="selectEventColor('#34c759')"></div>
+                            <div class="color-dot" data-color="#ff9f0a" style="background:#ff9f0a;" onclick="selectEventColor('#ff9f0a')"></div>
+                            <div class="color-dot" data-color="#ff3b30" style="background:#ff3b30;" onclick="selectEventColor('#ff3b30')"></div>
+                            <div class="color-dot" data-color="#af52de" style="background:#af52de;" onclick="selectEventColor('#af52de')"></div>
+                            <div class="color-dot" data-color="#00c7be" style="background:#00c7be;" onclick="selectEventColor('#00c7be')"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2" style="margin-bottom:8px;">
+                    <div class="field">
+                        <label>Время начала</label>
+                        <input type="time" id="evStartInput" value="09:00">
+                    </div>
+                    <div class="field">
+                        <label>Время окончания</label>
+                        <input type="time" id="evEndInput" value="16:00">
+                    </div>
+                </div>
+
+                <div class="field" style="margin-bottom:10px;">
+                    <label>Описание, заметки, стоимость или контакты</label>
+                    <textarea id="evDescInput" rows="2" placeholder="Трансфер из отеля в 07:30, взять паспорта, купальники и крем SPF 50..."></textarea>
+                </div>
+
+                <button class="action-btn" style="width:100%;" onclick="addCalendarEvent()">➕ Сохранить событие в расписание дня</button>
+            </div>
+
+            <!-- Общий список всех запланированных ивентов на поездку -->
+            <div class="box" style="margin-top:12px;">
+                <h2><span>📋 Все запланированные события и экскурсии</span></h2>
+                <div id="allEventsSummaryList" style="font-size:0.82rem; color:var(--desc-text);"></div>
+            </div>
+        </div>
+
+        <!-- ==================== ВКЛАДКА 2: КУРСЫ И ОБМЕН ==================== -->
         <div id="tab-exchange" class="tab-content">
             <div class="status-bar" id="status">Курсы синхронизированы с таблицами СКВ Лиговский, Value Plus и Money Shop.</div>
 
-            <!-- Официальный биржевой кросс-курс (Бенчмарк) -->
             <div class="forex-benchmark">
                 <div>
                     <span style="color:var(--accent); font-weight:700;">🌐 Официальный кросс-курс (Биржа):</span>
-                    <b id="benchThbRub" style="margin-left:5px; color:#fff;">1 ฿ = 2.495 ₽</b>
+                    <b id="benchThbRub" style="margin-left:5px; color:var(--heading);">1 ฿ = 2.495 ₽</b>
                     <span style="color:var(--muted); font-size:0.76rem; margin-left:6px;" id="benchCrossDetails">(USD/RUB: 84.00 • USD/THB: 33.67)</span>
                 </div>
                 <div style="font-size:0.74rem; color:var(--muted);">Показывает реальную комиссию обменников в %</div>
@@ -464,9 +701,10 @@
             <div id="output"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 2: ПЛАНИРОВЩИК ОТДЫХА ==================== -->
+        <!-- ==================== ВКЛАДКА 3: ПЛАНИРОВЩИК БЮДЖЕТА (СТАТИЧНАЯ СВОДКА) ==================== -->
         <div id="tab-planner" class="tab-content">
-            <div class="summary-sticky">
+            <!-- Статичный блок сводки бюджета (не двигается при скролле на телефоне) -->
+            <div class="summary-static">
                 <div class="sum-grid">
                     <div class="sum-box">
                         <div class="sum-label">Общий бюджет</div>
@@ -545,7 +783,7 @@
             <div id="categoriesContainer"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 3: ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ПЛЯЖИ ==================== -->
+        <!-- ==================== ВКЛАДКА 4: ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ПЛЯЖИ ==================== -->
         <div id="tab-tides" class="tab-content">
             <div class="status-bar" id="tidesStatus">Мониторинг приливов, высоты волны и безопасности купания на пляжах Пхукета.</div>
 
@@ -553,7 +791,6 @@
                 <button class="action-btn" id="scanTidesBtn" onclick="scanRealTimeTides()">📡 Сканировать приливы, волны и безопасность купания</button>
             </div>
 
-            <!-- Сводка по приливу и волнам прямо сейчас -->
             <div class="tide-hero">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
                     <span style="font-size:0.88rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌊 Андаманское море: Приливы и Волны</span>
@@ -575,7 +812,6 @@
                     </div>
                 </div>
 
-                <!-- 24-часовая кривая прилива и отлива (SVG) -->
                 <div class="tide-chart-box">
                     <div style="display:flex; justify-content:space-between; font-size:0.74rem; color:var(--muted); margin-bottom:6px; flex-wrap:wrap; gap:4px;">
                         <span>Суточный график уровня воды (00:00 — 23:59 по Пхукету)</span>
@@ -588,25 +824,22 @@
                 <div class="extremes-row" id="tideExtremesContainer"></div>
             </div>
 
-            <!-- Топ-3 пляжа прямо сейчас во вкладке Приливов -->
             <div class="box">
                 <h2><span>🏆 Топ-3 лучших пляжа для плавания прямо сейчас</span></h2>
                 <div class="top3-grid" id="tidesTop3Beaches"></div>
             </div>
 
-            <!-- Карточки 10 западных пляжей с четким вердиктом по волнам и купанию -->
             <div id="westBeachesContainer"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 4: ПОГОДА, УФ, ЗАКАТ И РАДАР WINDY ==================== -->
+        <!-- ==================== ВКЛАДКА 5: ПОГОДА, УФ, ЗАКАТ И РАДАР WINDY ==================== -->
         <div id="tab-weather" class="tab-content">
             <div class="status-bar" id="weatherStatus">Район по умолчанию: <b>Ката (Kata Beach)</b>. Полная сводка погоды, УФ и времени заката.</div>
 
-            <!-- Баннер УФ-алерта для вкладки Погоды -->
             <div id="weatherUvAlertBox" class="uv-alert-banner" style="display:none;">
                 <div>
-                    <div style="font-weight:800; font-size:0.9rem; color:#ff5b52;" id="weatherUvAlertTitle">🚨 ВЫСОКИЙ УФ-ИНДЕКС!</div>
-                    <div style="font-size:0.79rem; color:#e6e8eb; margin-top:2px;" id="weatherUvAlertDesc">Используйте крем SPF 50+, очки и панаму.</div>
+                    <div style="font-weight:800; font-size:0.9rem; color:var(--danger);" id="weatherUvAlertTitle">🚨 ВЫСОКИЙ УФ-ИНДЕКС!</div>
+                    <div style="font-size:0.79rem; color:var(--text); margin-top:2px;" id="weatherUvAlertDesc">Используйте крем SPF 50+, очки и панаму.</div>
                 </div>
             </div>
 
@@ -625,7 +858,7 @@
                     <option value="town">Пхукет-Таун (Phuket Town — исторический центр, Старый город, рынки и ТЦ Central)</option>
                     <option value="chalong">Чалонг и Большой Будда (Chalong — главный пирс экскурсий и смотровая на горе)</option>
                 </select>
-                <div id="districtDescBox" style="font-size:0.79rem; color:#c9d1d9; margin-top:8px; line-height:1.35;"></div>
+                <div id="districtDescBox" style="font-size:0.79rem; color:var(--desc-text); margin-top:8px; line-height:1.35;"></div>
             </div>
 
             <div class="actions">
@@ -637,7 +870,6 @@
                 <div id="weatherVerdictText">Загрузка актуальных метеоданных...</div>
             </div>
 
-            <!-- Карточки точных показателей (включая Закат и Рассвет + УФ Алерт) -->
             <div class="weather-grid">
                 <div class="w-card">
                     <div class="w-lbl">🌡️ Температура</div>
@@ -671,16 +903,13 @@
                 </div>
             </div>
 
-            <!-- Сезонные предупреждения во вкладке Погоды -->
             <div class="seasonal-box" id="weatherSeasonalBox"></div>
 
-            <!-- Почасовой прогноз на ближайшие 24 часа -->
             <div class="box">
                 <h2><span>⏱️ Почасовой прогноз по выбранному району</span></h2>
                 <div class="hourly-strip" id="weatherHourlyStrip"></div>
             </div>
 
-            <!-- Интерактивная живая карта Windy.com -->
             <div class="windy-wrap">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px; flex-wrap:wrap; gap:6px;">
                     <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🗺️ Живой радар Windy.com (Привязан к району)</span>
@@ -692,7 +921,7 @@
                     <button class="layer-btn" id="layer_waves" onclick="setWindyLayer('waves')">🌊 Волны и накат</button>
                     <button class="layer-btn" id="layer_temp" onclick="setWindyLayer('temp')">🌡️ Температура</button>
                 </div>
-                <div style="width:100%; height:370px; border-radius:10px; overflow:hidden; border:1px solid #2b3340; background:#0d1016;">
+                <div style="width:100%; height:370px; border-radius:10px; overflow:hidden; border:1px solid var(--border); background:var(--chart-bg);">
                     <iframe id="windyIframe" width="100%" height="100%" frameborder="0" style="border:0;" allowfullscreen></iframe>
                 </div>
             </div>
@@ -706,6 +935,150 @@
         }
         function fmtInt(num) {
             return Math.round(num).toLocaleString('ru-RU');
+        }
+
+        /* ==================== ПЕРЕКЛЮЧЕНИЕ ТЕМЫ (СВЕТЛАЯ / ТЕМНАЯ) ==================== */
+        function applyTheme(theme) {
+            document.documentElement.setAttribute('data-theme', theme);
+            const btn = document.getElementById('themeToggleBtn');
+            const meta = document.getElementById('metaThemeColor');
+            if (theme === 'light') {
+                btn.innerText = '🌙 Темная';
+                if (meta) meta.setAttribute('content', '#f2f5f9');
+            } else {
+                btn.innerText = '☀️ Светлая';
+                if (meta) meta.setAttribute('content', '#0f1115');
+            }
+        }
+
+        function toggleTheme() {
+            const cur = document.documentElement.getAttribute('data-theme') || 'dark';
+            const next = cur === 'dark' ? 'light' : 'dark';
+            applyTheme(next);
+            saveUserDataState();
+        }
+
+        /* ==================== АВТОРИЗАЦИЯ И ПОЛЬЗОВАТЕЛЬСКОЕ ХРАНИЛИЩЕ ==================== */
+        const USERS_DB_KEY = 'phuket_users_database_v3';
+        const ACTIVE_USER_KEY = 'phuket_active_user_v3';
+        let currentUser = localStorage.getItem(ACTIVE_USER_KEY) || 'guest';
+        let calendarEvents = {}; // { 'YYYY-MM-DD': [ { id, title, start, end, color, desc } ] }
+
+        function getUsersDb() {
+            try {
+                return JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
+            } catch (e) { return {}; }
+        }
+        function setUsersDb(db) {
+            try {
+                localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
+            } catch (e) {}
+        }
+
+        function collectCurrentInputsState() {
+            const inputs = {};
+            document.querySelectorAll('input, select').forEach(el => {
+                if (el.id && el.id !== 'authLoginInput' && el.id !== 'authPassInput' && !el.id.startsWith('ev')) {
+                    inputs[el.id] = el.value;
+                }
+            });
+            return {
+                inputs,
+                events: calendarEvents,
+                theme: document.documentElement.getAttribute('data-theme') || 'dark'
+            };
+        }
+
+        function saveUserDataState() {
+            const db = getUsersDb();
+            if (!db[currentUser]) db[currentUser] = { password: '' };
+            db[currentUser].data = collectCurrentInputsState();
+            setUsersDb(db);
+
+            const statusEl = document.getElementById('autoSaveStatus');
+            if (statusEl) {
+                const t = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+                statusEl.innerText = `✓ Автосохранено (${t})`;
+            }
+        }
+
+        function loadUserDataState(username) {
+            const db = getUsersDb();
+            const userRecord = db[username];
+            if (userRecord && userRecord.data) {
+                const { inputs, events, theme } = userRecord.data;
+                if (theme) applyTheme(theme);
+                if (inputs) {
+                    Object.keys(inputs).forEach(id => {
+                        const el = document.getElementById(id);
+                        if (el && inputs[id] !== undefined && inputs[id] !== '') {
+                            el.value = inputs[id];
+                        }
+                    });
+                }
+                calendarEvents = events || {};
+            } else {
+                calendarEvents = {};
+            }
+            render(false);
+            updatePlanner();
+            updateTripCountdown();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            renderAllEventsSummary();
+        }
+
+        function updateAuthUI() {
+            const outView = document.getElementById('authLoggedOutView');
+            const inView = document.getElementById('authLoggedInView');
+            const lbl = document.getElementById('activeUserLabel');
+            if (currentUser && currentUser !== 'guest') {
+                outView.style.display = 'none';
+                inView.style.display = 'flex';
+                lbl.innerText = currentUser;
+            } else {
+                outView.style.display = 'flex';
+                inView.style.display = 'none';
+            }
+        }
+
+        function handleUserAuth() {
+            const login = document.getElementById('authLoginInput').value.trim();
+            const pass = document.getElementById('authPassInput').value.trim();
+            if (!login || !pass) {
+                alert('Введите логин и пароль.');
+                return;
+            }
+            const db = getUsersDb();
+            if (db[login]) {
+                if (db[login].password !== pass) {
+                    alert('Неверный пароль для этого пользователя!');
+                    return;
+                }
+                currentUser = login;
+                localStorage.setItem(ACTIVE_USER_KEY, currentUser);
+                loadUserDataState(currentUser);
+            } else {
+                // Создаем нового пользователя и переносим в него текущие настройки экрана
+                db[login] = {
+                    password: pass,
+                    data: collectCurrentInputsState()
+                };
+                setUsersDb(db);
+                currentUser = login;
+                localStorage.setItem(ACTIVE_USER_KEY, currentUser);
+            }
+            document.getElementById('authLoginInput').value = '';
+            document.getElementById('authPassInput').value = '';
+            updateAuthUI();
+        }
+
+        function handleUserLogout() {
+            saveUserDataState();
+            currentUser = 'guest';
+            localStorage.setItem(ACTIVE_USER_KEY, 'guest');
+            loadUserDataState('guest');
+            updateAuthUI();
         }
 
         // Кэш состояния для работы оффлайн без интернета
@@ -724,19 +1097,25 @@
             } catch (e) { return null; }
         }
 
-        // Переключение 5 вкладок
+        // Переключение 6 вкладок
         function switchTab(tab) {
-            ['home', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
+            ['home', 'schedule', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
             document.getElementById('tabBtnHome').classList.toggle('active', tab === 'home');
+            document.getElementById('tabBtnSchedule').classList.toggle('active', tab === 'schedule');
             document.getElementById('tabBtnExchange').classList.toggle('active', tab === 'exchange');
             document.getElementById('tabBtnPlanner').classList.toggle('active', tab === 'planner');
             document.getElementById('tabBtnTides').classList.toggle('active', tab === 'tides');
             document.getElementById('tabBtnWeather').classList.toggle('active', tab === 'weather');
 
             if (tab === 'planner') updatePlanner();
+            if (tab === 'schedule') {
+                renderCalendarGrid();
+                renderSelectedDayPreview();
+                renderAllEventsSummary();
+            }
             if (tab === 'tides' && !window._tidesLoaded) {
                 window._tidesLoaded = true;
                 scanRealTimeTides();
@@ -751,11 +1130,244 @@
             }
         }
 
+        /* ==================== СИНХРОНИЗАЦИЯ ДАТ ОТПУСКА И КАЛЕНДАРЬ ПЛАНИРОВАНИЯ ==================== */
+        let calViewYear = 2026;
+        let calViewMonth = 11; // 0..11 (11 = Декабрь)
+        let selectedDateIso = '2026-12-16';
+        let selectedEventColor = '#007aff';
+
+        function onTripDatesChanged(source) {
+            const hStart = document.getElementById('trip_start');
+            const hEnd = document.getElementById('trip_end');
+            const cStart = document.getElementById('cal_trip_start');
+            const cEnd = document.getElementById('cal_trip_end');
+
+            if (source === 'home') {
+                cStart.value = hStart.value;
+                cEnd.value = hEnd.value;
+            } else {
+                hStart.value = cStart.value;
+                hEnd.value = cEnd.value;
+            }
+            updateTripCountdown();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            saveUserDataState();
+        }
+
+        function jumpCalendarToTripStart() {
+            const startStr = document.getElementById('trip_start').value;
+            if (startStr) {
+                const d = new Date(startStr + 'T00:00:00');
+                calViewYear = d.getFullYear();
+                calViewMonth = d.getMonth();
+                selectedDateIso = startStr;
+                renderCalendarGrid();
+                renderSelectedDayPreview();
+            }
+        }
+
+        function changeCalendarMonth(delta) {
+            calViewMonth += delta;
+            if (calViewMonth > 11) { calViewMonth = 0; calViewYear++; }
+            if (calViewMonth < 0) { calViewMonth = 11; calViewYear--; }
+            renderCalendarGrid();
+        }
+
+        function renderCalendarGrid() {
+            const grid = document.getElementById('calendarGrid');
+            if (!grid) return;
+
+            const monthNames = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
+            document.getElementById('calMonthLabel').innerText = `${monthNames[calViewMonth]} ${calViewYear}`;
+
+            const startStr = document.getElementById('trip_start').value;
+            const endStr = document.getElementById('trip_end').value;
+
+            const firstDayOfMonth = new Date(calViewYear, calViewMonth, 1);
+            const daysInMonth = new Date(calViewYear, calViewMonth + 1, 0).getDate();
+            let startWeekDay = firstDayOfMonth.getDay(); // 0 (Вс) .. 6 (Сб)
+            startWeekDay = startWeekDay === 0 ? 6 : startWeekDay - 1; // 0 = Пн .. 6 = Вс
+
+            const todayIso = new Date().toISOString().slice(0, 10);
+            let html = '';
+
+            for (let i = 0; i < startWeekDay; i++) {
+                html += `<div class="cal-cell empty"></div>`;
+            }
+
+            for (let day = 1; day <= daysInMonth; day++) {
+                const iso = `${calViewYear}-${String(calViewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                const isVacation = startStr && endStr && iso >= startStr && iso <= endStr;
+                const isToday = iso === todayIso;
+                const isSelected = iso === selectedDateIso;
+
+                const dayEvents = (calendarEvents[iso] || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+                let pillsHtml = '';
+                dayEvents.slice(0, 2).forEach(ev => {
+                    const timePart = ev.start ? `${ev.start}${ev.end ? '-' + ev.end : ''}` : '';
+                    pillsHtml += `<div class="cal-ev-pill" style="background:${ev.color || '#007aff'};" title="${timePart} ${ev.title}">${timePart} ${ev.title}</div>`;
+                });
+                if (dayEvents.length > 2) {
+                    pillsHtml += `<div class="cal-ev-more">+ ещё ${dayEvents.length - 2}</div>`;
+                }
+
+                html += `
+                    <div class="cal-cell ${isVacation ? 'in-vacation' : ''} ${isToday ? 'is-today' : ''} ${isSelected ? 'selected' : ''}" onclick="selectCalendarDate('${iso}')">
+                        <div class="cal-day-num">
+                            <span>${day}</span>
+                            ${isVacation ? '<span class="cal-vac-tag">🌴</span>' : ''}
+                        </div>
+                        ${pillsHtml}
+                    </div>
+                `;
+            }
+
+            grid.innerHTML = html;
+        }
+
+        function selectCalendarDate(iso) {
+            selectedDateIso = iso;
+            closeDayEditorModal();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+        }
+
+        function formatIsoHuman(iso) {
+            const [y, m, d] = iso.split('-').map(Number);
+            const dt = new Date(y, m - 1, d);
+            return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'short' });
+        }
+
+        function renderSelectedDayPreview() {
+            const titleEl = document.getElementById('previewDateTitle');
+            const vacBadge = document.getElementById('previewVacationBadge');
+            const listEl = document.getElementById('previewEventsList');
+            if (!titleEl || !listEl) return;
+
+            titleEl.innerText = `📅 ${formatIsoHuman(selectedDateIso)}`;
+
+            const startStr = document.getElementById('trip_start').value;
+            const endStr = document.getElementById('trip_end').value;
+            if (startStr && endStr && selectedDateIso >= startStr && selectedDateIso <= endStr) {
+                const dayNum = Math.round((new Date(selectedDateIso) - new Date(startStr)) / 86400000) + 1;
+                vacBadge.innerText = `🌴 День ${dayNum} вашего отпуска на Пхукете`;
+            } else {
+                vacBadge.innerText = 'День вне дат отпуска';
+            }
+
+            const evs = (calendarEvents[selectedDateIso] || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+            if (evs.length === 0) {
+                listEl.innerHTML = `<div style="color:var(--muted); padding:6px 0;">На этот день пока нет записанных событий или экскурсий. Нажмите <b>«⚙️ Настроить день»</b>, чтобы добавить план.</div>`;
+            } else {
+                listEl.innerHTML = evs.map(ev => `
+                    <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'};">
+                        <div>
+                            <div style="font-weight:700; color:var(--heading);">
+                                <span style="color:${ev.color || '#007aff'};">⏰ ${ev.start || '--:--'}${ev.end ? ' — ' + ev.end : ''}</span> • ${ev.title}
+                            </div>
+                            ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
+                        </div>
+                        <button class="ev-del-btn" onclick="deleteCalendarEvent('${selectedDateIso}', '${ev.id}')">Удалить</button>
+                    </div>
+                `).join('');
+            }
+        }
+
+        function openDayEditorModal() {
+            const modal = document.getElementById('dayEditorModal');
+            document.getElementById('editorModalTitle').innerText = `⚙️ Настройка дня: ${formatIsoHuman(selectedDateIso)}`;
+            modal.classList.add('open');
+            document.getElementById('evTitleInput').focus();
+        }
+
+        function closeDayEditorModal() {
+            const modal = document.getElementById('dayEditorModal');
+            if (modal) modal.classList.remove('open');
+        }
+
+        function selectEventColor(col) {
+            selectedEventColor = col;
+            document.querySelectorAll('#evColorPicker .color-dot').forEach(dot => {
+                dot.classList.toggle('active', dot.dataset.color === col);
+            });
+        }
+
+        function addCalendarEvent() {
+            const title = document.getElementById('evTitleInput').value.trim();
+            const start = document.getElementById('evStartInput').value;
+            const end = document.getElementById('evEndInput').value;
+            const desc = document.getElementById('evDescInput').value.trim();
+
+            if (!title) {
+                alert('Укажите название события (например: Экскурсия на Симиланы).');
+                return;
+            }
+            if (!calendarEvents[selectedDateIso]) calendarEvents[selectedDateIso] = [];
+            calendarEvents[selectedDateIso].push({
+                id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                title,
+                start,
+                end,
+                color: selectedEventColor,
+                desc
+            });
+
+            document.getElementById('evTitleInput').value = '';
+            document.getElementById('evDescInput').value = '';
+            saveUserDataState();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            renderAllEventsSummary();
+        }
+
+        function deleteCalendarEvent(dateIso, evId) {
+            if (!calendarEvents[dateIso]) return;
+            calendarEvents[dateIso] = calendarEvents[dateIso].filter(e => e.id !== evId);
+            if (calendarEvents[dateIso].length === 0) delete calendarEvents[dateIso];
+            saveUserDataState();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            renderAllEventsSummary();
+        }
+
+        function renderAllEventsSummary() {
+            const box = document.getElementById('allEventsSummaryList');
+            if (!box) return;
+            const allDates = Object.keys(calendarEvents).filter(d => calendarEvents[d] && calendarEvents[d].length > 0).sort();
+            if (allDates.length === 0) {
+                box.innerHTML = `<div style="color:var(--muted);">Пока не добавлено ни одного события. Выберите любую дату в календаре выше.</div>`;
+                return;
+            }
+            let html = '';
+            allDates.forEach(dIso => {
+                const evs = calendarEvents[dIso].slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
+                evs.forEach(ev => {
+                    html += `
+                        <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'}; cursor:pointer;" onclick="selectCalendarDate('${dIso}')">
+                            <div>
+                                <div style="font-size:0.74rem; color:var(--muted); font-weight:600;">📅 ${formatIsoHuman(dIso)}</div>
+                                <div style="font-weight:700; color:var(--heading); margin-top:1px;">
+                                    <span style="color:${ev.color || '#007aff'};">${ev.start || '--:--'}${ev.end ? '–' + ev.end : ''}</span> • ${ev.title}
+                                </div>
+                                ${ev.desc ? `<div style="font-size:0.77rem; color:var(--muted); margin-top:2px;">${ev.desc}</div>` : ''}
+                            </div>
+                            <button class="ev-del-btn" onclick="event.stopPropagation(); deleteCalendarEvent('${dIso}', '${ev.id}')">✕</button>
+                        </div>
+                    `;
+                });
+            });
+            box.innerHTML = html;
+        }
+
         /* ==================== КАЛЕНДАРЬ ПОЕЗДКИ И СЕЗОННЫЕ ПРЕДУПРЕЖДЕНИЯ ==================== */
         function updateTripCountdown() {
             const startStr = document.getElementById('trip_start').value;
             const endStr = document.getElementById('trip_end').value;
             if (!startStr || !endStr) return;
+
+            document.getElementById('cal_trip_start').value = startStr;
+            document.getElementById('cal_trip_end').value = endStr;
 
             const startDate = new Date(startStr + 'T00:00:00');
             const endDate = new Date(endStr + 'T23:59:59');
@@ -763,30 +1375,39 @@
 
             const totalTripDays = Math.max(1, Math.round((endDate - startDate) / 86400000));
             document.getElementById('tripDaysBadge').innerText = `${totalTripDays} дн. отдыха`;
+            document.getElementById('calTripDaysBadge').innerText = `${totalTripDays} дн. отдыха`;
 
-            const mainEl = document.getElementById('tripStatusMain');
-            const subEl = document.getElementById('tripStatusSub');
-            const banner = document.getElementById('tripCountdownBanner');
+            let mainHtml = '', subText = '', borderCol = 'rgba(0, 122, 255, 0.45)';
 
             if (now < startDate) {
                 const diffMs = startDate - now;
                 const daysLeft = Math.floor(diffMs / 86400000);
                 const hoursLeft = Math.floor((diffMs % 86400000) / 3600000);
-                mainEl.innerHTML = `✈️ До вылета на Пхукет: <span style="color:var(--success)">${daysLeft} дн. ${hoursLeft} ч.</span>`;
-                subEl.innerText = `Даты отпуска: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
-                banner.style.borderColor = 'rgba(0, 122, 255, 0.45)';
+                mainHtml = `✈️ До вылета на Пхукет: <span style="color:var(--success)">${daysLeft} дн. ${hoursLeft} ч.</span>`;
+                subText = `Даты отпуска: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
             } else if (now >= startDate && now <= endDate) {
                 const dayNumber = Math.floor((now - startDate) / 86400000) + 1;
-                const daysRemaining = Math.max(0, Math.ceil((endDate - now) / 86400000));
-                mainEl.innerHTML = `🌴 Вы сейчас на Пхукете! День ${dayNumber} из ${totalTripDays}`;
-                subEl.innerText = `Впереди ещё ${daysRemaining} дн. отдыха до ${endDate.toLocaleDateString('ru-RU')}`;
-                banner.style.borderColor = 'rgba(52, 199, 89, 0.5)';
+                const diffEndMs = endDate - now;
+                const daysRemaining = Math.floor(diffEndMs / 86400000);
+                const hoursRemaining = Math.floor((diffEndMs % 86400000) / 3600000);
+                mainHtml = `🌴 Вы на Пхукете! День ${dayNumber} из ${totalTripDays}`;
+                subText = `До окончания отпуска осталось: ${daysRemaining} дн. ${hoursRemaining} ч. (вылет ${endDate.toLocaleDateString('ru-RU')})`;
+                borderCol = 'rgba(52, 199, 89, 0.5)';
             } else {
                 const daysPassed = Math.floor((now - endDate) / 86400000);
-                mainEl.innerHTML = `🏁 Поездка завершена (${daysPassed} дн. назад)`;
-                subEl.innerText = `Выберите даты следующей поездки, чтобы запустить новый отсчет`;
-                banner.style.borderColor = 'var(--border)';
+                mainHtml = `🏁 Поездка завершена (${daysPassed} дн. назад)`;
+                subText = `Выберите новые даты поездки, чтобы запустить таймер отсчета`;
+                borderCol = 'var(--border)';
             }
+
+            document.getElementById('tripStatusMain').innerHTML = mainHtml;
+            document.getElementById('tripStatusSub').innerText = subText;
+            document.getElementById('tripCountdownBanner').style.borderColor = borderCol;
+
+            document.getElementById('calTripStatusMain').innerHTML = mainHtml;
+            document.getElementById('calTripStatusSub').innerText = subText;
+            document.getElementById('calCountdownBanner').style.borderColor = borderCol;
+
             renderSeasonalWarnings();
         }
 
@@ -797,10 +1418,11 @@
             const days = Math.max(1, Math.round((new Date(endStr) - new Date(startStr)) / 86400000));
             document.getElementById('plan_days').value = days;
             updatePlanner();
+            saveUserDataState();
             switchTab('planner');
         }
 
-        // Астрономический расчет времени восхода и заката на Пхукете (7.82° N, 98.30° E, UTC+7)
+        // Астрономический расчет времени восхода и заката + обратный отсчет до заката и рассвета по Пхукету (UTC+7)
         function calcPhuketSunTimes(dateObj = new Date()) {
             const start = new Date(dateObj.getFullYear(), 0, 0);
             const dayOfYear = Math.floor((dateObj - start) / 86400000);
@@ -824,14 +1446,47 @@
                 return `${hh}:${mm}`;
             };
             return {
+                sunriseH,
+                sunsetH,
                 sunrise: fmtTime(sunriseH),
                 sunset: fmtTime(sunsetH),
                 viewpointTime: fmtTime(viewpointH)
             };
         }
 
+        function updateSunCountdownLabels(sunriseStr, sunsetStr, viewpointStr) {
+            const { hoursFloat } = getPhuketTimeParts(Date.now());
+            const parseHm = (str) => {
+                const [h, m] = str.split(':').map(Number);
+                return h + m / 60;
+            };
+            const srH = parseHm(sunriseStr);
+            const ssH = parseHm(sunsetStr);
+
+            let hoursToSunset = ssH - hoursFloat;
+            if (hoursToSunset < 0) hoursToSunset += 24;
+            let hoursToSunrise = srH - hoursFloat;
+            if (hoursToSunrise < 0) hoursToSunrise += 24;
+
+            const fmtDur = (hFloat) => {
+                const totalM = Math.round(hFloat * 60);
+                const h = Math.floor(totalM / 60);
+                const m = totalM % 60;
+                return `${h} ч ${m} мин`;
+            };
+
+            const countdownEl = document.getElementById('homeSunCountdowns');
+            if (countdownEl) {
+                countdownEl.innerHTML = `⏳ До заката: <b>${fmtDur(hoursToSunset)}</b> • До рассвета: <b>${fmtDur(hoursToSunrise)}</b>`;
+            }
+            const tipEl = document.getElementById('homeSunsetTip');
+            if (tipEl) {
+                tipEl.innerText = `📸 Подходить на смотровую площадку лучше к ${viewpointStr} (за 45 мин до заката)`;
+            }
+        }
+
         function renderSeasonalWarnings() {
-            const nowMonth = new Date().getMonth() + 1; // 1..12
+            const nowMonth = new Date().getMonth() + 1;
             const tripStartVal = document.getElementById('trip_start')?.value;
             const tripMonth = tripStartVal ? (new Date(tripStartVal).getMonth() + 1) : nowMonth;
 
@@ -873,7 +1528,7 @@
             if (elWeather) elWeather.innerHTML = html;
         }
 
-        /* ==================== ЛОГИКА ВКЛАДКИ 3: ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ЗАПАДНЫЕ ПЛЯЖИ ==================== */
+        /* ==================== ЛОГИКА ПРИЛИВОВ, ОТЛИВОВ, ВОЛН И ПЛЯЖЕЙ ==================== */
         const westBeaches = [
             {
                 id: 'kata',
@@ -1040,7 +1695,6 @@
             return { hh, mm, hoursFloat: phuketDate.getUTCHours() + phuketDate.getUTCMinutes() / 60, phuketDate };
         }
 
-        // Оценка волн и безопасности купания для конкретного пляжа
         function evaluateBeachSwimSafety(beach, waveH, tideHeight) {
             let swimClass = 'swim-yes';
             let swimDecision = '✅ КУПАТЬСЯ МОЖНО (Безопасно)';
@@ -1053,7 +1707,7 @@
             if (tideHeight < 1.1) {
                 if (beach.tideSensitivity === 'high') score -= 22;
                 else if (beach.tideSensitivity === 'medium') score -= 8;
-                else score += 6; // глубокие пляжи выигрывают в отлив
+                else score += 6;
             } else {
                 score += 8;
             }
@@ -1126,7 +1780,6 @@
                 : `<span style="color:var(--warning)">⬇️ Идет отлив</span>`;
             document.getElementById('lunarAgeLabel').innerText = `Лунные сутки: ${nowTide.lunarAgeDays.toFixed(1)} дн. (${nowTide.lunarAgeDays < 3 || (nowTide.lunarAgeDays > 13 && nowTide.lunarAgeDays < 17) ? 'Сизигия — большие приливы' : 'Умеренная амплитуда'})`;
 
-            // Обновление сводки прилива на Главной
             document.getElementById('homeTideHeight').innerText = `${nowTide.height.toFixed(2)} м`;
             document.getElementById('homeTidePhase').innerHTML = isRising
                 ? `<span style="color:var(--success)">⬆️ Прилив</span>`
@@ -1178,7 +1831,7 @@
                             <stop offset="100%" stop-color="#007aff" stop-opacity="0.02"/>
                         </linearGradient>
                     </defs>
-                    <line x1="${padL}" y1="${toY(1.78).toFixed(1)}" x2="${w - padR}" y2="${toY(1.78).toFixed(1)}" stroke="#2c3442" stroke-dasharray="3,3" stroke-width="1"/>
+                    <line x1="${padL}" y1="${toY(1.78).toFixed(1)}" x2="${w - padR}" y2="${toY(1.78).toFixed(1)}" stroke="#8b949e" stroke-opacity="0.3" stroke-dasharray="3,3" stroke-width="1"/>
                     <path d="${areaD}" fill="url(#tideGrad)"/>
                     <path d="${pathD}" fill="none" stroke="#007aff" stroke-width="2.4"/>
                     <line x1="${curX}" y1="${padT}" x2="${curX}" y2="${padT + plotH}" stroke="#34c759" stroke-width="1.5" stroke-dasharray="2,2"/>
@@ -1306,7 +1959,6 @@
                                 <span class="status-pill ${evalRes.statusClass}">${evalRes.statusText}</span>
                             </div>
 
-                            <!-- Явный вердикт по волнам и купанию -->
                             <div class="swim-verdict-banner ${evalRes.swimClass}">
                                 <span>${evalRes.swimDecision}</span>
                                 <span>${evalRes.waveLabel}</span>
@@ -1336,7 +1988,7 @@
                             </button>
 
                             <div class="beach-details" id="beach_details_${b.id}">
-                                <div style="font-size:0.8rem; line-height:1.45; color:#d0d7de;">
+                                <div style="font-size:0.8rem; line-height:1.45; color:var(--desc-text);">
                                     <p style="margin:4px 0;"><b>🏖️ Рельеф дна и вход:</b> ${b.bottomType}</p>
                                     <p style="margin:4px 0;"><b>🔻 Поведение в отлив:</b> ${b.lowTideImpact}</p>
                                     <p style="margin:4px 0;"><b>🔺 Поведение в прилив:</b> ${b.highTideImpact}</p>
@@ -1354,14 +2006,13 @@
                 }
             });
 
-            // Сортировка и вывод Топ-3 лучших пляжей прямо сейчас
             scoredBeaches.sort((a, b) => b.evalRes.score - a.evalRes.score);
             const top3Html = scoredBeaches.slice(0, 3).map((item, i) => `
                 <div class="top3-item">
-                    <div style="font-weight:700; color:#fff; margin-bottom:3px;">🥇 #${i + 1}. ${item.beach.name.replace('Пляж ', '')}</div>
+                    <div style="font-weight:700; color:var(--heading); margin-bottom:3px;">🥇 #${i + 1}. ${item.beach.name.replace('Пляж ', '')}</div>
                     <div style="color:var(--success); font-weight:600; font-size:0.75rem;">${item.evalRes.swimDecision.replace('✅ ', '')}</div>
                     <div style="color:var(--muted); font-size:0.74rem; margin-top:3px;">Волна: <b>${item.waveH.toFixed(2)} м</b> • Вода: +${item.seaT.toFixed(1)}°C</div>
-                    <div style="color:#c9d1d9; font-size:0.73rem; margin-top:3px;">${item.beach.bottomType}</div>
+                    <div style="color:var(--desc-text); font-size:0.73rem; margin-top:3px;">${item.beach.bottomType}</div>
                 </div>
             `).join('');
 
@@ -1381,7 +2032,7 @@
             }
         }
 
-        /* ==================== ЛОГИКА ВКЛАДКИ 4: ПОГОДА, УФ-АЛЕРТ, ЗАКАТ И WINDY ==================== */
+        /* ==================== ЛОГИКА ПОГОДЫ, УФ-АЛЕРТА, ЗАКАТА И WINDY ==================== */
         const phuketDistricts = {
             kata: {
                 name: 'Ката (Kata Beach)',
@@ -1472,6 +2123,7 @@
             document.getElementById('districtDescBox').innerHTML = `ℹ️ <b>О районе:</b> ${d.desc}`;
             updateWindyEmbed();
             syncDistrictWeather();
+            saveUserDataState();
         }
 
         function decodeWmoWeather(code) {
@@ -1599,7 +2251,7 @@
                             <div class="h-pill">
                                 <div style="color:var(--muted); margin-bottom:3px;">${i === hIdx ? 'Сейчас' : tStr}</div>
                                 <div style="font-size:1.15rem; margin:2px 0;">${hIco}</div>
-                                <div style="font-weight:700; color:#fff;">${hT}°C</div>
+                                <div style="font-weight:700; color:var(--heading);">${hT}°C</div>
                                 <div style="color:${hPop > 45 ? 'var(--warning)' : 'var(--accent)'}; font-size:0.7rem; margin-top:2px;">💧 ${hPop}%</div>
                             </div>
                         `;
@@ -1645,7 +2297,7 @@
                         <div class="h-pill">
                             <div style="color:var(--muted); margin-bottom:3px;">${i === startIdx ? 'Сейчас' : tStr}</div>
                             <div style="font-size:1.15rem; margin:2px 0;">${hIco}</div>
-                            <div style="font-weight:700; color:#fff;">${hT}°C</div>
+                            <div style="font-weight:700; color:var(--heading);">${hT}°C</div>
                             <div style="color:${hPop > 45 ? 'var(--warning)' : 'var(--accent)'}; font-size:0.7rem; margin-top:2px;">💧 ${hPop}%</div>
                         </div>
                     `;
@@ -1671,7 +2323,6 @@
             const waveP = mc.wave_period ?? 8;
             const seaT = mc.sea_surface_temperature ?? 29.2;
 
-            // Обновление карточек во вкладке Погоды
             document.getElementById('weatherHourlyStrip').innerHTML = hourlyPillsHtml;
             document.getElementById('wTemp').innerText = `${temp.toFixed(1)} °C`;
             document.getElementById('wFeels').innerText = `По ощущению: ${feels.toFixed(1)} °C`;
@@ -1686,16 +2337,14 @@
             document.getElementById('wSunTimes').innerText = `${sunriseStr} / ${sunsetStr}`;
             document.getElementById('wSunViewpoint').innerText = `На смотровую: к ${sunCalc.viewpointTime}`;
 
-            // Обновление Главной страницы (Дашборда)
             document.getElementById('homeTempVal').innerText = `+${temp.toFixed(1)} °C`;
             document.getElementById('homeWeatherDesc').innerText = `${wIcon} ${wDesc} (ощущ. +${feels.toFixed(0)}°)`;
             document.getElementById('homeSunrise').innerText = sunriseStr;
             document.getElementById('homeSunset').innerText = sunsetStr;
-            document.getElementById('homeSunsetTip').innerText = `📸 Выезд на Промтхеп / Карон Вьюпойнт: к ${sunCalc.viewpointTime}`;
 
+            updateSunCountdownLabels(sunriseStr, sunsetStr, sunCalc.viewpointTime);
             applyUvAlerts(curUv);
 
-            const verdictBox = document.getElementById('weatherVerdictBox');
             let beachAdvice = '';
             if (!d.isCoastal) {
                 beachAdvice = 'Локация находится в глубине острова — отличное время для прогулок по старому городу, поездок в ТЦ Central или смотровых площадок.';
@@ -1714,7 +2363,7 @@
             document.getElementById('weatherVerdictText').innerHTML = `
                 <div style="margin-bottom:5px;"><b>${wIcon} Погода сейчас в ${d.name}:</b> ${wDesc}, воздух <b>+${temp.toFixed(1)}°C</b> (ощущается как +${feels.toFixed(1)}°C), ветер ${wind.toFixed(1)} м/с.</div>
                 <div style="margin-bottom:5px;">🏖️ <b>Море и волны:</b> ${beachAdvice}</div>
-                <div style="margin-bottom:5px;">🌅 <b>Рассвет и закат:</b> восход в <b>${sunriseStr}</b>, закат в <b>${sunsetStr}</b> (лучшее время на смотровой Промтхеп — с ${sunCalc.viewpointTime}).</div>
+                <div style="margin-bottom:5px;">🌅 <b>Рассвет и закат:</b> восход в <b>${sunriseStr}</b>, закат в <b>${sunsetStr}</b> (лучшее время прибытия на смотровую Промтхеп / Ветряк — к ${sunCalc.viewpointTime}).</div>
                 <div>☂️ <b>Осадки:</b> ${rainAdvice}</div>
             `;
 
@@ -1733,6 +2382,7 @@
             document.getElementById('plan_budget').value = document.getElementById('budget').value;
             document.getElementById('plan_currency').value = document.getElementById('currency').value;
             updatePlanner();
+            saveUserDataState();
         }
 
         function flashInputs(ids) {
@@ -1753,6 +2403,7 @@
             st.className = "status-bar active";
             st.innerHTML = `● Пересчитано: <b>${now}</b> | Все суммы и % комиссий выведены с точностью до копеек`;
             render(true);
+            saveUserDataState();
             setTimeout(() => { btn.innerText = "🧮 Рассчитать"; }, 900);
         }
 
@@ -1839,6 +2490,7 @@
                 if (btn) btn.innerText = "✅ Синхронизировано!";
                 render(true);
                 updatePlanner();
+                saveUserDataState();
             } catch (e) {
                 if (st) st.innerText = "⚠️ Оффлайн-режим: используются сохраненные курсы из кэша.";
                 if (btn) btn.innerText = "📴 Из кэша";
@@ -1863,7 +2515,7 @@
                             <span class="h-name">${i+1}. ${it.name}</span> ${spreadBadge}<br/>
                             <span class="sub-rate">${it.rateText}</span>
                         </div>
-                        <div style="text-align: right; color: #e6e8eb; font-weight: ${isFirst ? '700' : '400'}; white-space:nowrap;">
+                        <div style="text-align: right; color: var(--heading); font-weight: ${isFirst ? '700' : '400'}; white-space:nowrap;">
                             ${fmt(it.resultThb)} ฿
                         </div>
                     </div>
@@ -1894,7 +2546,6 @@
             const sbpMs = parseFloat(document.getElementById('sbp_ms').value) || 1;
             const sbpFm = parseFloat(document.getElementById('sbp_fm').value) || 1;
 
-            // Официальный биржевой кросс-курс THB/RUB для индикации наценки в %
             const fxUsdRub = parseFloat(document.getElementById('forex_usd_rub').value) || (spb1 - 0.60);
             const fxUsdThb = parseFloat(document.getElementById('forex_usd_thb').value) || (usdVp + 0.18);
             const officialCrossRubThb = fxUsdRub / fxUsdThb;
@@ -1922,7 +2573,6 @@
                 const bestUsdEff = (b + fee1) / bestUsdThb;
                 const usdSpreadPct = Math.max(0, ((bestUsdEff - officialCrossRubThb) / officialCrossRubThb) * 100);
 
-                // Обновление сводки курсов на Главной
                 document.getElementById('homeBestCashRate').innerText = `${bestUsdEff.toFixed(3)} ₽/฿`;
                 document.getElementById('homeCashSpread').innerText = `+${usdSpreadPct.toFixed(2)}% к бирже`;
                 const sbpSpreadPct = Math.max(0, ((sbpMs - officialCrossRubThb) / officialCrossRubThb) * 100);
@@ -2033,7 +2683,7 @@
             });
         }
 
-        /* ==================== ЛОГИКА ВКЛАДКИ 2: ПЛАНИРОВЩИК ОТДЫХА ==================== */
+        /* ==================== ЛОГИКА ПЛАНИРОВЩИКА БЮДЖЕТА ==================== */
         const categoriesData = [
             {
                 id: 'food_daily', icon: '🍜', name: 'Еда на каждый день (кафе, стритфуд, фудкорты)', maxThb: 60000, step: 500, val: 23000,
@@ -2153,6 +2803,7 @@
         function syncCatInput(id, val) {
             document.getElementById('num_' + id).value = val;
             updatePlanner();
+            saveUserDataState();
         }
 
         function syncCatSlider(id, val) {
@@ -2160,6 +2811,7 @@
             if (parseFloat(val) > parseFloat(rng.max)) rng.max = parseFloat(val) * 1.2;
             rng.value = val || 0;
             updatePlanner();
+            saveUserDataState();
         }
 
         function getBestRubToThbRate() {
@@ -2232,7 +2884,6 @@
             document.getElementById('planSpentUsd').innerText = `${fmt(totalSpentUsd)} $`;
             document.getElementById('planDailyAvg').innerText = `${fmtInt(totalSpentThb / days)} ฿ / день (${fmt((totalSpentThb / days) / usdVp)} $)`;
 
-            // Синхронизация карточки бюджета на Главной
             document.getElementById('homePlanTotal').innerText = `${fmtInt(totalBudgetThb)} ฿`;
             document.getElementById('homePlanTotalUsd').innerText = `${fmt(totalBudgetUsd)} $`;
             document.getElementById('homePlanDaily').innerText = `${fmtInt(totalSpentThb / days)} ฿/день (${fmtInt((totalSpentThb / days) / people)} ฿/чел)`;
@@ -2287,6 +2938,7 @@
                 document.getElementById('num_' + cat.id).value = calcTotal;
             });
             updatePlanner();
+            saveUserDataState();
         }
 
         function fitToBudget() {
@@ -2309,6 +2961,7 @@
                 document.getElementById('num_' + cat.id).value = newVal;
             });
             updatePlanner();
+            saveUserDataState();
         }
 
         async function refreshAllDashboard() {
@@ -2324,9 +2977,9 @@
             setTimeout(() => { btn.innerText = '🔄 Обновить все сводки (Погода, Море, Курсы)'; }, 1400);
         }
 
-        /* ==================== 4. АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
+        /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v2';
+const CACHE_NAME = 'phuket-pwa-cache-v3';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -2370,9 +3023,8 @@ self.addEventListener('fetch', (event) => {
         }
 
         function initPwaAndOfflineSupport() {
-            // 1. Динамический Web App Manifest для установки на экран «Домой»
             const manifestObj = {
-                name: "Пхукет: Дашборд, Курсы и Пляжи",
+                name: "Пхукет: Дашборд, Планировщик и Курсы",
                 short_name: "Phuket App",
                 start_url: "./index.html",
                 display: "standalone",
@@ -2387,7 +3039,6 @@ self.addEventListener('fetch', (event) => {
             const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
             document.getElementById('pwaManifestLink').href = URL.createObjectURL(manifestBlob);
 
-            // 2. Регистрация Service Worker + Кэширование самой страницы через CacheStorage API
             if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
                 navigator.serviceWorker.register('./sw.js').catch(() => {
                     const swBlob = new Blob([SW_SCRIPT_CODE], { type: 'application/javascript' });
@@ -2395,18 +3046,17 @@ self.addEventListener('fetch', (event) => {
                 });
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v2').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v3').then(cache => cache.add(location.href)).catch(() => {});
             }
 
-            // 3. Индикатор статуса сети (Онлайн / Оффлайн)
             const updateNetStatus = () => {
                 const badge = document.getElementById('networkBadge');
                 if (navigator.onLine) {
                     badge.className = 'pwa-badge online';
-                    badge.innerText = '● Онлайн • PWA кэш активен';
+                    badge.innerText = '● Онлайн';
                 } else {
                     badge.className = 'pwa-badge offline';
-                    badge.innerText = '📴 Оффлайн (Данные из кэша)';
+                    badge.innerText = '📴 Оффлайн (Кэш)';
                 }
             };
             window.addEventListener('online', updateNetStatus);
@@ -2417,7 +3067,6 @@ self.addEventListener('fetch', (event) => {
         // Инициализация приложения
         (function initApp() {
             initPlannerUI();
-            render(false);
             initPwaAndOfflineSupport();
 
             if (window.Telegram && window.Telegram.WebApp) {
@@ -2430,36 +3079,27 @@ self.addEventListener('fetch', (event) => {
                 } catch (e) {}
             }
 
-            // Восстановление всех пользовательских полей из localStorage
-            const savedData = localStorage.getItem('phuket_app_state');
-            if (savedData) {
-                try {
-                    const parsed = JSON.parse(savedData);
-                    Object.keys(parsed).forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el && parsed[id] !== undefined && parsed[id] !== '') {
-                            el.value = parsed[id];
-                        }
-                    });
-                    const wSel = document.getElementById('weatherDistrictSelect');
-                    if (wSel && !wSel.value) wSel.value = 'kata';
-                    render(false);
-                    updatePlanner();
-                } catch (e) {}
-            }
+            updateAuthUI();
+            loadUserDataState(currentUser);
 
-            // Автосохранение всех полей ввода
-            document.addEventListener('input', () => {
-                const state = {};
-                document.querySelectorAll('input, select').forEach(el => {
-                    if (el.id) state[el.id] = el.value;
-                });
-                localStorage.setItem('phuket_app_state', JSON.stringify(state));
+            // Мгновенное автосохранение при любом вводе или изменении селектов
+            document.addEventListener('input', (e) => {
+                if (e.target && e.target.id && !e.target.id.startsWith('auth') && !e.target.id.startsWith('ev')) {
+                    saveUserDataState();
+                }
+            });
+            document.addEventListener('change', (e) => {
+                if (e.target && e.target.id && !e.target.id.startsWith('auth') && !e.target.id.startsWith('ev')) {
+                    saveUserDataState();
+                }
             });
 
             // Запуск сводок на Главной странице
             updateTripCountdown();
             renderSeasonalWarnings();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            renderAllEventsSummary();
             scanRealTimeTides();
             syncDistrictWeather();
         })();
