@@ -2,8 +2,13 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Пхукет: Точный Курс и Планировщик Бюджета</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0f1115">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Phuket Helper">
+    <link id="pwaManifestLink" rel="manifest" href="">
+    <title>Пхукет: Дашборд, Курсы, Пляжи и Погода</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -12,29 +17,79 @@
             --border: #282e39;
         }
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 15px; margin: 0; }
-        .container { max-width: 720px; margin: 0 auto; padding-bottom: 40px; }
-        h1 { text-align: center; font-size: 1.25rem; margin: 5px 0 12px 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; }
+        .container { max-width: 740px; margin: 0 auto; padding-bottom: 45px; }
+        
+        .top-header { display: flex; justify-content: space-between; align-items: center; margin: 4px 0 10px 0; gap: 8px; flex-wrap: wrap; }
+        h1 { font-size: 1.2rem; margin: 0; }
+        .pwa-badge { font-size: 0.72rem; padding: 4px 9px; border-radius: 20px; background: #1c212b; border: 1px solid var(--border); color: var(--muted); display: flex; align-items: center; gap: 5px; }
+        .pwa-badge.online { color: var(--success); border-color: rgba(52, 199, 89, 0.35); }
+        .pwa-badge.offline { color: var(--warning); border-color: rgba(255, 159, 10, 0.45); background: rgba(255, 159, 10, 0.1); }
 
-
-        /* Четыре вкладки навигации (2x2 на узких экранах или компактный ряд) */
-        .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--card-alt); padding: 6px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 15px; }
-        @media (min-width: 600px) { .tabs { grid-template-columns: repeat(4, 1fr); } }
-        .tab-btn { padding: 10px 8px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.84rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.25; }
+        /* Навигация на 5 вкладок */
+        .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--card-alt); padding: 6px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 14px; }
+        .tabs .tab-btn:first-child { grid-column: span 2; }
+        @media (min-width: 620px) {
+            .tabs { grid-template-columns: repeat(5, 1fr); }
+            .tabs .tab-btn:first-child { grid-column: span 1; }
+        }
+        .tab-btn { padding: 9px 6px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.81rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
         .tab-btn:hover { color: var(--text); }
         .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.35); }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; animation: fadeIn 0.22s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* Главная страница (Дашборд) */
+        .dash-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 12px; }
+        @media (max-width: 560px) { .dash-grid { grid-template-columns: 1fr; } }
+        .dash-card { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 13px; display: flex; flex-direction: column; justify-content: space-between; position: relative; overflow: hidden; }
+        .dash-card-head { display: flex; justify-content: space-between; align-items: center; font-size: 0.78rem; font-weight: 700; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+        .dash-goto { background: rgba(0, 122, 255, 0.14); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; padding: 3px 8px; font-size: 0.7rem; font-weight: 600; cursor: pointer; }
+        .dash-goto:hover { background: rgba(0, 122, 255, 0.25); }
+
+        /* УФ Алерт */
+        .uv-alert-banner { background: linear-gradient(135deg, rgba(255, 59, 48, 0.22), rgba(255, 159, 10, 0.18)); border: 1px solid var(--danger); border-left: 5px solid var(--danger); border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; gap: 10px; animation: uvPulse 2.2s infinite; }
+        @keyframes uvPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255, 59, 48, 0.25); }
+            50% { box-shadow: 0 0 14px 2px rgba(255, 59, 48, 0.45); }
+        }
+        .w-card.uv-danger { background: rgba(255, 59, 48, 0.16); border-color: var(--danger); animation: uvPulse 2.2s infinite; }
+        .w-card.uv-warn { background: rgba(255, 159, 10, 0.14); border-color: var(--warning); }
+
+        /* Календарь поездки */
+        .trip-calendar-box { background: linear-gradient(145deg, #171d29, #13161f); border: 1px solid #2d384c; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
+        .trip-countdown-badge { background: rgba(52, 199, 89, 0.12); border: 1px solid rgba(52, 199, 89, 0.35); border-radius: 9px; padding: 10px 12px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        input[type="date"] { background: var(--bg); border: 1px solid #363d49; color: var(--text); padding: 7px 9px; border-radius: 6px; font-size: 0.88rem; width: 100%; font-family: inherit; color-scheme: dark; }
+
+        /* Сезонные предупреждения и Топ-3 пляжа */
+        .seasonal-box { background: rgba(255, 159, 10, 0.1); border: 1px solid rgba(255, 159, 10, 0.35); border-left: 4px solid var(--warning); border-radius: 10px; padding: 11px 13px; margin-bottom: 12px; font-size: 0.81rem; line-height: 1.42; }
+        .top3-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 8px; }
+        @media (max-width: 580px) { .top3-grid { grid-template-columns: 1fr; } }
+        .top3-item { background: var(--card-alt); border: 1px solid #2b3342; border-top: 3px solid var(--success); border-radius: 9px; padding: 9px 10px; font-size: 0.79rem; }
+
+        /* Официальный кросс-курс (бенчмарк) */
+        .forex-benchmark { background: linear-gradient(145deg, #151a24, #12151d); border: 1px solid #2c364a; border-radius: 10px; padding: 10px 13px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; font-size: 0.82rem; }
+        .spread-tag { display: inline-block; padding: 2px 6px; border-radius: 5px; font-size: 0.73rem; font-weight: 600; background: rgba(255, 159, 10, 0.14); color: var(--warning); margin-left: 6px; }
+        .spread-tag.good { background: rgba(52, 199, 89, 0.14); color: var(--success); }
 
         /* Стили Вкладки 3: Приливы, Отливы и Пляжи */
         .tide-hero { background: linear-gradient(145deg, #161c28, #12151e); border: 1px solid #2b3548; border-radius: 12px; padding: 14px; margin-bottom: 14px; }
         .tide-now-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 10px; }
         .tide-stat { background: rgba(15, 17, 21, 0.7); border: 1px solid var(--border); border-radius: 8px; padding: 9px; text-align: center; }
         .tide-stat-lbl { font-size: 0.7rem; color: var(--muted); text-transform: uppercase; margin-bottom: 3px; }
-        .tide-stat-val { font-size: 1rem; font-weight: 700; color: var(--text); }
+        .tide-stat-val { font-size: 0.96rem; font-weight: 700; color: var(--text); }
         .tide-chart-box { margin-top: 12px; background: #0d1016; border: 1px solid #232a36; border-radius: 8px; padding: 10px; }
         .extremes-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px; margin-top: 10px; }
         @media (min-width: 520px) { .extremes-row { grid-template-columns: repeat(4, 1fr); } }
         .ext-badge { background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 7px 9px; font-size: 0.78rem; display: flex; flex-direction: column; gap: 2px; }
         .ext-badge b { font-size: 0.9rem; }
+
+        .swim-verdict-banner { padding: 8px 11px; border-radius: 8px; font-size: 0.81rem; font-weight: 600; margin-bottom: 9px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
+        .swim-yes { background: rgba(52, 199, 89, 0.14); border: 1px solid rgba(52, 199, 89, 0.38); color: #4cd964; }
+        .swim-caution { background: rgba(255, 159, 10, 0.14); border: 1px solid rgba(255, 159, 10, 0.38); color: #ff9f0a; }
+        .swim-no { background: rgba(255, 59, 48, 0.16); border: 1px solid rgba(255, 59, 48, 0.45); color: #ff5b52; }
 
         .beach-card { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 4px 12px rgba(0,0,0,0.25); transition: border-color 0.2s; }
         .beach-card:hover { border-color: #3e4859; }
@@ -64,10 +119,11 @@
         .district-selector-box { background: linear-gradient(145deg, #181d27, #14171f); border: 1px solid #2e384b; border-radius: 12px; padding: 14px; margin-bottom: 12px; }
         .district-select { background: #0f1115 !important; border: 1px solid var(--accent) !important; color: #fff !important; font-size: 0.96rem !important; font-weight: 600; padding: 11px 12px !important; border-radius: 8px !important; cursor: pointer; width: 100%; }
         .weather-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
-        .w-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; }
+        @media (max-width: 520px) { .weather-grid { grid-template-columns: repeat(2, 1fr); } }
+        .w-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 10px; text-align: center; transition: all 0.2s; }
         .w-lbl { font-size: 0.7rem; color: var(--muted); margin-bottom: 4px; }
-        .w-val { font-size: 1.05rem; font-weight: 700; color: #fff; }
-        .w-sub { font-size: 0.72rem; color: var(--muted); margin-top: 2px; }
+        .w-val { font-size: 1.02rem; font-weight: 700; color: #fff; }
+        .w-sub { font-size: 0.71rem; color: var(--muted); margin-top: 2px; }
         .verdict-box { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--success); border-radius: 10px; padding: 13px 15px; margin-bottom: 12px; font-size: 0.85rem; line-height: 1.45; }
         .verdict-box h3 { margin: 0 0 6px 0; font-size: 0.94rem; color: #fff; display: flex; align-items: center; gap: 6px; }
         .windy-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; padding: 12px; margin-bottom: 12px; }
@@ -77,15 +133,11 @@
         .hourly-strip { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 6px; margin-top: 8px; }
         .h-pill { min-width: 74px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 8px 6px; text-align: center; font-size: 0.76rem; flex-shrink: 0; }
 
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: fadeIn 0.25s ease; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
-
-        .status-bar { text-align: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 15px; padding: 8px 12px; background: #14171d; border-radius: 8px; border: 1px solid var(--border); line-height: 1.4; transition: all 0.3s; }
+        .status-bar { text-align: center; font-size: 0.8rem; color: var(--muted); margin-bottom: 12px; padding: 8px 12px; background: #14171d; border-radius: 8px; border: 1px solid var(--border); line-height: 1.4; transition: all 0.3s; }
         .status-bar.active { border-color: var(--success); color: var(--text); }
         
         .box { background: var(--card); border: 1px solid var(--border); padding: 14px; border-radius: 12px; margin-bottom: 12px; }
-        .box h2 { font-size: 0.88rem; margin: 0 0 10px 0; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; }
+        .box h2 { font-size: 0.86rem; margin: 0 0 10px 0; color: var(--accent); text-transform: uppercase; letter-spacing: 0.5px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px; }
         .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
         .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
         .field { display: flex; flex-direction: column; }
@@ -94,8 +146,8 @@
         input[type="number"]:focus, select:focus { border-color: var(--accent); }
         input.updated { border-color: var(--success); box-shadow: 0 0 8px rgba(52, 199, 89, 0.35); }
         
-        .actions { display: flex; gap: 10px; margin-bottom: 15px; }
-        button.action-btn { flex: 1; padding: 12px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
+        .actions { display: flex; gap: 10px; margin-bottom: 14px; flex-wrap: wrap; }
+        button.action-btn { flex: 1; min-width: 180px; padding: 11px; background: var(--accent); color: #fff; border: none; border-radius: 8px; font-size: 0.92rem; font-weight: 600; cursor: pointer; transition: transform 0.1s, opacity 0.2s; }
         button.action-btn:hover { opacity: 0.92; }
         button.action-btn:active { transform: scale(0.98); }
         button.action-btn.sync { background: #21262d; color: var(--text); border: 1px solid #363d49; }
@@ -114,16 +166,16 @@
         .profit { color: var(--success); font-size: 0.8rem; margin-left: 5px; }
         
         .hierarchy-list { margin-top: 10px; background: var(--card-alt); border-radius: 6px; padding: 4px 0; }
-        .h-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; padding: 6px 10px; border-bottom: 1px solid #1c2028; }
+        .h-item { display: flex; justify-content: space-between; align-items: center; font-size: 0.84rem; padding: 6px 10px; border-bottom: 1px solid #1c2028; gap: 8px; }
         .h-item:last-child { border-bottom: none; }
         .h-item span.h-name { color: var(--accent); font-weight: 600; }
         .h-item.h-best { background: rgba(52, 199, 89, 0.06); }
         .h-item.h-best span.h-name { color: var(--success); }
-        .sub-rate { color: var(--muted); font-size: 0.78rem; }
-        .rate-info { font-size: 0.85rem; color: var(--muted); }
+        .sub-rate { color: var(--muted); font-size: 0.77rem; }
+        .rate-info { font-size: 0.84rem; color: var(--muted); line-height: 1.4; }
 
         /* Стили Вкладки 2: Планировщик отдыха */
-        .summary-sticky { position: sticky; top: 10px; z-index: 50; background: rgba(24, 27, 33, 0.96); backdrop-filter: blur(10px); border: 1px solid #363d49; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
+        .summary-sticky { position: sticky; top: 8px; z-index: 50; background: rgba(24, 27, 33, 0.96); backdrop-filter: blur(10px); border: 1px solid #363d49; border-radius: 12px; padding: 14px; margin-bottom: 14px; box-shadow: 0 8px 20px rgba(0,0,0,0.45); }
         .sum-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; text-align: center; }
         .sum-box { background: var(--card-alt); padding: 10px 8px; border-radius: 8px; border: 1px solid #222730; }
         .sum-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; margin-bottom: 4px; }
@@ -133,7 +185,7 @@
         .progress-wrap { margin-top: 12px; }
         .progress-bar-bg { width: 100%; height: 10px; background: #0f1115; border-radius: 6px; overflow: hidden; border: 1px solid #282e39; }
         .progress-bar-fill { height: 100%; width: 0%; background: var(--success); transition: width 0.25s ease, background-color 0.25s ease; }
-        .progress-meta { display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--muted); margin-top: 5px; }
+        .progress-meta { display: flex; justify-content: space-between; font-size: 0.76rem; color: var(--muted); margin-top: 5px; flex-wrap: wrap; gap: 4px; }
 
         .presets-row { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
         .preset-btn { flex: 1; min-width: 120px; padding: 8px 10px; background: #21262d; color: var(--text); border: 1px solid #363d49; border-radius: 7px; font-size: 0.8rem; font-weight: 600; cursor: pointer; transition: all 0.15s; }
@@ -144,7 +196,7 @@
         .cat-card { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 13px 15px; margin-bottom: 10px; transition: border-color 0.2s; }
         .cat-card:hover { border-color: #3b4454; }
         .cat-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 4px; flex-wrap: wrap; gap: 6px; }
-        .cat-title { font-size: 0.98rem; font-weight: 700; }
+        .cat-title { font-size: 0.96rem; font-weight: 700; }
         .cat-amounts { font-size: 1rem; font-weight: 700; }
         .cat-daily { display: flex; justify-content: space-between; font-size: 0.78rem; color: var(--muted); margin-bottom: 8px; flex-wrap: wrap; gap: 4px; }
         .cat-daily b { color: var(--text); }
@@ -164,19 +216,162 @@
 </head>
 <body>
     <div class="container">
-        <h1>🌴 Пхукет: Курсы обмена и Бюджет поездки</h1>
+        <div class="top-header">
+            <h1>🌴 Пхукет: Помощник путешественника</h1>
+            <div class="pwa-badge online" id="networkBadge" title="Статус сети и PWA кэша">● Онлайн • Кэш активен</div>
+        </div>
 
-        <!-- Навигация по 4 вкладкам -->
+        <!-- Навигация по 5 вкладкам -->
         <div class="tabs">
-            <button class="tab-btn active" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы и обмен</button>
+            <button class="tab-btn active" onclick="switchTab('home')" id="tabBtnHome">🏠 Главная (Сводка)</button>
+            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы и обмен</button>
             <button class="tab-btn" onclick="switchTab('planner')" id="tabBtnPlanner">🏖️ Бюджет и резерв</button>
             <button class="tab-btn" onclick="switchTab('tides')" id="tabBtnTides">🌊 Приливы и Пляжи</button>
             <button class="tab-btn" onclick="switchTab('weather')" id="tabBtnWeather">🌤️ Погода (Windy)</button>
         </div>
 
+        <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
+        <div id="tab-home" class="tab-content active">
+            <!-- Алерт высокого УФ-индекса (показывается при УФ >= 6) -->
+            <div id="homeUvAlertBox" class="uv-alert-banner" style="display:none;">
+                <div>
+                    <div style="font-weight:800; font-size:0.9rem; color:#ff5b52;" id="homeUvAlertTitle">🚨 ВНИМАНИЕ: ЭКСТРЕМАЛЬНЫЙ УФ-ИНДЕКС!</div>
+                    <div style="font-size:0.79rem; color:#e6e8eb; margin-top:2px;" id="homeUvAlertDesc">Без защиты SPF 50+ ожог кожи за 15–20 минут. Ищите тень с 11:00 до 15:30.</div>
+                </div>
+                <button class="dash-goto" onclick="switchTab('weather')">Радар УФ ➔</button>
+            </div>
+
+            <!-- 1. Календарь поездки и обратный отсчет -->
+            <div class="trip-calendar-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Календарь вашей поездки на Пхукет</span>
+                    <button class="link-btn" onclick="syncTripDaysToPlanner()">🔄 Передать дни в Бюджет</button>
+                </div>
+                <div class="grid-2">
+                    <div class="field">
+                        <label>Дата прилета на Пхукет</label>
+                        <input type="date" id="trip_start" value="2026-12-16" onchange="updateTripCountdown()">
+                    </div>
+                    <div class="field">
+                        <label>Дата вылета домой</label>
+                        <input type="date" id="trip_end" value="2027-01-08" onchange="updateTripCountdown()">
+                    </div>
+                </div>
+                <div class="trip-countdown-badge" id="tripCountdownBanner">
+                    <div>
+                        <div style="font-size:0.98rem; font-weight:700; color:#fff;" id="tripStatusMain">Расчет дат поездки...</div>
+                        <div style="font-size:0.77rem; color:var(--muted); margin-top:2px;" id="tripStatusSub">--</div>
+                    </div>
+                    <span class="status-pill pill-good" id="tripDaysBadge">23 дня</span>
+                </div>
+            </div>
+
+            <!-- 2. Главные сводки (Погода/Закат + Море/Приливы/Волны + Курсы + Бюджет) -->
+            <div class="dash-grid">
+                <!-- Карточка Погоды, УФ и Заката -->
+                <div class="dash-card">
+                    <div>
+                        <div class="dash-card-head">
+                            <span>🌤️ Погода, УФ и Солнце (Ката)</span>
+                            <button class="dash-goto" onclick="switchTab('weather')">Погода ➔</button>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; align-items:baseline; margin-bottom:6px;">
+                            <span style="font-size:1.35rem; font-weight:800;" id="homeTempVal">-- °C</span>
+                            <span style="font-size:0.82rem; color:var(--muted);" id="homeWeatherDesc">Загрузка...</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.45;">
+                            <div>☀️ <b>УФ-индекс:</b> <span id="homeUvBadge">--</span></div>
+                            <div>🌅 <b>Рассвет:</b> <span id="homeSunrise">--:--</span> • 🌇 <b>Закат:</b> <b style="color:var(--warning)" id="homeSunset">--:--</b></div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeSunsetTip">Выезд на смотровую Промтхеп: к 17:35</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточка Моря: Прилив/Отлив, Волны и Купание -->
+                <div class="dash-card">
+                    <div>
+                        <div class="dash-card-head">
+                            <span>🌊 Море, Волны и Прилив</span>
+                            <button class="dash-goto" onclick="switchTab('tides')">Пляжи ➔</button>
+                        </div>
+                        <div id="homeSwimBanner" class="swim-verdict-banner swim-yes" style="margin-bottom:6px;">
+                            <span id="homeSwimVerdict">🟢 Купаться можно</span>
+                            <span id="homeWaveSummary" style="font-size:0.75rem;">Волна: -- м</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.45;">
+                            <div>🌊 <b>Фаза по острову:</b> <span id="homeTidePhase">--</span> (<b id="homeTideHeight">-- м</b>)</div>
+                            <div>🌡️ <b>Температура воды:</b> <span id="homeSeaTemp">+29.2 °C</span></div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeNextExtreme">Ближайший пик воды: --</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточка Курсов Валют -->
+                <div class="dash-card">
+                    <div>
+                        <div class="dash-card-head">
+                            <span>💱 Курсы валют и Наценка</span>
+                            <button class="dash-goto" onclick="switchTab('exchange')">Калькулятор ➔</button>
+                        </div>
+                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.5;">
+                            <div>🌐 <b>Биржа Форекс:</b> <b style="color:var(--accent)" id="homeForexRate">1 ฿ = 2.49 ₽</b></div>
+                            <div>💵 <b>Через нал USD:</b> <b style="color:var(--success)" id="homeBestCashRate">2.51 ₽/฿</b> <span id="homeCashSpread" class="spread-tag good">+0.8%</span></div>
+                            <div>📲 <b>Онлайн СБП:</b> <b id="homeSbpRate">2.68 ₽/฿</b> <span id="homeSbpSpread" class="spread-tag">+7.5%</span></div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeBestSumPreview">На 327 000 ₽ ➔ ~130 332 ฿</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Карточка Бюджета и Резерва -->
+                <div class="dash-card">
+                    <div>
+                        <div class="dash-card-head">
+                            <span>🏖️ Сводка бюджета отдыха</span>
+                            <button class="dash-goto" onclick="switchTab('planner')">Планировщик ➔</button>
+                        </div>
+                        <div style="font-size:0.8rem; color:#c9d1d9; line-height:1.5;">
+                            <div>💰 <b>Общий бюджет:</b> <b id="homePlanTotal">0 ฿</b> (<span style="color:var(--success);font-weight:700;" id="homePlanTotalUsd">0 $</span>)</div>
+                            <div>📊 <b>Расход в день:</b> <span id="homePlanDaily">0 ฿/день</span></div>
+                            <div>🛡️ <b>Свободный резерв:</b> <b id="homePlanReserve" style="color:var(--success);">0 ฿</b></div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;">9 категорий отдыха с умными подсказками</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. Топ-3 пляжа прямо сейчас -->
+            <div class="box">
+                <h2>
+                    <span>🏆 Топ-3 пляжа для безопасного купания прямо сейчас</span>
+                    <button class="link-btn" onclick="switchTab('tides')">Все 10 пляжей ➔</button>
+                </h2>
+                <div style="font-size:0.76rem; color:var(--muted); margin-bottom:6px;">Автоматический рейтинг на основе текущей высоты волны, рельефа дна и фазы прилива:</div>
+                <div class="top3-grid" id="homeTop3Beaches"></div>
+            </div>
+
+            <!-- 4. Сезонные предупреждения и безопасность -->
+            <div class="seasonal-box" id="homeSeasonalBox"></div>
+
+            <!-- Быстрое обновление всех систем -->
+            <div class="actions">
+                <button class="action-btn" id="refreshAllHomeBtn" onclick="refreshAllDashboard()">🔄 Обновить все сводки (Погода, Море, Курсы)</button>
+                <button class="action-btn sync" onclick="downloadServiceWorkerFile()" title="Скачать файл sw.js для размещения в папке с сайтом">📥 Скачать sw.js (PWA Offline)</button>
+            </div>
+        </div>
+
         <!-- ==================== ВКЛАДКА 1: КУРСЫ И ОБМЕН ==================== -->
-        <div id="tab-exchange" class="tab-content active">
+        <div id="tab-exchange" class="tab-content">
             <div class="status-bar" id="status">Курсы синхронизированы с таблицами СКВ Лиговский, Value Plus и Money Shop.</div>
+
+            <!-- Официальный биржевой кросс-курс (Бенчмарк) -->
+            <div class="forex-benchmark">
+                <div>
+                    <span style="color:var(--accent); font-weight:700;">🌐 Официальный кросс-курс (Биржа):</span>
+                    <b id="benchThbRub" style="margin-left:5px; color:#fff;">1 ฿ = 2.495 ₽</b>
+                    <span style="color:var(--muted); font-size:0.76rem; margin-left:6px;" id="benchCrossDetails">(USD/RUB: 84.00 • USD/THB: 33.67)</span>
+                </div>
+                <div style="font-size:0.74rem; color:var(--muted);">Показывает реальную комиссию обменников в %</div>
+            </div>
 
             <div class="box">
                 <div class="field">
@@ -191,6 +386,8 @@
                         </select>
                     </div>
                 </div>
+                <input type="hidden" id="forex_usd_rub" value="83.60">
+                <input type="hidden" id="forex_usd_thb" value="33.76">
             </div>
 
             <div class="box">
@@ -269,8 +466,6 @@
 
         <!-- ==================== ВКЛАДКА 2: ПЛАНИРОВЩИК ОТДЫХА ==================== -->
         <div id="tab-planner" class="tab-content">
-            
-            <!-- Закрепленный дашборд с Резервом -->
             <div class="summary-sticky">
                 <div class="sum-grid">
                     <div class="sum-box">
@@ -307,11 +502,10 @@
                 </div>
             </div>
 
-            <!-- Ввод параметров отпуска -->
             <div class="box">
                 <h2>
                     <span>Параметры поездки и бюджет</span>
-                    <button class="link-btn" onclick="copyFromExchangeTab()">🔗 Взять сумму из 1-й вкладки</button>
+                    <button class="link-btn" onclick="copyFromExchangeTab()">🔗 Взять сумму из вкладки Обмена</button>
                 </h2>
                 <div class="grid-2" style="margin-bottom: 8px;">
                     <div class="field">
@@ -341,7 +535,6 @@
                 </div>
             </div>
 
-            <!-- Быстрые пресеты -->
             <div class="presets-row">
                 <button class="preset-btn" onclick="applyPreset('eco')">🎒 Эконом-режим</button>
                 <button class="preset-btn" onclick="applyPreset('comfort')">🌴 Комфорт (Оптимум)</button>
@@ -349,22 +542,21 @@
                 <button class="preset-btn" onclick="fitToBudget()">🎯 Вписать в бюджет (15% резерв)</button>
             </div>
 
-            <!-- Ползунки категорий -->
             <div id="categoriesContainer"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 3: ПРИЛИВЫ, ОТЛИВЫ И ПЛЯЖИ ==================== -->
+        <!-- ==================== ВКЛАДКА 3: ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ПЛЯЖИ ==================== -->
         <div id="tab-tides" class="tab-content">
-            <div class="status-bar" id="tidesStatus">Нажмите «Сканировать приливы и море», чтобы загрузить актуальные морские данные Андаманского моря.</div>
+            <div class="status-bar" id="tidesStatus">Мониторинг приливов, высоты волны и безопасности купания на пляжах Пхукета.</div>
 
             <div class="actions">
-                <button class="action-btn" id="scanTidesBtn" onclick="scanRealTimeTides()">📡 Сканировать приливы и состояние моря (Live)</button>
+                <button class="action-btn" id="scanTidesBtn" onclick="scanRealTimeTides()">📡 Сканировать приливы, волны и безопасность купания</button>
             </div>
 
-            <!-- Сводка по приливу прямо сейчас (Пхукет UTC+7) -->
+            <!-- Сводка по приливу и волнам прямо сейчас -->
             <div class="tide-hero">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px;">
-                    <span style="font-size:0.88rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌊 Андаманское море: Западный Пхукет</span>
+                    <span style="font-size:0.88rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌊 Андаманское море: Приливы и Волны</span>
                     <span id="phuketClock" style="font-size:0.8rem; color:var(--muted); font-weight:600;">Время на Пхукете: --:-- (UTC+7)</span>
                 </div>
 
@@ -378,32 +570,45 @@
                         <div class="tide-stat-val" id="tideCurrentTrend">--</div>
                     </div>
                     <div class="tide-stat">
-                        <div class="tide-stat-lbl">Волна и вода (Ката)</div>
+                        <div class="tide-stat-lbl">Волны и Купание</div>
                         <div class="tide-stat-val" id="tideSeaTemp">--</div>
                     </div>
                 </div>
 
                 <!-- 24-часовая кривая прилива и отлива (SVG) -->
                 <div class="tide-chart-box">
-                    <div style="display:flex; justify-content:space-between; font-size:0.74rem; color:var(--muted); margin-bottom:6px;">
+                    <div style="display:flex; justify-content:space-between; font-size:0.74rem; color:var(--muted); margin-bottom:6px; flex-wrap:wrap; gap:4px;">
                         <span>Суточный график уровня воды (00:00 — 23:59 по Пхукету)</span>
                         <span id="lunarAgeLabel">Лунные сутки: --</span>
                     </div>
                     <div id="tideSvgContainer" style="width:100%; height:115px;"></div>
                 </div>
 
-                <!-- Расписание экстремумов (Полная / Малая вода сегодня) -->
                 <div style="font-size:0.75rem; color:var(--muted); margin-top:10px;">Точное время пиков прилива и отлива на сегодня (по времени Пхукета):</div>
                 <div class="extremes-row" id="tideExtremesContainer"></div>
             </div>
 
-            <!-- Раздельные карточки западных пляжей с картами -->
+            <!-- Топ-3 пляжа прямо сейчас во вкладке Приливов -->
+            <div class="box">
+                <h2><span>🏆 Топ-3 лучших пляжа для плавания прямо сейчас</span></h2>
+                <div class="top3-grid" id="tidesTop3Beaches"></div>
+            </div>
+
+            <!-- Карточки 10 западных пляжей с четким вердиктом по волнам и купанию -->
             <div id="westBeachesContainer"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 4: ПОГОДА И РАДАР WINDY ==================== -->
+        <!-- ==================== ВКЛАДКА 4: ПОГОДА, УФ, ЗАКАТ И РАДАР WINDY ==================== -->
         <div id="tab-weather" class="tab-content">
-            <div class="status-bar" id="weatherStatus">Район по умолчанию: <b>Ката (Kata Beach)</b>. Нажмите «Синхронизировать», чтобы получить свежую сводку.</div>
+            <div class="status-bar" id="weatherStatus">Район по умолчанию: <b>Ката (Kata Beach)</b>. Полная сводка погоды, УФ и времени заката.</div>
+
+            <!-- Баннер УФ-алерта для вкладки Погоды -->
+            <div id="weatherUvAlertBox" class="uv-alert-banner" style="display:none;">
+                <div>
+                    <div style="font-weight:800; font-size:0.9rem; color:#ff5b52;" id="weatherUvAlertTitle">🚨 ВЫСОКИЙ УФ-ИНДЕКС!</div>
+                    <div style="font-size:0.79rem; color:#e6e8eb; margin-top:2px;" id="weatherUvAlertDesc">Используйте крем SPF 50+, очки и панаму.</div>
+                </div>
+            </div>
 
             <div class="district-selector-box">
                 <label style="font-size:0.78rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:6px; display:block;">📍 Выберите район Пхукета (нажмите для смены локации):</label>
@@ -424,16 +629,15 @@
             </div>
 
             <div class="actions">
-                <button class="action-btn" id="syncWeatherBtn" onclick="syncDistrictWeather()">🔄 Синхронизировать точную погоду и море</button>
+                <button class="action-btn" id="syncWeatherBtn" onclick="syncDistrictWeather()">🔄 Синхронизировать точную погоду, УФ и море</button>
             </div>
 
-            <!-- Сводка-вывод по погоде -->
             <div class="verdict-box" id="weatherVerdictBox">
                 <h3>📋 Аналитическая сводка по району</h3>
                 <div id="weatherVerdictText">Загрузка актуальных метеоданных...</div>
             </div>
 
-            <!-- Карточки точных показателей -->
+            <!-- Карточки точных показателей (включая Закат и Рассвет + УФ Алерт) -->
             <div class="weather-grid">
                 <div class="w-card">
                     <div class="w-lbl">🌡️ Температура</div>
@@ -455,17 +659,20 @@
                     <div class="w-val" id="wWave">-- м</div>
                     <div class="w-sub" id="wWavePeriod">Период: -- с</div>
                 </div>
-                <div class="w-card">
-                    <div class="w-lbl">🏊 Вода в море</div>
-                    <div class="w-val" id="wSeaTemp">-- °C</div>
-                    <div class="w-sub" id="wHumidity">Влажность: --%</div>
-                </div>
-                <div class="w-card">
-                    <div class="w-lbl">☀️ УФ-индекс</div>
+                <div class="w-card" id="wUvCard">
+                    <div class="w-lbl">☀️ УФ-индекс (Алерт)</div>
                     <div class="w-val" id="wUv">--</div>
                     <div class="w-sub" id="wUvHint">Защита SPF</div>
                 </div>
+                <div class="w-card">
+                    <div class="w-lbl">🌅 Рассвет и Закат</div>
+                    <div class="w-val" id="wSunTimes">06:15 / 18:15</div>
+                    <div class="w-sub" id="wSunViewpoint">Выезд на закат: 17:30</div>
+                </div>
             </div>
+
+            <!-- Сезонные предупреждения во вкладке Погоды -->
+            <div class="seasonal-box" id="weatherSeasonalBox"></div>
 
             <!-- Почасовой прогноз на ближайшие 24 часа -->
             <div class="box">
@@ -501,12 +708,29 @@
             return Math.round(num).toLocaleString('ru-RU');
         }
 
-        // Переключение 4 вкладок
+        // Кэш состояния для работы оффлайн без интернета
+        const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v2';
+        function saveOfflineCache(section, payload) {
+            try {
+                const cur = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+                cur[section] = { timestamp: Date.now(), data: payload };
+                localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(cur));
+            } catch (e) {}
+        }
+        function loadOfflineCache(section) {
+            try {
+                const cur = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
+                return cur[section] || null;
+            } catch (e) { return null; }
+        }
+
+        // Переключение 5 вкладок
         function switchTab(tab) {
-            ['exchange', 'planner', 'tides', 'weather'].forEach(t => {
+            ['home', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
+            document.getElementById('tabBtnHome').classList.toggle('active', tab === 'home');
             document.getElementById('tabBtnExchange').classList.toggle('active', tab === 'exchange');
             document.getElementById('tabBtnPlanner').classList.toggle('active', tab === 'planner');
             document.getElementById('tabBtnTides').classList.toggle('active', tab === 'tides');
@@ -521,15 +745,143 @@
                 window._weatherLoaded = true;
                 onDistrictChange();
             }
+            if (tab === 'home') {
+                updateTripCountdown();
+                renderSeasonalWarnings();
+            }
         }
 
-        /* ==================== ЛОГИКА ВКЛАДКИ 3: ПРИЛИВЫ, ОТЛИВЫ И ЗАПАДНЫЕ ПЛЯЖИ ==================== */
+        /* ==================== КАЛЕНДАРЬ ПОЕЗДКИ И СЕЗОННЫЕ ПРЕДУПРЕЖДЕНИЯ ==================== */
+        function updateTripCountdown() {
+            const startStr = document.getElementById('trip_start').value;
+            const endStr = document.getElementById('trip_end').value;
+            if (!startStr || !endStr) return;
+
+            const startDate = new Date(startStr + 'T00:00:00');
+            const endDate = new Date(endStr + 'T23:59:59');
+            const now = new Date();
+
+            const totalTripDays = Math.max(1, Math.round((endDate - startDate) / 86400000));
+            document.getElementById('tripDaysBadge').innerText = `${totalTripDays} дн. отдыха`;
+
+            const mainEl = document.getElementById('tripStatusMain');
+            const subEl = document.getElementById('tripStatusSub');
+            const banner = document.getElementById('tripCountdownBanner');
+
+            if (now < startDate) {
+                const diffMs = startDate - now;
+                const daysLeft = Math.floor(diffMs / 86400000);
+                const hoursLeft = Math.floor((diffMs % 86400000) / 3600000);
+                mainEl.innerHTML = `✈️ До вылета на Пхукет: <span style="color:var(--success)">${daysLeft} дн. ${hoursLeft} ч.</span>`;
+                subEl.innerText = `Даты отпуска: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
+                banner.style.borderColor = 'rgba(0, 122, 255, 0.45)';
+            } else if (now >= startDate && now <= endDate) {
+                const dayNumber = Math.floor((now - startDate) / 86400000) + 1;
+                const daysRemaining = Math.max(0, Math.ceil((endDate - now) / 86400000));
+                mainEl.innerHTML = `🌴 Вы сейчас на Пхукете! День ${dayNumber} из ${totalTripDays}`;
+                subEl.innerText = `Впереди ещё ${daysRemaining} дн. отдыха до ${endDate.toLocaleDateString('ru-RU')}`;
+                banner.style.borderColor = 'rgba(52, 199, 89, 0.5)';
+            } else {
+                const daysPassed = Math.floor((now - endDate) / 86400000);
+                mainEl.innerHTML = `🏁 Поездка завершена (${daysPassed} дн. назад)`;
+                subEl.innerText = `Выберите даты следующей поездки, чтобы запустить новый отсчет`;
+                banner.style.borderColor = 'var(--border)';
+            }
+            renderSeasonalWarnings();
+        }
+
+        function syncTripDaysToPlanner() {
+            const startStr = document.getElementById('trip_start').value;
+            const endStr = document.getElementById('trip_end').value;
+            if (!startStr || !endStr) return;
+            const days = Math.max(1, Math.round((new Date(endStr) - new Date(startStr)) / 86400000));
+            document.getElementById('plan_days').value = days;
+            updatePlanner();
+            switchTab('planner');
+        }
+
+        // Астрономический расчет времени восхода и заката на Пхукете (7.82° N, 98.30° E, UTC+7)
+        function calcPhuketSunTimes(dateObj = new Date()) {
+            const start = new Date(dateObj.getFullYear(), 0, 0);
+            const dayOfYear = Math.floor((dateObj - start) / 86400000);
+            const latRad = 7.8206 * Math.PI / 180;
+            const declRad = 0.409 * Math.sin((2 * Math.PI / 365) * (dayOfYear - 81));
+            const cosOmega = -Math.tan(latRad) * Math.tan(declRad);
+            const halfDayHours = (Math.acos(Math.max(-1, Math.min(1, cosOmega))) * 180 / Math.PI) / 15;
+
+            const B = (2 * Math.PI / 365) * (dayOfYear - 81);
+            const eqTimeMin = 9.87 * Math.sin(2 * B) - 7.53 * Math.cos(B) - 1.5 * Math.sin(B);
+            const solarNoonLocal = 12 + (105 - 98.2981) / 15 - (eqTimeMin / 60);
+
+            const sunriseH = solarNoonLocal - halfDayHours;
+            const sunsetH = solarNoonLocal + halfDayHours;
+            const viewpointH = sunsetH - 0.75; // за 45 минут до заката
+
+            const fmtTime = (hFloat) => {
+                const totalMin = Math.round(hFloat * 60);
+                const hh = String(Math.floor(totalMin / 60) % 24).padStart(2, '0');
+                const mm = String(totalMin % 60).padStart(2, '0');
+                return `${hh}:${mm}`;
+            };
+            return {
+                sunrise: fmtTime(sunriseH),
+                sunset: fmtTime(sunsetH),
+                viewpointTime: fmtTime(viewpointH)
+            };
+        }
+
+        function renderSeasonalWarnings() {
+            const nowMonth = new Date().getMonth() + 1; // 1..12
+            const tripStartVal = document.getElementById('trip_start')?.value;
+            const tripMonth = tripStartVal ? (new Date(tripStartVal).getMonth() + 1) : nowMonth;
+
+            const getSeasonInfo = (m) => {
+                if (m === 12 || m === 1 || m === 2) {
+                    return {
+                        title: '☀️ Высокий сухой сезон (Декабрь — Февраль)',
+                        notes: 'Море на западном побережье (Ката, Карон, Най Харн) максимально спокойное и прозрачное. ⚠️ <b>Главные риски сезона:</b> 1) Экстремальный УФ-индекс (10–12) даже при легкой облачности; 2) В дни новолуния и полнолуния — сильные отливы на пологих пляжах (Банг Тао, Камала, Раваи); 3) В теплой воде иногда встречается покалывающий микропланктон (сальпы) — абсолютно безопасен, проходит после ополаскивания пресной водой.'
+                    };
+                }
+                if (m === 3 || m === 4) {
+                    return {
+                        title: '🔥 Жаркий сезон (Март — Апрель)',
+                        notes: 'Самая теплая вода в море (+30°C) и пик солнечной радиации. ⚠️ <b>Риски:</b> высокий риск теплового удара и солнечных ожогов с 11:00 до 15:30, у восточных и южных бухт при слабом ветре возможна активность медуз.'
+                    };
+                }
+                if (m >= 5 && m <= 10) {
+                    return {
+                        title: '🌊 Сезон юго-западного муссона (Май — Октябрь)',
+                        notes: '⚠️ <b>Повышенная опасность на воде:</b> сильный накат и коварные <b>обратные течения (Rip Currents)</b> на пляжах Карон, Сурин и Ката Ной. Строго запрещено заходить в воду при красных флагах! Для безопасного купания выбирайте закрытые бухты (Три Транг, Най Янг за рифом, Ао Йон). Также в сезон дождей возможен прибой жалящих медуз.'
+                    };
+                }
+                return {
+                    title: '🌤️ Переходный бархатный сезон (Ноябрь)',
+                    notes: 'Муссон стихает, устанавливается солнечная погода. На открытых пляжах (Карон, Сурин) в отдельные дни еще возможна остаточная волна до 0.8–1.1 м и локальные тягуны — ориентируйтесь на красно-желтые флаги спасателей.'
+                };
+            };
+
+            const curInfo = getSeasonInfo(nowMonth);
+            const tripInfo = getSeasonInfo(tripMonth);
+            const html = `
+                <div style="font-weight:700; color:var(--warning); margin-bottom:4px;">⚠️ Сезонная памятка безопасности: ${curInfo.title}</div>
+                <div>${curInfo.notes}</div>
+                ${tripMonth !== nowMonth ? `<div style="margin-top:6px; padding-top:6px; border-top:1px dashed rgba(255,159,10,0.3);">📅 <b>На даты вашей поездки (${tripInfo.title}):</b> ${tripInfo.notes}</div>` : ''}
+            `;
+            const elHome = document.getElementById('homeSeasonalBox');
+            const elWeather = document.getElementById('weatherSeasonalBox');
+            if (elHome) elHome.innerHTML = html;
+            if (elWeather) elWeather.innerHTML = html;
+        }
+
+        /* ==================== ЛОГИКА ВКЛАДКИ 3: ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ЗАПАДНЫЕ ПЛЯЖИ ==================== */
         const westBeaches = [
             {
                 id: 'kata',
                 name: 'Пляж Ката (Kata Beach)',
                 sub: 'Юго-запад • Главный пляж (по умолчанию)',
                 lat: 7.8206, lon: 98.2981,
+                waveExposure: 0.92,
+                tideSensitivity: 'medium',
                 bottomType: 'Пологий песчаный вход, мягкое дно без кораллов',
                 lowTideImpact: 'Среднее влияние: в сильный отлив вода уходит на 35–50 метров, обнажая плотный песок, но купаться комфортно на любой фазе воды.',
                 highTideImpact: 'Идеально для купания: глубокая вода начинается в 15 метрах от берега, мягкий прибой.',
@@ -541,6 +893,8 @@
                 name: 'Пляж Ката Ной (Kata Noi Beach)',
                 sub: 'Южнее Ката • Уютная бухта с бирюзовой водой',
                 lat: 7.8058, lon: 98.2992,
+                waveExposure: 1.0,
+                tideSensitivity: 'low',
                 bottomType: 'Быстрый набор глубины, чистейший мелкий песок',
                 lowTideImpact: 'Минимальное влияние: даже в пик отлива сохраняется отличная глубина для плавания, дно чистое.',
                 highTideImpact: 'Глубокое и прозрачное море сразу у входа, при свежем ветре — красивые волны.',
@@ -550,8 +904,10 @@
             {
                 id: 'karon',
                 name: 'Пляж Карон (Karon Beach)',
-                sub: 'Центральный запад • 3.5 км «поющего» кварцевого песка',
+                sub: 'Центральный запад • 3.5 км «поющего» кварцевым песка',
                 lat: 7.8439, lon: 98.2936,
+                waveExposure: 1.15,
+                tideSensitivity: 'low',
                 bottomType: 'Довольно крутой уклон дна, глубоко уже у берега',
                 lowTideImpact: 'Слабое влияние: благодаря быстрому набору глубины на Кароне удобно плавать даже в самую малую воду.',
                 highTideImpact: 'Полноводное глубокое море; при волнении свыше 1 м возможны отбойные течения (следите за флагами).',
@@ -563,6 +919,8 @@
                 name: 'Пляж Най Харн (Nai Harn Beach)',
                 sub: 'Юг Пхукета • Живописная лагуна между зеленых холмов',
                 lat: 7.7768, lon: 98.3059,
+                waveExposure: 0.85,
+                tideSensitivity: 'low',
                 bottomType: 'Ровное песчаное дно, плавный и комфортный заход',
                 lowTideImpact: 'Слабое-среднее: в южной части у озера в отлив становится мелко для детей, в центре глубина сохраняется всегда.',
                 highTideImpact: 'Одно из лучших мест для долгого заплыва на острове, чистейшая вода.',
@@ -574,6 +932,8 @@
                 name: 'Пляж Патонг (Patong Beach)',
                 sub: 'Центр активной жизни • Большая 3-км бухта',
                 lat: 7.8965, lon: 98.2954,
+                waveExposure: 0.88,
+                tideSensitivity: 'high',
                 bottomType: 'Пологое песчаное дно',
                 lowTideImpact: 'Заметное в краях бухты: в отлив полоса мокрого песка расширяется на 40–60 м, в центре купание без проблем.',
                 highTideImpact: 'Комфортная глубина по всей длине бухты, работают водные мотоциклы и парасейлинг.',
@@ -585,6 +945,8 @@
                 name: 'Пляж Фридом (Freedom Beach)',
                 sub: 'Между Патонгом и Кароном • Закрытая бухта с белым песком',
                 lat: 7.8758, lon: 98.2755,
+                waveExposure: 0.78,
+                tideSensitivity: 'medium',
                 bottomType: 'Белоснежный коралловый песок, кристальная вода',
                 lowTideImpact: 'В крайний отлив по краям бухты подходят ближе кораллы, но центральный сектор остается идеальным.',
                 highTideImpact: 'Картинка «Баунти»: лазурная вода подходит прямо к пальмам.',
@@ -596,6 +958,8 @@
                 name: 'Пляж Камала (Kamala Beach)',
                 sub: 'Севернее Патонга • Спокойная семейная бухта',
                 lat: 7.9556, lon: 98.2817,
+                waveExposure: 0.75,
+                tideSensitivity: 'high',
                 bottomType: 'Очень пологий вход, на севере есть каменистые участки',
                 lowTideImpact: 'Сильное в южной части (у стоянки лодок): в отлив очень мелко, для плавания лучше идти в центральный и северный сектор.',
                 highTideImpact: 'Спокойное ласковое море без больших волн — идеально для отдыха с детьми.',
@@ -607,6 +971,8 @@
                 name: 'Пляж Сурин (Surin Beach)',
                 sub: 'Запад • Бухта с самой яркой бирюзовой водой',
                 lat: 7.9756, lon: 98.2781,
+                waveExposure: 1.05,
+                tideSensitivity: 'low',
                 bottomType: 'Средне-крутой уклон, плотный золотистый песок',
                 lowTideImpact: 'Минимальное: глубина сохраняется на любой фазе отлива.',
                 highTideImpact: 'Глубокая прозрачная вода насыщенного изумрудного оттенка.',
@@ -618,6 +984,8 @@
                 name: 'Пляж Банг Тао (Bang Tao / Laguna)',
                 sub: 'Северо-запад • Протяженный 6-км элитный пляж',
                 lat: 7.9961, lon: 98.2914,
+                waveExposure: 0.90,
+                tideSensitivity: 'medium',
                 bottomType: 'Ровное песчаное дно на всем протяжении',
                 lowTideImpact: 'Слабое в центральной и северной части (Laguna / Layan), на самом юге в отлив мелко.',
                 highTideImpact: 'Огромное пространство для плавания, сап-бордов и прогулок вдоль кромки воды.',
@@ -629,6 +997,8 @@
                 name: 'Пляжи Най Тон и Май Као (Nai Thon & Mai Khao)',
                 sub: 'Север Пхукета • Просторные природные пляжи и самолеты',
                 lat: 8.0583, lon: 98.2775,
+                waveExposure: 0.95,
+                tideSensitivity: 'low',
                 bottomType: 'Чистый крупный песок, хорошая глубина',
                 lowTideImpact: 'Слабое: оба пляжа глубоководные, отлив почти не мешает плаванию.',
                 highTideImpact: 'Живописный прибой и полное отсутствие толп туристов.',
@@ -637,33 +1007,25 @@
             }
         ];
 
-        // Гармонический расчет прилива Андаманского моря (станция Ko Taphao Noi / Phuket, полусуточный прилив M2 + S2 + K1 + O1)
-        // Возвращает точную высоту уровня воды в метрах относительно среднего уровня малой воды (Chart Datum Phuket: 0.4 м .. 3.1 м)
         function calcPhuketTideMeters(dateUtcMs) {
-            // Опорное новолуние (астрономическая эпоха): 2000-01-06 18:14 UTC
             const refNewMoonMs = Date.UTC(2000, 0, 6, 18, 14, 0);
             const synodicDays = 29.530588853;
             const daysSinceEpoch = (dateUtcMs - refNewMoonMs) / 86400000;
             const lunarAgeDays = ((daysSinceEpoch % synodicDays) + synodicDays) % synodicDays;
 
-            // Время на Пхукете (UTC+7) в часах от начала суток
             const phuketMs = dateUtcMs + 7 * 3600000;
             const phuketDayHours = ((phuketMs % 86400000) + 86400000) / 3600000;
 
-            // Для западного побережья Пхукета (Ko Taphao Noi):
-            // В сизигию (новолуние/полнолуние, lunarAge = 0 или 14.76) полная вода наступает около 10:20 и 22:45 по местному времени.
-            // Лунное запаздывание составляет ~0.84 часа в сутки (50.5 минут/сутки).
             const m2PeriodHours = 12.4206012;
-            const highWater1SpringHour = 10.35; // 10:21 утра в сизигию
+            const highWater1SpringHour = 10.35;
             const phaseShiftHours = (lunarAgeDays * 0.8412);
             const localPhaseRad = ((phuketDayHours - highWater1SpringHour - phaseShiftHours) / m2PeriodHours) * 2 * Math.PI;
 
-            // Коэффициент сизигии/квадратуры (Spring-Neap modulation: в новолуние и полнолуние амплитуда до 1.15 м, в четвертях луны ~0.48 м)
-            const springNeapFactor = Math.cos((lunarAgeDays / (synodicDays / 2)) * 2 * Math.PI); // +1 в сизигию, -1 в квадратуру
-            const ampSemiDiurnal = 0.82 + 0.33 * springNeapFactor; // м
-            const diurnalInequality = 0.14 * Math.sin(((phuketDayHours - 6) / 24) * 2 * Math.PI); // суточное неравенство
+            const springNeapFactor = Math.cos((lunarAgeDays / (synodicDays / 2)) * 2 * Math.PI);
+            const ampSemiDiurnal = 0.82 + 0.33 * springNeapFactor;
+            const diurnalInequality = 0.14 * Math.sin(((phuketDayHours - 6) / 24) * 2 * Math.PI);
 
-            const meanSeaLevel = 1.78; // Средний уровень моря относительно нуля глубин Пхукета (м)
+            const meanSeaLevel = 1.78;
             const height = meanSeaLevel + ampSemiDiurnal * Math.cos(localPhaseRad) + diurnalInequality;
             return {
                 height: Math.max(0.35, Math.min(3.25, height)),
@@ -678,11 +1040,56 @@
             return { hh, mm, hoursFloat: phuketDate.getUTCHours() + phuketDate.getUTCMinutes() / 60, phuketDate };
         }
 
+        // Оценка волн и безопасности купания для конкретного пляжа
+        function evaluateBeachSwimSafety(beach, waveH, tideHeight) {
+            let swimClass = 'swim-yes';
+            let swimDecision = '✅ КУПАТЬСЯ МОЖНО (Безопасно)';
+            let waveLabel = '🟢 Волны слабые / Штиль';
+            let statusClass = 'pill-good';
+            let statusText = '🟢 Идеально для плавания';
+            let borderCol = 'var(--success)';
+            let score = 100 - waveH * 38;
+
+            if (tideHeight < 1.1) {
+                if (beach.tideSensitivity === 'high') score -= 22;
+                else if (beach.tideSensitivity === 'medium') score -= 8;
+                else score += 6; // глубокие пляжи выигрывают в отлив
+            } else {
+                score += 8;
+            }
+
+            if (waveH >= 1.35) {
+                swimClass = 'swim-no';
+                swimDecision = '⛔ КУПАТЬСЯ НЕЛЬЗЯ (Опасные волны и течения!)';
+                waveLabel = `🔴 Большие волны (${waveH.toFixed(2)} м)`;
+                statusClass = 'pill-bad';
+                statusText = '🔴 Опасно / Красный флаг';
+                borderCol = 'var(--danger)';
+            } else if (waveH >= 0.85) {
+                swimClass = 'swim-caution';
+                swimDecision = '⚠️ КУПАТЬСЯ ОСТОРОЖНО (Ощутимый прибой у берега)';
+                waveLabel = `🟡 Средние волны (${waveH.toFixed(2)} м)`;
+                statusClass = 'pill-warn';
+                statusText = '🟡 Умеренная волна';
+                borderCol = 'var(--warning)';
+            } else if (tideHeight < 1.05 && beach.tideSensitivity === 'high') {
+                swimClass = 'swim-caution';
+                swimDecision = '⚠️ КУПАТЬСЯ МОЖНО, НО МЕЛКО (Сильный отлив у берега)';
+                waveLabel = `🟢 Волн нет (${waveH.toFixed(2)} м), но отлив`;
+                statusClass = 'pill-warn';
+                statusText = '🟡 Мелководье в отлив';
+                borderCol = 'var(--warning)';
+            } else {
+                waveLabel = waveH < 0.45 ? `🟢 Полный штиль (${waveH.toFixed(2)} м)` : `🟢 Мягкая волна (${waveH.toFixed(2)} м)`;
+            }
+
+            return { swimClass, swimDecision, waveLabel, statusClass, statusText, borderCol, score };
+        }
+
         function renderTideChartAndExtremes(nowUtcMs) {
             const { hh, mm, hoursFloat, phuketDate } = getPhuketTimeParts(nowUtcMs);
             document.getElementById('phuketClock').innerText = `Время на Пхукете: ${hh}:${mm} (UTC+7)`;
 
-            // Начало текущих суток по Пхукету в UTC ms
             const startOfPhuketDayUtcMs = Date.UTC(
                 phuketDate.getUTCFullYear(),
                 phuketDate.getUTCMonth(),
@@ -697,7 +1104,6 @@
                 samples.push({ min: m, hour: m / 60, height, tMs });
             }
 
-            // Поиск экстремумов (пиков прилива и отлива за сутки)
             const extremes = [];
             for (let i = 1; i < samples.length - 1; i++) {
                 const prev = samples[i - 1].height;
@@ -720,13 +1126,22 @@
                 : `<span style="color:var(--warning)">⬇️ Идет отлив</span>`;
             document.getElementById('lunarAgeLabel').innerText = `Лунные сутки: ${nowTide.lunarAgeDays.toFixed(1)} дн. (${nowTide.lunarAgeDays < 3 || (nowTide.lunarAgeDays > 13 && nowTide.lunarAgeDays < 17) ? 'Сизигия — большие приливы' : 'Умеренная амплитуда'})`;
 
-            // Вывод карточек экстремумов
+            // Обновление сводки прилива на Главной
+            document.getElementById('homeTideHeight').innerText = `${nowTide.height.toFixed(2)} м`;
+            document.getElementById('homeTidePhase').innerHTML = isRising
+                ? `<span style="color:var(--success)">⬆️ Прилив</span>`
+                : `<span style="color:var(--warning)">⬇️ Отлив</span>`;
+
             const extBox = document.getElementById('tideExtremesContainer');
             extBox.innerHTML = '';
+            let nextExtText = '';
             extremes.slice(0, 4).forEach(ex => {
                 const eh = String(Math.floor(ex.min / 60)).padStart(2, '0');
                 const em = String(ex.min % 60).padStart(2, '0');
                 const color = ex.type === 'HIGH' ? 'var(--success)' : 'var(--warning)';
+                if (!nextExtText && (ex.min / 60) >= hoursFloat) {
+                    nextExtText = `${ex.type === 'HIGH' ? 'Пик прилива' : 'Минимум отлива'} в ${eh}:${em} (${ex.height.toFixed(2)} м)`;
+                }
                 extBox.innerHTML += `
                     <div class="ext-badge">
                         <span style="color:${color}; font-weight:700;">${ex.label}</span>
@@ -734,8 +1149,8 @@
                     </div>
                 `;
             });
+            document.getElementById('homeNextExtreme').innerText = nextExtText || 'Следующий пик воды утром';
 
-            // Построение наглядного SVG графика с маркером текущего времени
             const w = 640, h = 110, padL = 28, padR = 12, padT = 14, padB = 22;
             const plotW = w - padL - padR;
             const plotH = h - padT - padB;
@@ -789,7 +1204,6 @@
 
             if (isOpen) {
                 btn.innerHTML = '🔼 Скрыть карту и подробное досье пляжа';
-                // Ленивая подгрузка карты при открытии карточки, чтобы страница работала мгновенно
                 if (!iframeHolder.dataset.loaded) {
                     const b = westBeaches.find(x => x.id === id);
                     if (b) {
@@ -803,7 +1217,6 @@
             }
         }
 
-        // Универсальный отказоустойчивый загрузчик JSON (прямой запрос + резервные прокси, если провайдер режет API)
         async function fetchJsonResilient(url, timeoutMs = 4500) {
             const endpoints = [
                 url,
@@ -828,8 +1241,7 @@
         async function scanRealTimeTides() {
             const btn = document.getElementById('scanTidesBtn');
             const st = document.getElementById('tidesStatus');
-            btn.innerText = '⏳ Сканирование моря и спутниковых данных...';
-            st.innerText = 'Запрос к морским метеосерверам по координатам западных пляжей Пхукета...';
+            if (btn) btn.innerText = '⏳ Сканирование волн и приливов...';
 
             const nowUtcMs = Date.now();
             const tideInfo = renderTideChartAndExtremes(nowUtcMs);
@@ -843,101 +1255,133 @@
             const mData = await fetchJsonResilient(marineUrl, 4500);
             if (mData) {
                 marineResults = Array.isArray(mData) ? mData : [mData];
+                saveOfflineCache('marine', marineResults);
             } else {
-                sourceName = 'Гармоническая модель Ko Taphao Noi Phuket';
+                const cached = loadOfflineCache('marine');
+                if (cached && cached.data) {
+                    marineResults = cached.data;
+                    sourceName = 'Оффлайн-кэш (' + new Date(cached.timestamp).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) + ')';
+                } else {
+                    sourceName = 'Гармоническая модель Ko Taphao Noi Phuket';
+                }
             }
 
-            // Отрисовка карточек пляжей с четким визуальным разделением
             const container = document.getElementById('westBeachesContainer');
-            container.innerHTML = '';
+            if (container) container.innerHTML = '';
+
+            const scoredBeaches = [];
 
             westBeaches.forEach((b, idx) => {
                 const m = marineResults[idx]?.current || {};
-                const waveH = (typeof m.wave_height === 'number') ? m.wave_height : (0.55 + (idx % 3) * 0.08);
+                const rawWave = (typeof m.wave_height === 'number') ? m.wave_height : 0.48;
+                const waveH = +(rawWave * (b.waveExposure || 1.0)).toFixed(2);
                 const waveP = (typeof m.wave_period === 'number') ? m.wave_period : 8;
                 const seaT = (typeof m.sea_surface_temperature === 'number') ? m.sea_surface_temperature : 29.2;
 
+                const evalRes = evaluateBeachSwimSafety(b, waveH, tideInfo.nowHeight);
+                scoredBeaches.push({ beach: b, waveH, waveP, seaT, evalRes });
+
                 if (idx === 0) {
-                    document.getElementById('tideSeaTemp').innerText = `${waveH.toFixed(2)} м • +${seaT.toFixed(1)}°C`;
-                }
-
-                let statusClass = 'pill-good';
-                let statusText = '🟢 Идеально для купания';
-                let borderCol = 'var(--success)';
-
-                if (waveH >= 1.35) {
-                    statusClass = 'pill-bad';
-                    statusText = '🔴 Высокая волна (Опасно / Серфинг)';
-                    borderCol = 'var(--danger)';
-                } else if (waveH >= 0.85 || (tideInfo.nowHeight < 1.05 && (b.id === 'kamala' || b.id === 'patong'))) {
-                    statusClass = 'pill-warn';
-                    statusText = tideInfo.nowHeight < 1.05 ? '🟡 Отлив у берега (Мелководье)' : '🟡 Умеренный накат волн';
-                    borderCol = 'var(--warning)';
+                    const kataSwimShort = waveH >= 1.35 ? '⛔ Опасно' : (waveH >= 0.85 ? '⚠️ Волны' : '🟢 Можно плавать');
+                    document.getElementById('tideSeaTemp').innerText = `${waveH.toFixed(2)}м • ${kataSwimShort}`;
+                    document.getElementById('homeSeaTemp').innerText = `+${seaT.toFixed(1)} °C`;
+                    document.getElementById('homeWaveSummary').innerText = `Волна: ${waveH.toFixed(2)} м (${waveH < 0.5 ? 'штиль' : (waveH < 0.9 ? 'слабая' : 'сильная')})`;
+                    const homeBanner = document.getElementById('homeSwimBanner');
+                    homeBanner.className = `swim-verdict-banner ${evalRes.swimClass}`;
+                    document.getElementById('homeSwimVerdict').innerText = evalRes.swimDecision;
                 }
 
                 const curWaterNote = tideInfo.nowHeight < 1.15
                     ? `Сейчас <b>малая вода (${tideInfo.nowHeight.toFixed(2)} м)</b>: ${b.lowTideImpact}`
                     : `Сейчас <b>высокая/средняя вода (${tideInfo.nowHeight.toFixed(2)} м)</b>: ${b.highTideImpact}`;
 
-                container.innerHTML += `
-                    <div class="beach-card" style="border-left-color: ${borderCol};">
-                        <div class="beach-header">
-                            <div>
-                                <div class="beach-title">${idx + 1}. ${b.name}</div>
-                                <div class="beach-sub">${b.sub}</div>
+                if (container) {
+                    container.innerHTML += `
+                        <div class="beach-card" style="border-left-color: ${evalRes.borderCol};">
+                            <div class="beach-header">
+                                <div>
+                                    <div class="beach-title">${idx + 1}. ${b.name}</div>
+                                    <div class="beach-sub">${b.sub}</div>
+                                </div>
+                                <span class="status-pill ${evalRes.statusClass}">${evalRes.statusText}</span>
                             </div>
-                            <span class="status-pill ${statusClass}">${statusText}</span>
-                        </div>
 
-                        <div class="beach-metrics">
-                            <div class="bm-item">
-                                <span class="bm-lbl">Высота волны</span>
-                                <span class="bm-val">${waveH.toFixed(2)} м (${waveP.toFixed(0)} с)</span>
+                            <!-- Явный вердикт по волнам и купанию -->
+                            <div class="swim-verdict-banner ${evalRes.swimClass}">
+                                <span>${evalRes.swimDecision}</span>
+                                <span>${evalRes.waveLabel}</span>
                             </div>
-                            <div class="bm-item">
-                                <span class="bm-lbl">Вода в море</span>
-                                <span class="bm-val">+${seaT.toFixed(1)} °C</span>
+
+                            <div class="beach-metrics">
+                                <div class="bm-item">
+                                    <span class="bm-lbl">Высота волны</span>
+                                    <span class="bm-val">${waveH.toFixed(2)} м (период ${waveP.toFixed(0)} с)</span>
+                                </div>
+                                <div class="bm-item">
+                                    <span class="bm-lbl">Вода в море</span>
+                                    <span class="bm-val">+${seaT.toFixed(1)} °C</span>
+                                </div>
+                                <div class="bm-item">
+                                    <span class="bm-lbl">Прилив сейчас</span>
+                                    <span class="bm-val">${tideInfo.nowHeight.toFixed(2)} м (${tideInfo.isRising ? '⬆️ прилив' : '⬇️ отлив'})</span>
+                                </div>
                             </div>
-                            <div class="bm-item">
-                                <span class="bm-lbl">Прилив сейчас</span>
-                                <span class="bm-val">${tideInfo.nowHeight.toFixed(2)} м (${tideInfo.isRising ? '⬆️ прилив' : '⬇️ отлив'})</span>
+
+                            <div class="beach-desc">
+                                🌊 ${curWaterNote}
+                            </div>
+
+                            <button class="beach-expand-btn" id="beach_btn_${b.id}" onclick="toggleBeachCard('${b.id}')">
+                                🗺️ Открыть карту пляжа и подробное досье
+                            </button>
+
+                            <div class="beach-details" id="beach_details_${b.id}">
+                                <div style="font-size:0.8rem; line-height:1.45; color:#d0d7de;">
+                                    <p style="margin:4px 0;"><b>🏖️ Рельеф дна и вход:</b> ${b.bottomType}</p>
+                                    <p style="margin:4px 0;"><b>🔻 Поведение в отлив:</b> ${b.lowTideImpact}</p>
+                                    <p style="margin:4px 0;"><b>🔺 Поведение в прилив:</b> ${b.highTideImpact}</p>
+                                    <p style="margin:4px 0;"><b>🤿 Где смотреть рыбок (снорклинг):</b> ${b.snorkeling}</p>
+                                    <p style="margin:4px 0;"><b>🍹 Инфраструктура:</b> ${b.infra}</p>
+                                </div>
+                                <div class="map-frame" id="beach_map_${b.id}"></div>
+                                <div class="map-links">
+                                    <a class="map-link-a" href="https://www.google.com/maps/search/?api=1&query=${b.lat},${b.lon}" target="_blank" rel="noopener">📍 Открыть точку в Google Maps</a>
+                                    <a class="map-link-a" href="https://www.windy.com/${b.lat}/${b.lon}?waves,${b.lat},${b.lon},14" target="_blank" rel="noopener">🌊 Волны на Windy</a>
+                                </div>
                             </div>
                         </div>
-
-                        <div class="beach-desc">
-                            🌊 ${curWaterNote}
-                        </div>
-
-                        <button class="beach-expand-btn" id="beach_btn_${b.id}" onclick="toggleBeachCard('${b.id}')">
-                            🗺️ Открыть карту пляжа и подробное досье
-                        </button>
-
-                        <div class="beach-details" id="beach_details_${b.id}">
-                            <div style="font-size:0.8rem; line-height:1.45; color:#d0d7de;">
-                                <p style="margin:4px 0;"><b>🏖️ Рельеф дна и вход:</b> ${b.bottomType}</p>
-                                <p style="margin:4px 0;"><b>🔻 Поведение в отлив:</b> ${b.lowTideImpact}</p>
-                                <p style="margin:4px 0;"><b>🔺 Поведение в прилив:</b> ${b.highTideImpact}</p>
-                                <p style="margin:4px 0;"><b>🤿 Где смотреть рыбок (снорклинг):</b> ${b.snorkeling}</p>
-                                <p style="margin:4px 0;"><b>🍹 Инфраструктура:</b> ${b.infra}</p>
-                            </div>
-                            <div class="map-frame" id="beach_map_${b.id}"></div>
-                            <div class="map-links">
-                                <a class="map-link-a" href="https://www.google.com/maps/search/?api=1&query=${b.lat},${b.lon}" target="_blank" rel="noopener">📍 Открыть точку в Google Maps</a>
-                                <a class="map-link-a" href="https://www.windy.com/${b.lat}/${b.lon}?waves,${b.lat},${b.lon},14" target="_blank" rel="noopener">🌊 Волны на Windy</a>
-                            </div>
-                        </div>
-                    </div>
-                `;
+                    `;
+                }
             });
 
+            // Сортировка и вывод Топ-3 лучших пляжей прямо сейчас
+            scoredBeaches.sort((a, b) => b.evalRes.score - a.evalRes.score);
+            const top3Html = scoredBeaches.slice(0, 3).map((item, i) => `
+                <div class="top3-item">
+                    <div style="font-weight:700; color:#fff; margin-bottom:3px;">🥇 #${i + 1}. ${item.beach.name.replace('Пляж ', '')}</div>
+                    <div style="color:var(--success); font-weight:600; font-size:0.75rem;">${item.evalRes.swimDecision.replace('✅ ', '')}</div>
+                    <div style="color:var(--muted); font-size:0.74rem; margin-top:3px;">Волна: <b>${item.waveH.toFixed(2)} м</b> • Вода: +${item.seaT.toFixed(1)}°C</div>
+                    <div style="color:#c9d1d9; font-size:0.73rem; margin-top:3px;">${item.beach.bottomType}</div>
+                </div>
+            `).join('');
+
+            const homeTop3 = document.getElementById('homeTop3Beaches');
+            const tidesTop3 = document.getElementById('tidesTop3Beaches');
+            if (homeTop3) homeTop3.innerHTML = top3Html;
+            if (tidesTop3) tidesTop3.innerHTML = top3Html;
+
             const nowStr = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-            st.className = 'status-bar active';
-            st.innerHTML = `● Данные актуализированы в <b>${nowStr}</b> (${sourceName} + гармоническая модель Ko Taphao Noi Phuket).`;
-            btn.innerText = '✅ Данные по пляжам обновлены!';
-            setTimeout(() => { btn.innerText = '📡 Сканировать приливы и состояние моря (Live)'; }, 1400);
+            if (st) {
+                st.className = 'status-bar active';
+                st.innerHTML = `● Данные актуализированы в <b>${nowStr}</b> (${sourceName}).`;
+            }
+            if (btn) {
+                btn.innerText = '✅ Данные по пляжам и волнам обновлены!';
+                setTimeout(() => { btn.innerText = '📡 Сканировать приливы, волны и безопасность купания'; }, 1400);
+            }
         }
 
-        /* ==================== ЛОГИКА ВКЛАДКИ 4: ПОГОДА И WINDY ПО РАЙОНАМ ПХУКЕТА ==================== */
+        /* ==================== ЛОГИКА ВКЛАДКИ 4: ПОГОДА, УФ-АЛЕРТ, ЗАКАТ И WINDY ==================== */
         const phuketDistricts = {
             kata: {
                 name: 'Ката (Kata Beach)',
@@ -1051,13 +1495,41 @@
             return [1, '🌤️', 'Переменная облачность'];
         }
 
-        // Расчет точного тепла (Heat Index) по температуре и влажности
         function calcFeelsLike(t, rh) {
             if (t < 26) return t + 1.5;
             const hi = -8.784695 + 1.61139411 * t + 2.338549 * rh - 0.14611605 * t * rh
                 - 0.012308094 * t * t - 0.016424828 * rh * rh + 0.002211732 * t * t * rh
                 + 0.00072546 * t * rh * rh - 0.000003582 * t * t * rh * rh;
             return Math.max(t, Math.min(43, hi));
+        }
+
+        function applyUvAlerts(uvVal) {
+            const homeAlert = document.getElementById('homeUvAlertBox');
+            const weatherAlert = document.getElementById('weatherUvAlertBox');
+            const wUvCard = document.getElementById('wUvCard');
+            const homeUvBadge = document.getElementById('homeUvBadge');
+
+            wUvCard.classList.remove('uv-danger', 'uv-warn');
+
+            if (uvVal >= 8) {
+                homeAlert.style.display = 'flex';
+                weatherAlert.style.display = 'flex';
+                wUvCard.classList.add('uv-danger');
+                document.getElementById('homeUvAlertTitle').innerText = `🚨 ЭКСТРЕМАЛЬНЫЙ УФ-ИНДЕКС: ${uvVal.toFixed(1)}!`;
+                document.getElementById('weatherUvAlertTitle').innerText = `🚨 ЭКСТРЕМАЛЬНЫЙ УФ-ИНДЕКС: ${uvVal.toFixed(1)}!`;
+                homeUvBadge.innerHTML = `<span class="status-pill pill-bad">🚨 ${uvVal.toFixed(1)} (Экстремальный! SPF 50+)</span>`;
+            } else if (uvVal >= 6) {
+                homeAlert.style.display = 'flex';
+                weatherAlert.style.display = 'flex';
+                wUvCard.classList.add('uv-warn');
+                document.getElementById('homeUvAlertTitle').innerText = `⚠️ ВЫСОКИЙ УФ-ИНДЕКС: ${uvVal.toFixed(1)}`;
+                document.getElementById('weatherUvAlertTitle').innerText = `⚠️ ВЫСОКИЙ УФ-ИНДЕКС: ${uvVal.toFixed(1)}`;
+                homeUvBadge.innerHTML = `<span class="status-pill pill-warn">⚠️ ${uvVal.toFixed(1)} (Высокий • SPF 50)</span>`;
+            } else {
+                homeAlert.style.display = 'none';
+                weatherAlert.style.display = 'none';
+                homeUvBadge.innerHTML = `<span class="status-pill pill-good">🟢 ${uvVal.toFixed(1)} (Безопасный)</span>`;
+            }
         }
 
         async function syncDistrictWeather() {
@@ -1068,15 +1540,14 @@
             const btn = document.getElementById('syncWeatherBtn');
             const st = document.getElementById('weatherStatus');
 
-            btn.innerText = '⏳ Синхронизация метеорадара...';
-            st.innerText = `Запрос точной погоды и состояния моря для района ${d.name}...`;
+            if (btn) btn.innerText = '⏳ Синхронизация метеорадара...';
 
-            // 1. Запускаем параллельно запросы к 3 независимым источникам:
-            // Источник А: Open-Meteo Forecast (прямой или через прокси) — с корректным параметром wind_speed_unit=ms
-            const omWeatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${d.lat}&longitude=${d.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,precipitation_probability,weather_code,uv_index&wind_speed_unit=ms&timezone=Asia%2FBangkok&forecast_days=2`;
-            // Источник Б: Норвежский метеоинститут MET Norway (api.met.no) — работает в любой стране мира без блокировок
+            const sunCalc = calcPhuketSunTimes(new Date());
+            let sunriseStr = sunCalc.sunrise;
+            let sunsetStr = sunCalc.sunset;
+
+            const omWeatherUrl = `https://api.open-meteo.com/v1/forecast?latitude=${d.lat}&longitude=${d.lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,rain,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,wind_gusts_10m&hourly=temperature_2m,precipitation_probability,weather_code,uv_index&daily=sunrise,sunset,uv_index_max&wind_speed_unit=ms&timezone=Asia%2FBangkok&forecast_days=2`;
             const metNoUrl = `https://api.met.no/weatherapi/locationforecast/2.0/compact?lat=${d.lat.toFixed(4)}&lon=${d.lon.toFixed(4)}`;
-            // Источник В: Морской радар Open-Meteo Marine
             const omMarineUrl = `https://marine-api.open-meteo.com/v1/marine?latitude=${d.lat}&longitude=${d.lon}&current=wave_height,wave_period,sea_surface_temperature&timezone=Asia%2FBangkok`;
 
             const [omRes, metNoRes, mRes] = await Promise.all([
@@ -1086,7 +1557,7 @@
             ]);
 
             let temp = 29.0, feels = 33.5, hum = 76, rainMm = 0.0, cloud = 40, wind = 3.8, gusts = 5.8;
-            let wIcon = '🌤️', wDesc = 'Переменная облачность', curUv = 7.0, curPop = 20;
+            let wIcon = '🌤️', wDesc = 'Переменная облачность', curUv = 7.5, curPop = 20;
             let hourlyPillsHtml = '';
             let providerLabel = 'ECMWF / MET Norway & Windy';
 
@@ -1106,6 +1577,11 @@
                 const decoded = decodeWmoWeather(c.weather_code ?? 1);
                 wIcon = decoded[0];
                 wDesc = decoded[1];
+
+                if (omRes.daily && omRes.daily.sunrise?.[0] && omRes.daily.sunset?.[0]) {
+                    sunriseStr = omRes.daily.sunrise[0].slice(11, 16);
+                    sunsetStr = omRes.daily.sunset[0].slice(11, 16);
+                }
 
                 if (omRes.hourly && Array.isArray(omRes.hourly.time)) {
                     const curIsoPrefix = `${nowPhuket.getUTCFullYear()}-${String(nowPhuket.getUTCMonth()+1).padStart(2,'0')}-${String(nowPhuket.getUTCDate()).padStart(2,'0')}T${String(phuketHour).padStart(2,'0')}`;
@@ -1129,6 +1605,7 @@
                         `;
                     }
                 }
+                saveOfflineCache('weather', { temp, feels, hum, rainMm, cloud, wind, gusts, wIcon, wDesc, curUv, curPop, sunriseStr, sunsetStr, hourlyPillsHtml });
             } else if (metNoRes && metNoRes.properties && Array.isArray(metNoRes.properties.timeseries)) {
                 providerLabel = 'MET Norway (YR.no) & Windy Live';
                 const ts = metNoRes.properties.timeseries;
@@ -1173,36 +1650,19 @@
                         </div>
                     `;
                 }
+                saveOfflineCache('weather', { temp, feels, hum, rainMm, cloud, wind, gusts, wIcon, wDesc, curUv, curPop, sunriseStr, sunsetStr, hourlyPillsHtml });
             } else {
-                // Локальная климатическая модель Пхукета (если телефон полностью без внешнего доступа к метео-API)
-                providerLabel = 'Windy Live Radar + Климатическая модель Пхукета';
-                const isDay = phuketHour >= 7 && phuketHour <= 18;
-                temp = isDay ? 29.4 : 26.8;
-                hum = isDay ? 74 : 82;
-                feels = calcFeelsLike(temp, hum);
-                wind = 4.2;
-                gusts = 6.5;
-                rainMm = 0.4;
-                cloud = 55;
-                curPop = 35;
-                curUv = isDay ? 7.5 : 0.5;
-                wIcon = isDay ? '🌤️' : '🌙';
-                wDesc = 'Тропическая переменная облачность';
-
-                for (let step = 0; step < 12; step++) {
-                    const h = (phuketHour + step * 2) % 24;
-                    const tStr = `${String(h).padStart(2, '0')}:00`;
-                    const hT = (h >= 10 && h <= 17) ? 29 : 27;
-                    const hPop = (h >= 15 && h <= 20) ? 45 : 25;
-                    const hIco = (h >= 6 && h <= 18) ? '🌤️' : '🌙';
-                    hourlyPillsHtml += `
-                        <div class="h-pill">
-                            <div style="color:var(--muted); margin-bottom:3px;">${step === 0 ? 'Сейчас' : tStr}</div>
-                            <div style="font-size:1.15rem; margin:2px 0;">${hIco}</div>
-                            <div style="font-weight:700; color:#fff;">${hT}°C</div>
-                            <div style="color:${hPop > 40 ? 'var(--warning)' : 'var(--accent)'}; font-size:0.7rem; margin-top:2px;">💧 ${hPop}%</div>
-                        </div>
-                    `;
+                const cachedW = loadOfflineCache('weather');
+                if (cachedW && cachedW.data) {
+                    providerLabel = 'Оффлайн-кэш (' + new Date(cachedW.timestamp).toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit'}) + ')';
+                    ({ temp, feels, hum, rainMm, cloud, wind, gusts, wIcon, wDesc, curUv, curPop, sunriseStr, sunsetStr, hourlyPillsHtml } = cachedW.data);
+                } else {
+                    providerLabel = 'Автономная климатическая модель Пхукета';
+                    const isDay = phuketHour >= 7 && phuketHour <= 18;
+                    temp = isDay ? 29.4 : 26.8;
+                    hum = isDay ? 74 : 82;
+                    feels = calcFeelsLike(temp, hum);
+                    curUv = isDay ? 8.2 : 0.4;
                 }
             }
 
@@ -1211,6 +1671,7 @@
             const waveP = mc.wave_period ?? 8;
             const seaT = mc.sea_surface_temperature ?? 29.2;
 
+            // Обновление карточек во вкладке Погоды
             document.getElementById('weatherHourlyStrip').innerHTML = hourlyPillsHtml;
             document.getElementById('wTemp').innerText = `${temp.toFixed(1)} °C`;
             document.getElementById('wFeels').innerText = `По ощущению: ${feels.toFixed(1)} °C`;
@@ -1219,50 +1680,53 @@
             document.getElementById('wWind').innerText = `${wind.toFixed(1)} м/с`;
             document.getElementById('wGusts').innerText = `Порывы до: ${gusts.toFixed(1)} м/с`;
             document.getElementById('wWave').innerText = d.isCoastal ? `${waveH.toFixed(2)} м` : 'Внутри острова';
-            document.getElementById('wWavePeriod').innerText = d.isCoastal ? `Период волны: ${waveP.toFixed(0)} с` : 'Нет прибоя';
-            document.getElementById('wSeaTemp').innerText = `+${seaT.toFixed(1)} °C`;
-            document.getElementById('wHumidity').innerText = `Влажность: ${hum}%`;
+            document.getElementById('wWavePeriod').innerText = d.isCoastal ? `Период: ${waveP.toFixed(0)} с • Вода +${seaT.toFixed(1)}°` : 'Нет прибоя';
             document.getElementById('wUv').innerText = curUv.toFixed(1);
-            document.getElementById('wUvHint').innerText = curUv >= 8 ? '🔥 SPF 50+ обязательно!' : (curUv >= 4 ? '🕶️ Нужен крем SPF 30+' : '🌙 Безопасный УФ');
+            document.getElementById('wUvHint').innerText = curUv >= 8 ? '🚨 ОПАСНО! SPF 50+' : (curUv >= 6 ? '⚠️ Высокий! SPF 50' : '🟢 Безопасный УФ');
+            document.getElementById('wSunTimes').innerText = `${sunriseStr} / ${sunsetStr}`;
+            document.getElementById('wSunViewpoint').innerText = `На смотровую: к ${sunCalc.viewpointTime}`;
 
-            // Генерация аналитической сводки-вывода
+            // Обновление Главной страницы (Дашборда)
+            document.getElementById('homeTempVal').innerText = `+${temp.toFixed(1)} °C`;
+            document.getElementById('homeWeatherDesc').innerText = `${wIcon} ${wDesc} (ощущ. +${feels.toFixed(0)}°)`;
+            document.getElementById('homeSunrise').innerText = sunriseStr;
+            document.getElementById('homeSunset').innerText = sunsetStr;
+            document.getElementById('homeSunsetTip').innerText = `📸 Выезд на Промтхеп / Карон Вьюпойнт: к ${sunCalc.viewpointTime}`;
+
+            applyUvAlerts(curUv);
+
             const verdictBox = document.getElementById('weatherVerdictBox');
             let beachAdvice = '';
             if (!d.isCoastal) {
                 beachAdvice = 'Локация находится в глубине острова — отличное время для прогулок по старому городу, поездок в ТЦ Central или смотровых площадок.';
             } else if (waveH < 0.75) {
-                beachAdvice = `Море в районе <b>${d.name}</b> спокойное (волна всего ${waveH.toFixed(2)} м, вода +${seaT.toFixed(1)}°C) — отличные условия для плавания, сап-борда и снорклинга.`;
+                beachAdvice = `Море в районе <b>${d.name}</b> спокойное (волна всего ${waveH.toFixed(2)} м, вода +${seaT.toFixed(1)}°C) — <b>купаться можно и безопасно</b>.`;
             } else if (waveH < 1.3) {
-                beachAdvice = `На пляже умеренный накат волн (${waveH.toFixed(2)} м, вода +${seaT.toFixed(1)}°C) — купаться комфортно, но учитывайте прибой у берега.`;
+                beachAdvice = `На пляже умеренный накат волн (${waveH.toFixed(2)} м, вода +${seaT.toFixed(1)}°C) — купаться с осторожностью, учитывая прибой.`;
             } else {
-                beachAdvice = `Внимание: высокая волна (${waveH.toFixed(2)} м). Для спокойного плавания сегодня лучше выбрать защищенные бухты (Най Харн, Камала или Три Транг).`;
+                beachAdvice = `⛔ <b>Высокая волна (${waveH.toFixed(2)} м) — купаться опасно!</b> Для плавания выберите защищенные бухты.`;
             }
 
-            let rainAdvice = '';
-            if (rainMm > 0.4 || curPop >= 55) {
-                verdictBox.style.borderLeftColor = 'var(--warning)';
-                rainAdvice = `Вероятен теплый тропический дождь (вероятность ${curPop}%, осадков за час ${rainMm.toFixed(1)} мм) — на время дождя удобно запланировать массаж, обед или ТЦ.`;
-            } else {
-                verdictBox.style.borderLeftColor = 'var(--success)';
-                rainAdvice = `Существенных осадков прямо сейчас нет (${wDesc.toLowerCase()}, вероятность дождя ${curPop}%).`;
-            }
-
-            const uvAdvice = curUv >= 7
-                ? `Солнце сейчас активное (УФ-индекс ${curUv.toFixed(1)}), обязательно используйте SPF 50 и головной убор с 11:00 до 15:30.`
-                : `Уровень ультрафиолета комфортный (${curUv.toFixed(1)}), отличное время для прогулок и пляжа.`;
+            let rainAdvice = rainMm > 0.4 || curPop >= 55
+                ? `Вероятен теплый тропический дождь (вероятность ${curPop}%, осадков ${rainMm.toFixed(1)} мм).`
+                : `Существенных осадков сейчас нет (${wDesc.toLowerCase()}, вероятность дождя ${curPop}%).`;
 
             document.getElementById('weatherVerdictText').innerHTML = `
-                <div style="margin-bottom:5px;"><b>${wIcon} Погода сейчас в ${d.name}:</b> ${wDesc}, воздух <b>+${temp.toFixed(1)}°C</b> (ощущается как +${feels.toFixed(1)}°C), ветер ${wind.toFixed(1)} м/с (порывы до ${gusts.toFixed(1)} м/с).</div>
-                <div style="margin-bottom:5px;">🏖️ <b>Море и пляж:</b> ${beachAdvice}</div>
-                <div style="margin-bottom:5px;">☂️ <b>Осадки:</b> ${rainAdvice}</div>
-                <div>☀️ <b>Рекомендация:</b> ${uvAdvice}</div>
+                <div style="margin-bottom:5px;"><b>${wIcon} Погода сейчас в ${d.name}:</b> ${wDesc}, воздух <b>+${temp.toFixed(1)}°C</b> (ощущается как +${feels.toFixed(1)}°C), ветер ${wind.toFixed(1)} м/с.</div>
+                <div style="margin-bottom:5px;">🏖️ <b>Море и волны:</b> ${beachAdvice}</div>
+                <div style="margin-bottom:5px;">🌅 <b>Рассвет и закат:</b> восход в <b>${sunriseStr}</b>, закат в <b>${sunsetStr}</b> (лучшее время на смотровой Промтхеп — с ${sunCalc.viewpointTime}).</div>
+                <div>☂️ <b>Осадки:</b> ${rainAdvice}</div>
             `;
 
             const nowStr = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-            st.className = 'status-bar active';
-            st.innerHTML = `● Синхронизировано в <b>${nowStr}</b> | Район: <b>${d.name}</b> | Источник: ${providerLabel}`;
-            btn.innerText = '✅ Погода синхронизирована!';
-            setTimeout(() => { btn.innerText = '🔄 Синхронизировать точную погоду и море'; }, 1400);
+            if (st) {
+                st.className = 'status-bar active';
+                st.innerHTML = `● Синхронизировано в <b>${nowStr}</b> | Район: <b>${d.name}</b> | Источник: ${providerLabel}`;
+            }
+            if (btn) {
+                btn.innerText = '✅ Погода синхронизирована!';
+                setTimeout(() => { btn.innerText = '🔄 Синхронизировать точную погоду, УФ и море'; }, 1400);
+            }
         }
 
         function copyFromExchangeTab() {
@@ -1287,7 +1751,7 @@
             const now = new Date().toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'});
             btn.innerText = "✅ Точный расчет выполнен";
             st.className = "status-bar active";
-            st.innerHTML = `● Пересчитано: <b>${now}</b> | Все суммы выведены с точностью до копеек/сатангов`;
+            st.innerHTML = `● Пересчитано: <b>${now}</b> | Все суммы и % комиссий выведены с точностью до копеек`;
             render(true);
             setTimeout(() => { btn.innerText = "🧮 Рассчитать"; }, 900);
         }
@@ -1312,15 +1776,19 @@
         async function syncLiveRates() {
             const btn = document.getElementById('syncBtn');
             const st = document.getElementById('status');
-            btn.innerText = "⏳ Синхронизация...";
-            st.innerText = "Запрос актуальных курсов (Форекс / Обменники)...";
+            if (btn) btn.innerText = "⏳ Синхронизация...";
+            if (st) st.innerText = "Запрос актуальных курсов (Форекс / Обменники)...";
 
             try {
                 const erRes = await fetch('https://open.er-api.com/v6/latest/USD?t=' + Date.now()).then(r => r.json());
                 const r = erRes.rates;
                 const forexThb = r.THB;
+                const forexRub = r.RUB;
                 const forexEurThb = r.THB / r.EUR;
                 const forexCnyThb = r.THB / r.CNY;
+
+                document.getElementById('forex_usd_rub').value = forexRub.toFixed(2);
+                document.getElementById('forex_usd_thb').value = forexThb.toFixed(2);
 
                 let vpUsd = (forexThb * 0.99467).toFixed(2);
                 let vpEur = (forexEurThb * 0.9918).toFixed(2);
@@ -1360,32 +1828,42 @@
                 document.getElementById('sbp_ms').value = sbpMs;
                 document.getElementById('sbp_fm').value = (parseFloat(sbpMs) + 0.018).toFixed(3);
 
+                saveOfflineCache('rates', { forexRub, forexThb, spb1, vpUsd, vpEur, vpCny, msUsd, beachUsd, sbpMs });
                 flashInputs(['usd_spb_1', 'usd_spb_2', 'usd_spb_3', 'usd_vp', 'usd_ms', 'usd_beach', 'eur_vp', 'cny_vp', 'sbp_ms']);
 
                 const now = new Date().toLocaleString('ru-RU', {day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit', second:'2-digit'});
-                st.className = "status-bar active";
-                st.innerHTML = `● Обновлено: <b>${now}</b><br>Value Plus: <b>${vpUsd} ฿</b> | Money Shop: <b>${msUsd} ฿</b> | СБП Money Shop: <b>${sbpMs} ₽/฿</b>`;
-                btn.innerText = "✅ Синхронизировано!";
+                if (st) {
+                    st.className = "status-bar active";
+                    st.innerHTML = `● Обновлено: <b>${now}</b><br>Value Plus: <b>${vpUsd} ฿</b> | Money Shop: <b>${msUsd} ฿</b> | СБП Money Shop: <b>${sbpMs} ₽/฿</b>`;
+                }
+                if (btn) btn.innerText = "✅ Синхронизировано!";
                 render(true);
                 updatePlanner();
             } catch (e) {
-                st.innerText = "⚠️ Ошибка соединения. Используются текущие точные курсы в полях.";
-                btn.innerText = "❌ Ошибка сети";
+                if (st) st.innerText = "⚠️ Оффлайн-режим: используются сохраненные курсы из кэша.";
+                if (btn) btn.innerText = "📴 Из кэша";
+                render(false);
             }
-            setTimeout(() => { btn.innerText = "🔄 Синхронизировать с рынком"; }, 1200);
+            if (btn) setTimeout(() => { btn.innerText = "🔄 Синхронизировать с рынком"; }, 1200);
         }
 
-        function buildHierarchyList(items) {
+        function buildHierarchyList(items, officialCrossRubPerThb) {
             let html = '<div class="hierarchy-list">';
             items.forEach((it, i) => {
                 const isFirst = i === 0;
+                let spreadBadge = '';
+                if (officialCrossRubPerThb && it.effRubPerThb) {
+                    const markupPct = Math.max(0, ((it.effRubPerThb - officialCrossRubPerThb) / officialCrossRubPerThb) * 100);
+                    const cls = markupPct < 2.2 ? 'good' : '';
+                    spreadBadge = `<span class="spread-tag ${cls}">наценка +${markupPct.toFixed(2)}% к бирже</span>`;
+                }
                 html += `
                     <div class="h-item ${isFirst ? 'h-best' : ''}">
                         <div>
-                            <span class="h-name">${i+1}. ${it.name}</span><br/>
+                            <span class="h-name">${i+1}. ${it.name}</span> ${spreadBadge}<br/>
                             <span class="sub-rate">${it.rateText}</span>
                         </div>
-                        <div style="text-align: right; color: #e6e8eb; font-weight: ${isFirst ? '700' : '400'};">
+                        <div style="text-align: right; color: #e6e8eb; font-weight: ${isFirst ? '700' : '400'}; white-space:nowrap;">
                             ${fmt(it.resultThb)} ฿
                         </div>
                     </div>
@@ -1416,6 +1894,15 @@
             const sbpMs = parseFloat(document.getElementById('sbp_ms').value) || 1;
             const sbpFm = parseFloat(document.getElementById('sbp_fm').value) || 1;
 
+            // Официальный биржевой кросс-курс THB/RUB для индикации наценки в %
+            const fxUsdRub = parseFloat(document.getElementById('forex_usd_rub').value) || (spb1 - 0.60);
+            const fxUsdThb = parseFloat(document.getElementById('forex_usd_thb').value) || (usdVp + 0.18);
+            const officialCrossRubThb = fxUsdRub / fxUsdThb;
+
+            document.getElementById('benchThbRub').innerText = `1 ฿ = ${officialCrossRubThb.toFixed(3)} ₽`;
+            document.getElementById('benchCrossDetails').innerText = `(Форекс USD/RUB: ${fxUsdRub.toFixed(2)} • USD/THB: ${fxUsdThb.toFixed(2)})`;
+            document.getElementById('homeForexRate').innerText = `1 ฿ = ${officialCrossRubThb.toFixed(3)} ₽`;
+
             const cards = [];
 
             if (curr === 'RUB') {
@@ -1424,65 +1911,82 @@
                 const usd3 = Math.round((b / spb3) * 100) / 100;
 
                 const hUsd = [
-                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $, сбор +${fee1}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd1 * usdVp, exactUsd: usd1 },
-                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(spb2)} ₽/$ (${fmt(usd2)} $, сбор ${fee2}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd2 * usdVp, exactUsd: usd2 },
-                    { name: "СКВ Лиговский ➔ Money Shop Kata", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $) ➔ Money Shop: ${usdMs.toFixed(3)} ฿/$`, resultThb: usd1 * usdMs, exactUsd: usd1 },
-                    { name: "Финам / Авангард ➔ Value Plus", rateText: `СПб: ${fmt(spb3)} ₽/$ (${fmt(usd3)} $, без сбора) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd3 * usdVp, exactUsd: usd3 }
+                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $, сбор +${fee1}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd1 * usdVp, exactUsd: usd1, effRubPerThb: (b + fee1) / (usd1 * usdVp) },
+                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(spb2)} ₽/$ (${fmt(usd2)} $, сбор ${fee2}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd2 * usdVp, exactUsd: usd2, effRubPerThb: b / (usd2 * usdVp) },
+                    { name: "СКВ Лиговский ➔ Money Shop Kata", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $) ➔ Money Shop: ${usdMs.toFixed(3)} ฿/$`, resultThb: usd1 * usdMs, exactUsd: usd1, effRubPerThb: (b + fee1) / (usd1 * usdMs) },
+                    { name: "Финам / Авангард ➔ Value Plus", rateText: `СПб: ${fmt(spb3)} ₽/$ (${fmt(usd3)} $, без сбора) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd3 * usdVp, exactUsd: usd3, effRubPerThb: b / (usd3 * usdVp) }
                 ];
                 hUsd.sort((a, b) => b.resultThb - a.resultThb);
 
                 const bestUsdThb = hUsd[0].resultThb;
+                const bestUsdEff = (b + fee1) / bestUsdThb;
+                const usdSpreadPct = Math.max(0, ((bestUsdEff - officialCrossRubThb) / officialCrossRubThb) * 100);
+
+                // Обновление сводки курсов на Главной
+                document.getElementById('homeBestCashRate').innerText = `${bestUsdEff.toFixed(3)} ₽/฿`;
+                document.getElementById('homeCashSpread').innerText = `+${usdSpreadPct.toFixed(2)}% к бирже`;
+                const sbpSpreadPct = Math.max(0, ((sbpMs - officialCrossRubThb) / officialCrossRubThb) * 100);
+                document.getElementById('homeSbpRate').innerText = `${sbpMs.toFixed(3)} ₽/฿`;
+                document.getElementById('homeSbpSpread').innerText = `+${sbpSpreadPct.toFixed(2)}% к бирже`;
+                document.getElementById('homeBestSumPreview').innerText = `Из ${fmtInt(b)} ₽ ➔ ${fmtInt(bestUsdThb)} ฿ (${fmt(hUsd[0].exactUsd)} $)`;
+
                 cards.push({
                     title: "💵 Через наличные Доллары ($100)", thb: bestUsdThb, exactUsd: hUsd[0].exactUsd,
-                    effText: `Реальный итоговый курс: <b>${((b + fee1) / bestUsdThb).toFixed(3)} ₽</b> за 1 ฿`,
-                    hierarchy: buildHierarchyList(hUsd)
+                    effText: `Итоговый курс: <b>${bestUsdEff.toFixed(3)} ₽</b> за 1 ฿ <span class="spread-tag good">комиссия +${usdSpreadPct.toFixed(2)}% к бирже</span>`,
+                    hierarchy: buildHierarchyList(hUsd, officialCrossRubThb)
                 });
 
                 const eur1 = Math.round((b / eurSpb1) * 100) / 100;
                 const eur2 = Math.round(((b - fee2) / (eurSpb1 + 0.25)) * 100) / 100;
                 const hEur = [
-                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1)} ₽/€ (${fmt(eur1)} €) ➔ Value Plus: ${fmt(eurVp)} ฿/€`, resultThb: eur1 * eurVp },
-                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1 + 0.25)} ₽/€ (${fmt(eur2)} €, сбор ${fee2}₽) ➔ Таиланд: ${fmt(eurVp)} ฿/€`, resultThb: eur2 * eurVp }
+                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1)} ₽/€ (${fmt(eur1)} €) ➔ Value Plus: ${fmt(eurVp)} ฿/€`, resultThb: eur1 * eurVp, effRubPerThb: (b + fee1) / (eur1 * eurVp) },
+                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1 + 0.25)} ₽/€ (${fmt(eur2)} €, сбор ${fee2}₽) ➔ Таиланд: ${fmt(eurVp)} ฿/€`, resultThb: eur2 * eurVp, effRubPerThb: b / (eur2 * eurVp) }
                 ];
                 const bestEurThb = hEur[0].resultThb;
+                const eurEff = (b + fee1) / bestEurThb;
+                const eurSpreadPct = Math.max(0, ((eurEff - officialCrossRubThb) / officialCrossRubThb) * 100);
+
                 cards.push({
                     title: "💶 Через наличные Евро (€100–500)", thb: bestEurThb, exactUsd: bestEurThb / usdVp,
-                    effText: `Реальный итоговый курс: <b>${((b + fee1) / bestEurThb).toFixed(3)} ₽</b> за 1 ฿`,
-                    hierarchy: buildHierarchyList(hEur)
+                    effText: `Итоговый курс: <b>${eurEff.toFixed(3)} ₽</b> за 1 ฿ <span class="spread-tag">комиссия +${eurSpreadPct.toFixed(2)}% к бирже</span>`,
+                    hierarchy: buildHierarchyList(hEur, officialCrossRubThb)
                 });
 
                 const cny1 = Math.round((b / cnySpb1) * 100) / 100;
                 const hCny = [
-                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(cnySpb1)} ₽/¥ (${fmt(cny1)} ¥) ➔ Value Plus: ${fmt(cnyVp)} ฿/¥`, resultThb: cny1 * cnyVp }
+                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(cnySpb1)} ₽/¥ (${fmt(cny1)} ¥) ➔ Value Plus: ${fmt(cnyVp)} ฿/¥`, resultThb: cny1 * cnyVp, effRubPerThb: (b + fee1) / (cny1 * cnyVp) }
                 ];
                 const bestCnyThb = hCny[0].resultThb;
+                const cnyEff = (b + fee1) / bestCnyThb;
+                const cnySpreadPct = Math.max(0, ((cnyEff - officialCrossRubThb) / officialCrossRubThb) * 100);
+
                 cards.push({
                     title: "🇨🇳 Через наличные Юани (¥100)", thb: bestCnyThb, exactUsd: bestCnyThb / usdVp,
-                    effText: `Реальный итоговый курс: <b>${((b + fee1) / bestCnyThb).toFixed(3)} ₽</b> за 1 ฿`,
-                    hierarchy: buildHierarchyList(hCny)
+                    effText: `Итоговый курс: <b>${cnyEff.toFixed(3)} ₽</b> за 1 ฿ <span class="spread-tag">комиссия +${cnySpreadPct.toFixed(2)}% к бирже</span>`,
+                    hierarchy: buildHierarchyList(hCny, officialCrossRubThb)
                 });
 
                 const hSbp = [
-                    { name: "Money Shop Phuket (СБП)", rateText: `Курс сайта: ${sbpMs.toFixed(3)} ₽/฿ (коэф. ${(1/sbpMs).toFixed(3)}) — выдача в офисе / курьер`, resultThb: b / sbpMs },
-                    { name: "Fast Money / Ex24 (СБП)", rateText: `Курс: ${sbpFm.toFixed(3)} ₽/฿ — снятие в банкомате по коду (Cardless ATM)`, resultThb: b / sbpFm }
+                    { name: "Money Shop Phuket (СБП)", rateText: `Курс сайта: ${sbpMs.toFixed(3)} ₽/฿ (коэф. ${(1/sbpMs).toFixed(3)}) — выдача в офисе / курьер`, resultThb: b / sbpMs, effRubPerThb: sbpMs },
+                    { name: "Fast Money / Ex24 (СБП)", rateText: `Курс: ${sbpFm.toFixed(3)} ₽/฿ — снятие в банкомате по коду (Cardless ATM)`, resultThb: b / sbpFm, effRubPerThb: sbpFm }
                 ];
                 const bestSbpThb = hSbp[0].resultThb;
                 cards.push({
                     title: "📲 Онлайн перевод по СБП (без наличных)", thb: bestSbpThb, exactUsd: bestSbpThb / usdVp,
-                    effText: `Реальный итоговый курс: <b>${sbpMs.toFixed(3)} ₽</b> за 1 ฿`,
-                    hierarchy: buildHierarchyList(hSbp)
+                    effText: `Итоговый курс: <b>${sbpMs.toFixed(3)} ₽</b> за 1 ฿ <span class="spread-tag">комиссия +${sbpSpreadPct.toFixed(2)}% к бирже</span>`,
+                    hierarchy: buildHierarchyList(hSbp, officialCrossRubThb)
                 });
 
             } else if (curr === 'USD') {
                 const hPoints = [
-                    { name: "Value Plus Exchange", rateText: `Точный курс калькулятора: ${usdVp.toFixed(2)} ฿ за 1 $ (купюры $100–50)`, resultThb: b * usdVp },
-                    { name: "Money Shop Phuket", rateText: `Точный курс калькулятора: ${usdMs.toFixed(3)} ฿ за 1 $ (таблица: ${usdMs.toFixed(2)} ฿)`, resultThb: b * usdMs },
+                    { name: "Value Plus Exchange", rateText: `Точный курс калькулятора: ${usdVp.toFixed(2)} ฿ за 1 $ (потери к Форексу ${(((fxUsdThb - usdVp)/fxUsdThb)*100).toFixed(2)}%)`, resultThb: b * usdVp },
+                    { name: "Money Shop Phuket", rateText: `Точный курс калькулятора: ${usdMs.toFixed(3)} ฿ за 1 $ (потери к Форексу ${(((fxUsdThb - usdMs)/fxUsdThb)*100).toFixed(2)}%)`, resultThb: b * usdMs },
                     { name: "Уличные обменники у пляжа Ката", rateText: `Курс приема: ${usdBeach.toFixed(2)} ฿ за 1 $`, resultThb: b * usdBeach }
                 ];
                 cards.push({
                     title: "💵 Сдача наличных долларов в Таиланде", thb: hPoints[0].resultThb, exactUsd: b,
                     effText: `Лучший курс (Value Plus): <b>${usdVp.toFixed(2)} ฿</b> за 1 $ (разница с Money Shop: +${fmt(hPoints[0].resultThb - hPoints[1].resultThb)} ฿)`,
-                    hierarchy: buildHierarchyList(hPoints)
+                    hierarchy: buildHierarchyList(hPoints, null)
                 });
             } else if (curr === 'EUR') {
                 const hPoints = [
@@ -1492,7 +1996,7 @@
                 cards.push({
                     title: "💶 Сдача наличных евро в Таиланде", thb: hPoints[0].resultThb, exactUsd: hPoints[0].resultThb / usdVp,
                     effText: `Лучший курс: <b>${eurVp.toFixed(2)} ฿</b> за 1 €`,
-                    hierarchy: buildHierarchyList(hPoints)
+                    hierarchy: buildHierarchyList(hPoints, null)
                 });
             } else if (curr === 'CNY') {
                 const hPoints = [
@@ -1501,7 +2005,7 @@
                 cards.push({
                     title: "🇨🇳 Сдача наличных юаней в Таиланде", thb: hPoints[0].resultThb, exactUsd: hPoints[0].resultThb / usdVp,
                     effText: `Лучший курс: <b>${cnyVp.toFixed(2)} ฿</b> за 1 ¥`,
-                    hierarchy: buildHierarchyList(hPoints)
+                    hierarchy: buildHierarchyList(hPoints, null)
                 });
             }
 
@@ -1532,13 +2036,8 @@
         /* ==================== ЛОГИКА ВКЛАДКИ 2: ПЛАНИРОВЩИК ОТДЫХА ==================== */
         const categoriesData = [
             {
-                id: 'food_daily',
-                icon: '🍜',
-                name: 'Еда на каждый день (кафе, стритфуд, фудкорты)',
-                maxThb: 60000,
-                step: 500,
-                val: 23000,
-                presets: { eco: 320, comfort: 550, lux: 900 }, // бат на 1 чел в день
+                id: 'food_daily', icon: '🍜', name: 'Еда на каждый день (кафе, стритфуд, фудкорты)', maxThb: 60000, step: 500, val: 23000,
+                presets: { eco: 320, comfort: 550, lux: 900 },
                 getHint: (perPersonDay) => {
                     if (perPersonDay < 250) return ['Эконом-минимум:', 'Готовая еда в 7-Eleven (тосты, рис с курицей), ночные рынки и простые макашницы (50–80 ฿ за блюдо).'];
                     if (perPersonDay < 550) return ['Локальный комфорт:', 'Обеды и завтраки в хороших тайских кафе на Ката, пад-тай, том-ям, жареный рис с морепродуктами и свежий кокос.'];
@@ -1547,12 +2046,7 @@
                 }
             },
             {
-                id: 'restaurants',
-                icon: '🍤',
-                name: 'Рестораны, креветки и вечерние ужины',
-                maxThb: 80000,
-                step: 500,
-                val: 25000,
+                id: 'restaurants', icon: '🍤', name: 'Рестораны, креветки и вечерние ужины', maxThb: 80000, step: 500, val: 25000,
                 presets: { eco: 200, comfort: 550, lux: 1200 },
                 getHint: (perPersonDay) => {
                     if (perPersonDay < 200) return ['Редкие выходы:', '1–2 похода в недорогой сифуд-ресторан за всю поездку, в остальные вечера — обычные уличные кафе.'];
@@ -1562,12 +2056,7 @@
                 }
             },
             {
-                id: 'taxi',
-                icon: '🚕',
-                name: 'Такси и транспорт (InDrive / Bolt / байк)',
-                maxThb: 45000,
-                step: 500,
-                val: 11500,
+                id: 'taxi', icon: '🚕', name: 'Такси и транспорт (InDrive / Bolt / байк)', maxThb: 45000, step: 500, val: 11500,
                 presets: { eco: 120, comfort: 250, lux: 650 },
                 getHint: (perPersonDay, totalDay) => {
                     if (totalDay < 250) return ['Пешком / Автобус:', 'Прогулки пешком по Ката и Карону, Phuket Smart Bus или аренда простого скутера на длительный срок.'];
@@ -1577,12 +2066,7 @@
                 }
             },
             {
-                id: 'excursions',
-                icon: '🏝️',
-                name: 'Экскурсии, острова и развлечения',
-                maxThb: 65000,
-                step: 500,
-                val: 16000,
+                id: 'excursions', icon: '🏝️', name: 'Экскурсии, острова и развлечения', maxThb: 65000, step: 500, val: 16000,
                 presets: { eco: 150, comfort: 380, lux: 850 },
                 getHint: (perPersonDay, totalDay, totalTrip, people) => {
                     const perPersonTrip = totalTrip / people;
@@ -1593,12 +2077,7 @@
                 }
             },
             {
-                id: 'spa',
-                icon: '💆‍♀️',
-                name: 'Массаж и СПА-программы',
-                maxThb: 40000,
-                step: 500,
-                val: 9000,
+                id: 'spa', icon: '💆‍♀️', name: 'Массаж и СПА-программы', maxThb: 40000, step: 500, val: 9000,
                 presets: { eco: 80, comfort: 200, lux: 500 },
                 getHint: (perPersonDay) => {
                     if (perPersonDay < 100) return ['По настроению:', 'Массаж ног или классический тайский массаж (300–400 ฿ за час) пару раз в неделю после долгих прогулок.'];
@@ -1607,12 +2086,7 @@
                 }
             },
             {
-                id: 'drinks',
-                icon: '🍹',
-                name: 'Фрукты, шейки, кофе, бары и 7-Eleven',
-                maxThb: 40000,
-                step: 500,
-                val: 11500,
+                id: 'drinks', icon: '🍹', name: 'Фрукты, шейки, кофе, бары и 7-Eleven', maxThb: 40000, step: 500, val: 11500,
                 presets: { eco: 120, comfort: 250, lux: 550 },
                 getHint: (perPersonDay) => {
                     if (perPersonDay < 150) return ['Базовый набор:', 'Вода, свежие нарезанные манго и ананасы с фруктовых макашниц и 1 фруктовый смузи в день.'];
@@ -1621,12 +2095,7 @@
                 }
             },
             {
-                id: 'shopping',
-                icon: '🛍️',
-                name: 'Шопинг (ТЦ Central Phuket, одежда, аптеки)',
-                maxThb: 80000,
-                step: 1000,
-                val: 15000,
+                id: 'shopping', icon: '🛍️', name: 'Шопинг (ТЦ Central Phuket, одежда, аптеки)', maxThb: 80000, step: 1000, val: 15000,
                 presets: { eco: 100, comfort: 320, lux: 900 },
                 getHint: (perPersonDay, totalDay, totalTrip) => {
                     if (totalTrip < 5000) return ['Только необходимое:', 'Солнцезащитные кремы в Boots/Watsons, базовая пляжная одежда, сланцы и аптечка.'];
@@ -1635,12 +2104,7 @@
                 }
             },
             {
-                id: 'souvenirs',
-                icon: '🎁',
-                name: 'Сувениры, подарки и фрукты домой',
-                maxThb: 30000,
-                step: 500,
-                val: 5000,
+                id: 'souvenirs', icon: '🎁', name: 'Сувениры, подарки и фрукты домой', maxThb: 30000, step: 500, val: 5000,
                 presets: { eco: 40, comfort: 110, lux: 280 },
                 getHint: (perPersonDay, totalDay, totalTrip) => {
                     if (totalTrip < 2500) return ['Символические сувениры:', 'Ингаляторы Poy-Sian, тигровые бальзамы, кокосовое масло, магниты и немного сушеного манго.'];
@@ -1649,12 +2113,7 @@
                 }
             },
             {
-                id: 'misc',
-                icon: '🏖️',
-                name: 'Пляж и быт (лежаки, сим-карты, прачечная)',
-                maxThb: 25000,
-                step: 500,
-                val: 5500,
+                id: 'misc', icon: '🏖️', name: 'Пляж и быт (лежаки, сим-карты, прачечная)', maxThb: 25000, step: 500, val: 5500,
                 presets: { eco: 50, comfort: 120, lux: 250 },
                 getHint: (perPersonDay, totalDay) => {
                     if (totalDay < 150) return ['На своих полотенцах:', 'Быстрые e-SIM / туристические симки и сдача вещей в прачечную раз в неделю (50 ฿ за кг).'];
@@ -1705,9 +2164,7 @@
 
         function getBestRubToThbRate() {
             const spb1 = parseFloat(document.getElementById('usd_spb_1').value) || 84.20;
-            const fee1 = parseFloat(document.getElementById('fee_spb_1').value) || 20;
             const usdVp = parseFloat(document.getElementById('usd_vp').value) || 33.58;
-            // Эффективный курс покупки бата через связку СКВ Лиговский -> Value Plus
             return spb1 / usdVp;
         }
 
@@ -1743,7 +2200,9 @@
             let totalSpentThb = 0;
 
             categoriesData.forEach(cat => {
-                const valThb = parseFloat(document.getElementById('num_' + cat.id).value) || 0;
+                const numEl = document.getElementById('num_' + cat.id);
+                if (!numEl) return;
+                const valThb = parseFloat(numEl.value) || 0;
                 totalSpentThb += valThb;
 
                 const valUsd = valThb / usdVp;
@@ -1772,6 +2231,14 @@
             document.getElementById('planSpentThb').innerText = fmtInt(totalSpentThb) + ' ฿';
             document.getElementById('planSpentUsd').innerText = `${fmt(totalSpentUsd)} $`;
             document.getElementById('planDailyAvg').innerText = `${fmtInt(totalSpentThb / days)} ฿ / день (${fmt((totalSpentThb / days) / usdVp)} $)`;
+
+            // Синхронизация карточки бюджета на Главной
+            document.getElementById('homePlanTotal').innerText = `${fmtInt(totalBudgetThb)} ฿`;
+            document.getElementById('homePlanTotalUsd').innerText = `${fmt(totalBudgetUsd)} $`;
+            document.getElementById('homePlanDaily').innerText = `${fmtInt(totalSpentThb / days)} ฿/день (${fmtInt((totalSpentThb / days) / people)} ฿/чел)`;
+            const homeResEl = document.getElementById('homePlanReserve');
+            homeResEl.innerText = `${reserveThb >= 0 ? '+' : ''}${fmtInt(reserveThb)} ฿ (${fmt(reserveUsd)} $)`;
+            homeResEl.style.color = reserveThb >= 0 ? 'var(--success)' : 'var(--danger)';
 
             const resBox = document.getElementById('reserveBox');
             const resLabel = document.getElementById('reserveLabel');
@@ -1825,7 +2292,7 @@
         function fitToBudget() {
             const totalBudgetThb = getTotalBudgetInThb();
             if (totalBudgetThb <= 0) return;
-            const targetSpend = totalBudgetThb * 0.85; // Оставляем 15% в неприкосновенный резерв
+            const targetSpend = totalBudgetThb * 0.85;
 
             let currentTotal = 0;
             categoriesData.forEach(cat => {
@@ -1844,23 +2311,126 @@
             updatePlanner();
         }
 
-        // Инициализация обеих вкладок
-        render(false);
-        initPlannerUI();
+        async function refreshAllDashboard() {
+            const btn = document.getElementById('refreshAllHomeBtn');
+            btn.innerText = '⏳ Обновление всех систем...';
+            await Promise.all([
+                syncLiveRates(),
+                scanRealTimeTides(),
+                syncDistrictWeather()
+            ]);
+            updateTripCountdown();
+            btn.innerText = '✅ Все сводки обновлены!';
+            setTimeout(() => { btn.innerText = '🔄 Обновить все сводки (Погода, Море, Курсы)'; }, 1400);
+        }
 
-        // Интеграция с Telegram Mini Apps (WebApp) и автосохранение данных
-        (function initTelegramWebApp() {
+        /* ==================== 4. АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
+        const SW_SCRIPT_CODE = `
+const CACHE_NAME = 'phuket-pwa-cache-v2';
+const ASSETS = ['./', './index.html'];
+
+self.addEventListener('install', (event) => {
+    self.skipWaiting();
+    event.waitUntil(
+        caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS).catch(() => {}))
+    );
+});
+
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys().then((keys) => Promise.all(
+            keys.map((k) => k !== CACHE_NAME ? caches.delete(k) : null)
+        ))
+    );
+    self.clients.claim();
+});
+
+self.addEventListener('fetch', (event) => {
+    if (event.request.method !== 'GET') return;
+    event.respondWith(
+        fetch(event.request)
+            .then((networkRes) => {
+                const copy = networkRes.clone();
+                caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
+                return networkRes;
+            })
+            .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+});
+`.trim();
+
+        function downloadServiceWorkerFile() {
+            const blob = new Blob([SW_SCRIPT_CODE], { type: 'application/javascript' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'sw.js';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function initPwaAndOfflineSupport() {
+            // 1. Динамический Web App Manifest для установки на экран «Домой»
+            const manifestObj = {
+                name: "Пхукет: Дашборд, Курсы и Пляжи",
+                short_name: "Phuket App",
+                start_url: "./index.html",
+                display: "standalone",
+                background_color: "#0f1115",
+                theme_color: "#0f1115",
+                icons: [{
+                    src: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='22' fill='%230f1115'/><text y='.9em' font-size='75' x='12'>🌴</text></svg>",
+                    sizes: "192x192",
+                    type: "image/svg+xml"
+                }]
+            };
+            const manifestBlob = new Blob([JSON.stringify(manifestObj)], { type: 'application/json' });
+            document.getElementById('pwaManifestLink').href = URL.createObjectURL(manifestBlob);
+
+            // 2. Регистрация Service Worker + Кэширование самой страницы через CacheStorage API
+            if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+                navigator.serviceWorker.register('./sw.js').catch(() => {
+                    const swBlob = new Blob([SW_SCRIPT_CODE], { type: 'application/javascript' });
+                    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
+                });
+            }
+            if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+                caches.open('phuket-pwa-cache-v2').then(cache => cache.add(location.href)).catch(() => {});
+            }
+
+            // 3. Индикатор статуса сети (Онлайн / Оффлайн)
+            const updateNetStatus = () => {
+                const badge = document.getElementById('networkBadge');
+                if (navigator.onLine) {
+                    badge.className = 'pwa-badge online';
+                    badge.innerText = '● Онлайн • PWA кэш активен';
+                } else {
+                    badge.className = 'pwa-badge offline';
+                    badge.innerText = '📴 Оффлайн (Данные из кэша)';
+                }
+            };
+            window.addEventListener('online', updateNetStatus);
+            window.addEventListener('offline', updateNetStatus);
+            updateNetStatus();
+        }
+
+        // Инициализация приложения
+        (function initApp() {
+            initPlannerUI();
+            render(false);
+            initPwaAndOfflineSupport();
+
             if (window.Telegram && window.Telegram.WebApp) {
                 const tg = window.Telegram.WebApp;
                 tg.ready();
-                tg.expand(); // Разворачиваем приложение на весь экран Telegram
+                tg.expand();
                 try {
                     tg.setHeaderColor('#0f1115');
                     tg.setBackgroundColor('#0f1115');
                 } catch (e) {}
             }
 
-            // Восстановление сохраненных значений из памяти устройства
+            // Восстановление всех пользовательских полей из localStorage
             const savedData = localStorage.getItem('phuket_app_state');
             if (savedData) {
                 try {
@@ -1878,7 +2448,7 @@
                 } catch (e) {}
             }
 
-            // Автосохранение при любом изменении полей
+            // Автосохранение всех полей ввода
             document.addEventListener('input', () => {
                 const state = {};
                 document.querySelectorAll('input, select').forEach(el => {
@@ -1886,6 +2456,12 @@
                 });
                 localStorage.setItem('phuket_app_state', JSON.stringify(state));
             });
+
+            // Запуск сводок на Главной странице
+            updateTripCountdown();
+            renderSeasonalWarnings();
+            scanRealTimeTides();
+            syncDistrictWeather();
         })();
     </script>
 </body>
