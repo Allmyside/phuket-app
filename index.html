@@ -159,7 +159,7 @@
 
         /* Онлайн бар и Тумблер Геолокации */
         .top-status-strip {
-            display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 12px;
+            display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; margin-bottom: 12px;
         }
         @media (max-width: 600px) { .top-status-strip { grid-template-columns: 1fr; } }
         .online-users-card, .geo-toggle-card {
@@ -167,10 +167,14 @@
             padding: 10px 13px; display: flex; flex-direction: column; justify-content: space-between;
         }
         .online-badge-pill {
-            display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
-            border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+            display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
+            border-radius: 20px; font-size: 0.76rem; font-weight: 700;
             background: rgba(52, 199, 89, 0.14); color: var(--success);
-            border: 1px solid rgba(52, 199, 89, 0.35);
+            border: 1px solid rgba(52, 199, 89, 0.38);
+        }
+        .online-dot-pulse {
+            width: 8px; height: 8px; border-radius: 50%; background: var(--success);
+            box-shadow: 0 0 8px var(--success); display: inline-block;
         }
         .switch-wrap { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .ios-switch {
@@ -283,6 +287,7 @@
         .color-dot.active { transform: scale(1.18); border-color: var(--heading); }
         .ev-list-item { background: var(--card-alt); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .ev-del-btn { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+        .ev-edit-btn { background: rgba(0, 122, 255, 0.15); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
         .ev-author-badge { display: inline-block; background: rgba(0, 122, 255, 0.16); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 10px; padding: 1px 7px; font-size: 0.68rem; font-weight: 700; margin-left: 6px; }
 
         /* Стили Чек-листа вещей (Вкладка 6) */
@@ -502,8 +507,8 @@
             </div>
 
             <button class="action-btn" style="width:100%; padding:13px;" id="gateSubmitBtn" onclick="submitAuthGate()">Войти в приложение</button>
-            <div style="text-align:center; margin-top:10px;">
-                <button class="link-btn" onclick="syncUsersFromCloud(true)" title="Подтянуть зарегистрированные профили">🔄 Синхронизировать профили с сервером</button>
+            <div style="text-align:center; margin-top:10px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
+                <button class="link-btn" id="syncCloudGateBtn" onclick="syncUsersFromCloud(true)" title="Синхронизировать базу профилей с облаком">🔄 Синхронизировать базу с сервером</button>
             </div>
         </div>
     </div>
@@ -514,7 +519,7 @@
             <h1>🌴 Пхукет: Помощник</h1>
             <div class="header-right">
                 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Переключить тему">☀️ Светлая</button>
-                <div class="pwa-badge online" id="networkBadge" title="Статус сети и PWA кэша">● Онлайн</div>
+                <div class="pwa-badge online" id="networkBadge" title="Статус сети и синхронизации">● Онлайн</div>
 
                 <!-- Иконка и меню профиля справа сверху -->
                 <div class="profile-menu-wrap" id="profileMenuWrap">
@@ -551,12 +556,14 @@
 
         <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
         <div id="tab-home" class="tab-content active">
-            <!-- Блок: Кто сейчас онлайн + Тумблер Геолокации -->
+            <!-- Блок: Кто сейчас онлайн (ники) + Тумблер Геолокации -->
             <div class="top-status-strip">
                 <div class="online-users-card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:6px;">
-                        <span style="font-size:0.76rem; font-weight:800; color:var(--success); text-transform:uppercase;">🟢 Сейчас на сайте (Онлайн)</span>
-                        <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхр.</button>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:6px; flex-wrap:wrap;">
+                        <span style="font-size:0.76rem; font-weight:800; color:var(--success); text-transform:uppercase;">
+                            🟢 Сейчас на сайте (<span id="onlineCountBadge">1</span>)
+                        </span>
+                        <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхр. БД</button>
                     </div>
                     <div id="onlineUsersListBox" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"></div>
                 </div>
@@ -875,18 +882,18 @@
             </div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ ПОЛЬЗОВАТЕЛЕЙ) ==================== -->
+        <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ ПОЛЬЗОВАТЕЛЕЙ + РЕДАКТИРОВАНИЕ) ==================== -->
         <div id="tab-checklist" class="tab-content">
             <div class="box">
                 <h2>
                     <span>🧳 Списки вещей участников (Папки пользователей)</span>
-                    <span style="font-size:0.72rem; color:var(--muted); font-weight:500;">Чужие папки — просмотр, своя папка — редактирование</span>
+                    <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Обновить папки участников</button>
                 </h2>
 
                 <!-- Кнопка создания списка, если у текущего пользователя еще нет своей папки -->
                 <div id="createMyChecklistBanner" style="display:none; text-align:center; padding:18px; background:var(--card-alt); border:1px dashed var(--accent); border-radius:12px; margin-bottom:12px;">
                     <div style="font-size:1.02rem; font-weight:800; color:var(--heading); margin-bottom:6px;">У вас еще нет личного чек-листа вещей</div>
-                    <div style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">Создайте свою именную папку, чтобы добавлять вещи («Взять», «Собрано», «Купить»), ссылки, фото и подзадачи.</div>
+                    <div style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">Создайте свою именную папку, чтобы добавлять и редактировать вещи («Взять», «Собрано», «Купить»), ссылки, фото и подзадачи.</div>
                     <button class="action-btn" onclick="createUserChecklistFolder()">➕ Создать список вещей</button>
                 </div>
 
@@ -900,7 +907,7 @@
                         <h3 style="margin:0; font-size:1.05rem; color:var(--heading);" id="chkActiveFolderTitle">📂 Папка пользователя</h3>
                         <div style="font-size:0.76rem; color:var(--muted); margin-top:2px;" id="chkActiveFolderAccessHint">Права доступа</div>
                     </div>
-                    <button class="cal-nav-btn" style="background:var(--accent); color:#fff; border:none;" id="chkOpenEditorBtn" onclick="toggleChecklistItemEditor()">➕ Добавить позицию</button>
+                    <button class="cal-nav-btn" style="background:var(--accent); color:#fff; border:none;" id="chkOpenEditorBtn" onclick="openNewChecklistItemModal()">➕ Добавить позицию</button>
                 </div>
 
                 <!-- Фильтры: Все / Не выполненные / Выполненные + Категории -->
@@ -918,12 +925,14 @@
                     </select>
                 </div>
 
-                <!-- Редактор добавления позиции чек-листа -->
+                <!-- Редактор создания и редактирования позиции чек-листа -->
                 <div class="day-editor-modal" id="checklistItemEditorModal" style="margin-bottom:14px;">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <h3 style="margin:0; font-size:0.96rem; color:var(--accent);">➕ Новая позиция в чек-лист</h3>
+                        <h3 style="margin:0; font-size:0.96rem; color:var(--accent);" id="chkEditorHeaderTitle">➕ Новая позиция в чек-лист</h3>
                         <button class="cal-nav-btn" onclick="toggleChecklistItemEditor(false)">✕ Закрыть</button>
                     </div>
+
+                    <input type="hidden" id="chkEditingItemId" value="">
 
                     <div class="grid-2" style="margin-bottom:8px;">
                         <div class="field">
@@ -981,7 +990,7 @@
                         <textarea id="chkItemSubtasks" rows="2" placeholder="Пантенол, Пластыри, Таблетки от укачивания"></textarea>
                     </div>
 
-                    <button class="action-btn" style="width:100%;" onclick="saveNewChecklistItem()">💾 Сохранить позицию в список</button>
+                    <button class="action-btn" style="width:100%;" id="chkSaveItemBtn" onclick="saveNewChecklistItem()">💾 Сохранить позицию в список</button>
                 </div>
 
                 <!-- Список карточек позиций -->
@@ -1371,27 +1380,29 @@
 
     <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ СЕРВИСА (АДМИН-ПАНЕЛЬ) ==================== -->
     <div class="app-modal-backdrop" id="adminPanelModal">
-        <div class="app-modal-card" style="max-width:660px;">
+        <div class="app-modal-card" style="max-width:680px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <h3 style="margin:0; font-size:1.05rem; color:var(--warning);">🛠️ Управление сервисом (Администратор)</h3>
-                <div style="display:flex; gap:6px;">
-                    <button class="cal-nav-btn" style="border-color:var(--accent); color:var(--accent);" onclick="syncUsersFromCloud(true)">🔄 Синхронизировать с сайтом</button>
+                <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                    <button class="cal-nav-btn" style="border-color:var(--accent); color:var(--accent);" onclick="syncUsersFromCloud(true)">🔄 Синхронизировать с облаком</button>
                     <button class="cal-nav-btn" onclick="closeAdminPanelModal()">✕</button>
                 </div>
             </div>
 
             <div style="font-size:0.77rem; color:var(--muted); margin-bottom:10px;" id="adminSyncStatusLine">
-                Список автоматически обновляется при открытии. Показаны как пользователи онлайн, так и все зарегистрированные учетные записи.
+                Облачная синхронизация активна. Здесь отображаются все пользователи онлайн и все зарегистрированные учетные записи.
             </div>
 
             <!-- Область 1: Пользователи онлайн прямо сейчас -->
             <div style="background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:12px;">
-                <div style="font-size:0.78rem; font-weight:800; color:var(--success); text-transform:uppercase; margin-bottom:6px;">🟢 Сейчас онлайн на сайте</div>
+                <div style="font-size:0.78rem; font-weight:800; color:var(--success); text-transform:uppercase; margin-bottom:6px;">🟢 Сейчас онлайн на сайте (ники активных пользователей)</div>
                 <div id="adminOnlineUsersContainer" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
             </div>
 
             <!-- Область 2: Все зарегистрированные учетные записи -->
-            <div style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase; margin-bottom:6px;">👥 Все зарегистрированные учетные записи (<span id="adminTotalUsersCount">0</span>)</div>
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                <div style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase;">👥 Все зарегистрированные учетные записи (<span id="adminTotalUsersCount">0</span>)</div>
+            </div>
             <div id="adminUsersListContainer"></div>
         </div>
     </div>
@@ -1438,25 +1449,29 @@
             }
         }
 
-        /* ==================== БАЗА ДАННЫХ, СИНХРОНИЗАЦИЯ И АВТОРИЗАЦИЯ ==================== */
-        const USERS_DB_KEY = 'phuket_users_database_v4';
-        const LEGACY_DB_KEYS = ['phuket_users_database_v3', 'phuket_users_database_v2', 'phuket_users_database_v1', 'phuket_users_db'];
-        const ACTIVE_SESSION_KEY = 'phuket_active_session_v4';
-        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v4';
-        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v4';
-        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v4';
-        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v4';
-        const CLOUD_SYNC_BUCKET = 'phuket_helper_shared_sync_2026_v4';
+        /* ==================== ЕДИНАЯ БАЗА ДАННЫХ И РЕАЛТАЙМ-СИНХРОНИЗАЦИЯ ==================== */
+        const USERS_DB_KEY = 'phuket_users_database_v5';
+        const LEGACY_DB_KEYS = ['phuket_users_database_v4', 'phuket_users_database_v3', 'phuket_users_database_v2', 'phuket_users_database_v1', 'phuket_users_db'];
+        const ACTIVE_SESSION_KEY = 'phuket_active_session_v5';
+        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v5';
+        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v5';
+        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v5';
+        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v5';
+
+        // Канал облачной синхронизации без ключей и настроек (работает между разными браузерами и устройствами)
+        const CLOUD_CHANNEL_TOPIC = 'phuket_helper_realtime_db_2026_v6_sync';
+        const CLOUD_STREAM_URL = `https://ntfy.sh/${CLOUD_CHANNEL_TOPIC}`;
 
         let authMode = 'login';
         let currentUser = null;
         let inspectedUserByAdmin = null;
-        let activeBudgetSubtab = '__main__'; // '__main__' или ник пользователя
+        let activeBudgetSubtab = '__main__';
         let activeChecklistFolderUser = null;
-        let checklistFilterMode = 'all'; // 'all' | 'open' | 'done'
+        let checklistFilterMode = 'all';
         let uploadedChecklistImgData = '';
+        let cloudEventSource = null;
+        let lastCloudPushTs = 0;
 
-        // Глобальное состояние геолокации
         let geoState = {
             enabled: false,
             lat: null,
@@ -1464,7 +1479,6 @@
             nearestDistrict: 'kata'
         };
 
-        // Общие события календаря (видны всем пользователям, с указанием автора)
         let calendarEvents = {};
 
         const LOGIN_REGEX = /^[a-zA-Zа-яА-ЯёЁ0-9_\-\s]{2,25}$/;
@@ -1472,25 +1486,27 @@
         const HAS_DIGIT_REGEX = /[0-9]/;
         const HAS_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
-        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_channel') : null;
+        // Локальная синхронизация между вкладками одного браузера
+        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v6') : null;
         if (syncChannel) {
             syncChannel.onmessage = (ev) => {
                 if (ev.data && ev.data.type === 'SYNC_UPDATE') {
-                    loadSharedEvents();
-                    renderOnlineUsersUI();
-                    if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
-                        renderAdminUsersList();
-                    }
-                    renderBudgetSubtabs();
-                    renderChecklistSection();
-                    renderCalendarGrid();
-                    renderSelectedDayPreview();
-                    renderAllEventsSummary();
+                    refreshAllSharedViews();
                 }
             };
         }
 
         window.addEventListener('storage', () => {
+            refreshAllSharedViews();
+        });
+
+        function notifyRealtimePeers() {
+            if (syncChannel) {
+                try { syncChannel.postMessage({ type: 'SYNC_UPDATE', ts: Date.now() }); } catch (e) {}
+            }
+        }
+
+        function refreshAllSharedViews() {
             loadSharedEvents();
             renderOnlineUsersUI();
             if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
@@ -1501,12 +1517,6 @@
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
-        });
-
-        function notifyRealtimePeers() {
-            if (syncChannel) {
-                try { syncChannel.postMessage({ type: 'SYNC_UPDATE', ts: Date.now() }); } catch (e) {}
-            }
         }
 
         function getUsersDb() {
@@ -1515,7 +1525,7 @@
                 mainDb = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
             } catch (e) { mainDb = {}; }
 
-            // Автоматическое слияние со старыми ключами, чтобы ни одна регистрация не потерялась
+            // Автоматический перенос всех ранее зарегистрированных пользователей из старых версий ключа
             let changed = false;
             LEGACY_DB_KEYS.forEach(k => {
                 try {
@@ -1523,7 +1533,7 @@
                     if (oldRaw) {
                         const oldObj = JSON.parse(oldRaw);
                         Object.keys(oldObj || {}).forEach(uKey => {
-                            if (!mainDb[uKey]) {
+                            if (!mainDb[uKey] || (oldObj[uKey]?.updatedAt || 0) > (mainDb[uKey]?.updatedAt || 0)) {
                                 mainDb[uKey] = oldObj[uKey];
                                 changed = true;
                             }
@@ -1537,11 +1547,11 @@
             return mainDb;
         }
 
-        function setUsersDb(db) {
+        function setUsersDb(db, pushCloud = true) {
             try {
                 localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
                 notifyRealtimePeers();
-                pushStateToCloudSilent();
+                if (pushCloud) pushStateToCloudSilent();
             } catch (e) {}
         }
 
@@ -1552,7 +1562,6 @@
             return Boolean((u && u.role === 'admin') || currentUser.toLowerCase() === 'admin');
         }
 
-        // Гарантированное создание учетной записи администратора (admin / Admin!2026)
         function ensureAdminAccountExists() {
             const db = getUsersDb();
             if (!db['admin']) {
@@ -1563,125 +1572,239 @@
                     bio: 'Администратор сервиса Пхукет Помощник',
                     avatar: '',
                     createdAt: Date.now(),
+                    updatedAt: Date.now(),
                     data: {}
                 };
-                setUsersDb(db);
+                setUsersDb(db, false);
             } else if (db['admin'].role !== 'admin') {
                 db['admin'].role = 'admin';
-                setUsersDb(db);
+                setUsersDb(db, false);
             }
         }
 
-        /* ==================== ОБЛАЧНАЯ И ЛОКАЛЬНАЯ СИНХРОНИЗАЦИЯ УЧЕТОК ==================== */
+        /* ==================== ПРОСТАЯ И НАДЕЖНАЯ ОБЛАЧНАЯ БАЗА ДАННЫХ ==================== */
+        function stripLargeBase64ForCloud(usersObj) {
+            const copy = {};
+            Object.keys(usersObj || {}).forEach(k => {
+                const u = usersObj[k];
+                if (!u) return;
+                const safeAvatar = (u.avatar && u.avatar.length > 1500) ? '' : (u.avatar || '');
+                copy[k] = {
+                    displayName: u.displayName || k,
+                    password: u.password || '',
+                    role: u.role || 'user',
+                    bio: u.bio || '',
+                    avatar: safeAvatar,
+                    createdAt: u.createdAt || Date.now(),
+                    updatedAt: u.updatedAt || Date.now(),
+                    data: u.data || {}
+                };
+            });
+            return copy;
+        }
+
+        function stripLargeImagesFromChecklists(chkObj) {
+            const copy = {};
+            Object.keys(chkObj || {}).forEach(k => {
+                const folder = chkObj[k];
+                if (!folder) return;
+                copy[k] = {
+                    ...folder,
+                    items: (folder.items || []).map(it => ({
+                        ...it,
+                        imageUrl: (it.imageUrl && it.imageUrl.length > 1500) ? '' : (it.imageUrl || '')
+                    }))
+                };
+            });
+            return copy;
+        }
+
+        function applyIncomingCloudSnapshot(snap) {
+            if (!snap || typeof snap !== 'object') return;
+            let anyUpdated = false;
+
+            if (snap.users && typeof snap.users === 'object') {
+                const localDb = getUsersDb();
+                Object.keys(snap.users).forEach(uKey => {
+                    const incomingU = snap.users[uKey];
+                    const existingU = localDb[uKey];
+                    if (!existingU || (incomingU.updatedAt || 0) >= (existingU.updatedAt || 0)) {
+                        const keepAvatar = (!incomingU.avatar && existingU?.avatar) ? existingU.avatar : (incomingU.avatar || '');
+                        localDb[uKey] = { ...existingU, ...incomingU, avatar: keepAvatar };
+                        anyUpdated = true;
+                    }
+                });
+                localStorage.setItem(USERS_DB_KEY, JSON.stringify(localDb));
+            }
+
+            if (snap.presence && typeof snap.presence === 'object') {
+                const localPres = getOnlinePresenceDb();
+                Object.keys(snap.presence).forEach(uKey => {
+                    const ts = snap.presence[uKey];
+                    if (ts === 0) {
+                        delete localPres[uKey];
+                        anyUpdated = true;
+                    } else if (ts > (localPres[uKey] || 0)) {
+                        localPres[uKey] = ts;
+                        anyUpdated = true;
+                    }
+                });
+                localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(localPres));
+            }
+
+            if (snap.checklists && typeof snap.checklists === 'object') {
+                const localChk = getChecklistsDb();
+                Object.keys(snap.checklists).forEach(uKey => {
+                    const incF = snap.checklists[uKey];
+                    const locF = localChk[uKey];
+                    if (!locF || (incF.updatedAt || 0) >= (locF.updatedAt || 0)) {
+                        // Сохраняем локальные тяжелые картинки, если они были
+                        const locMap = {};
+                        (locF?.items || []).forEach(i => { if (i.imageUrl) locMap[i.id] = i.imageUrl; });
+                        incF.items = (incF.items || []).map(i => ({
+                            ...i,
+                            imageUrl: i.imageUrl || locMap[i.id] || ''
+                        }));
+                        localChk[uKey] = incF;
+                        anyUpdated = true;
+                    }
+                });
+                localStorage.setItem(SHARED_CHECKLIST_KEY, JSON.stringify(localChk));
+            }
+
+            if (snap.sharedEvents && typeof snap.sharedEvents === 'object') {
+                const localEv = getSharedEventsDb();
+                const incomingTs = snap.eventsUpdatedAt || 0;
+                const localEvTs = Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || 0);
+                if (incomingTs >= localEvTs) {
+                    localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(snap.sharedEvents));
+                    localStorage.setItem(SHARED_EVENTS_KEY + '_ts', String(incomingTs));
+                    anyUpdated = true;
+                }
+            }
+
+            if (snap.mainBudget && typeof snap.mainBudget === 'object') {
+                const incBTs = snap.mainBudget.updatedAt || 0;
+                const curB = getMainSharedBudget();
+                if (!curB || incBTs >= (curB.updatedAt || 0)) {
+                    localStorage.setItem(SHARED_MAIN_BUDGET_KEY, JSON.stringify(snap.mainBudget));
+                    anyUpdated = true;
+                }
+            }
+
+            if (anyUpdated) {
+                refreshAllSharedViews();
+            }
+        }
+
         async function pushStateToCloudSilent() {
+            const now = Date.now();
+            if (now - lastCloudPushTs < 400) return;
+            lastCloudPushTs = now;
+
             try {
                 const payload = {
-                    users: getUsersDb(),
-                    sharedEvents: getSharedEventsDb(),
-                    checklists: getChecklistsDb(),
+                    type: 'PHUKET_DB_STATE',
+                    users: stripLargeBase64ForCloud(getUsersDb()),
                     presence: getOnlinePresenceDb(),
+                    checklists: stripLargeImagesFromChecklists(getChecklistsDb()),
+                    sharedEvents: getSharedEventsDb(),
+                    eventsUpdatedAt: Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || now),
                     mainBudget: getMainSharedBudget(),
-                    updatedAt: Date.now()
+                    ts: now
                 };
-                await fetch(`https://kvdb.io/A2x9kLp4mQv7zR1wYt8N/${CLOUD_SYNC_BUCKET}`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                await fetch(CLOUD_STREAM_URL, {
+                    method: 'POST',
                     body: JSON.stringify(payload)
                 }).catch(() => {});
             } catch (e) {}
         }
 
-        async function syncUsersFromCloud(showAlert = false) {
+        async function syncUsersFromCloud(showFeedback = false) {
             ensureAdminAccountExists();
             const statusLine = document.getElementById('adminSyncStatusLine');
-            if (statusLine) statusLine.innerText = '⏳ Синхронизация базы пользователей и онлайн-статусов...';
+            const gateBtn = document.getElementById('syncCloudGateBtn');
+            if (statusLine) statusLine.innerText = '⏳ Синхронизация базы пользователей, онлайна и чек-листов с облаком...';
+            if (showFeedback && gateBtn) gateBtn.innerText = '⏳ Синхронизация...';
 
             try {
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 3500);
-                const res = await fetch(`https://kvdb.io/A2x9kLp4mQv7zR1wYt8N/${CLOUD_SYNC_BUCKET}?t=${Date.now()}`, { signal: controller.signal });
+                const timer = setTimeout(() => controller.abort(), 4500);
+                const res = await fetch(`${CLOUD_STREAM_URL}/json?poll=1&since=72h`, { signal: controller.signal });
                 clearTimeout(timer);
                 if (res.ok) {
-                    const cloud = await res.json();
-                    if (cloud && cloud.users) {
-                        const localDb = getUsersDb();
-                        Object.keys(cloud.users).forEach(uKey => {
-                            const cUser = cloud.users[uKey];
-                            const lUser = localDb[uKey];
-                            if (!lUser || (cUser.updatedAt || 0) > (lUser.updatedAt || 0)) {
-                                localDb[uKey] = cUser;
-                            }
-                        });
-                        localStorage.setItem(USERS_DB_KEY, JSON.stringify(localDb));
-                    }
-                    if (cloud && cloud.sharedEvents) {
-                        const localEv = getSharedEventsDb();
-                        Object.keys(cloud.sharedEvents).forEach(dateIso => {
-                            const arr = cloud.sharedEvents[dateIso] || [];
-                            if (!localEv[dateIso]) localEv[dateIso] = [];
-                            arr.forEach(ev => {
-                                if (!localEv[dateIso].some(x => x.id === ev.id)) {
-                                    localEv[dateIso].push(ev);
+                    const text = await res.text();
+                    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                    lines.forEach(line => {
+                        try {
+                            const wrapper = JSON.parse(line);
+                            if (wrapper && wrapper.message) {
+                                const inner = JSON.parse(wrapper.message);
+                                if (inner && inner.type === 'PHUKET_DB_STATE') {
+                                    applyIncomingCloudSnapshot(inner);
                                 }
-                            });
-                        });
-                        localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(localEv));
-                    }
-                    if (cloud && cloud.checklists) {
-                        const localChk = getChecklistsDb();
-                        Object.keys(cloud.checklists).forEach(uKey => {
-                            if (!localChk[uKey] || (cloud.checklists[uKey].updatedAt || 0) > (localChk[uKey].updatedAt || 0)) {
-                                localChk[uKey] = cloud.checklists[uKey];
                             }
-                        });
-                        localStorage.setItem(SHARED_CHECKLIST_KEY, JSON.stringify(localChk));
-                    }
-                    if (cloud && cloud.presence) {
-                        const localPres = getOnlinePresenceDb();
-                        Object.keys(cloud.presence).forEach(uKey => {
-                            localPres[uKey] = Math.max(localPres[uKey] || 0, cloud.presence[uKey] || 0);
-                        });
-                        localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(localPres));
-                    }
+                        } catch (e) {}
+                    });
                 }
             } catch (e) {}
 
-            loadSharedEvents();
-            renderOnlineUsersUI();
-            renderBudgetSubtabs();
-            renderChecklistSection();
-            renderCalendarGrid();
-            renderSelectedDayPreview();
-            renderAllEventsSummary();
+            refreshAllSharedViews();
 
-            if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
-                renderAdminUsersList();
-            }
-
+            const totalUsers = Object.keys(getUsersDb()).length;
             const nowStr = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
             if (statusLine) {
-                statusLine.innerHTML = `✅ Синхронизировано в <b>${nowStr}</b>. Все зарегистрированные профили и онлайн-статусы загружены.`;
+                statusLine.innerHTML = `✅ База синхронизирована в <b>${nowStr}</b>. Зарегистрировано учетных записей: <b>${totalUsers}</b>.`;
             }
-            if (showAlert && !document.getElementById('adminPanelModal')?.classList.contains('open')) {
-                const total = Object.keys(getUsersDb()).length;
-                const badge = document.getElementById('networkBadge');
-                if (badge) badge.innerText = `● Онлайн (Профилей: ${total})`;
+            if (gateBtn) {
+                gateBtn.innerText = showFeedback ? `✅ База обновлена (учеток: ${totalUsers})` : '🔄 Синхронизировать базу с сервером';
+                if (showFeedback) {
+                    setTimeout(() => { gateBtn.innerText = '🔄 Синхронизировать базу с сервером'; }, 2000);
+                }
             }
         }
 
-        /* ==================== ОНЛАЙН-СТАТУС ПОЛЬЗОВАТЕЛЕЙ ==================== */
-        function getOnlinePresenceDb() {
+        function startRealtimeCloudStream() {
+            if (!('EventSource' in window)) return;
             try {
-                return JSON.parse(localStorage.getItem(ONLINE_PRESENCE_KEY) || '{}');
-            } catch (e) { return {}; }
+                if (cloudEventSource) cloudEventSource.close();
+                cloudEventSource = new EventSource(`${CLOUD_STREAM_URL}/sse`);
+                cloudEventSource.onmessage = (ev) => {
+                    try {
+                        const wrapper = JSON.parse(ev.data);
+                        if (wrapper && wrapper.message) {
+                            const inner = JSON.parse(wrapper.message);
+                            if (inner && inner.type === 'PHUKET_DB_STATE') {
+                                applyIncomingCloudSnapshot(inner);
+                            }
+                        }
+                    } catch (e) {}
+                };
+            } catch (e) {}
         }
 
-        function pingOnlineStatus() {
+        /* ==================== ОНЛАЙН-СТАТУС ПОЛЬЗОВАТЕЛЕЙ (ВЫВОД КОНКРЕТНЫХ НИКОВ) ==================== */
+        function getOnlinePresenceDb() {
+            const merged = {};
+            try {
+                const p5 = JSON.parse(localStorage.getItem(ONLINE_PRESENCE_KEY) || '{}');
+                Object.assign(merged, p5);
+            } catch (e) {}
+            try {
+                const p4 = JSON.parse(localStorage.getItem('phuket_online_presence_v4') || '{}');
+                Object.keys(p4).forEach(k => { merged[k] = Math.max(merged[k] || 0, p4[k] || 0); });
+            } catch (e) {}
+            return merged;
+        }
+
+        function pingOnlineStatus(pushToCloud = false) {
             if (!currentUser) return;
             const pres = getOnlinePresenceDb();
             pres[currentUser] = Date.now();
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
+                notifyRealtimePeers();
+                if (pushToCloud) pushStateToCloudSilent();
             } catch (e) {}
             renderOnlineUsersUI();
         }
@@ -1689,9 +1812,11 @@
         function removeCurrentUserFromOnline() {
             if (!currentUser) return;
             const pres = getOnlinePresenceDb();
-            delete pres[currentUser];
+            pres[currentUser] = 0;
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
+                notifyRealtimePeers();
+                pushStateToCloudSilent();
             } catch (e) {}
             renderOnlineUsersUI();
         }
@@ -1701,11 +1826,22 @@
             const db = getUsersDb();
             const now = Date.now();
             const active = [];
+
+            // Гарантируем, что текущий авторизованный пользователь всегда числится онлайн, пока открыт сайт
+            if (currentUser) {
+                pres[currentUser] = now;
+            }
+
             Object.keys(pres).forEach(uKey => {
-                // Считаем пользователя онлайн, если его пинг был не старше 90 секунд (оффлайн не выводится)
-                if (now - (pres[uKey] || 0) <= 90000) {
+                const lastSeen = pres[uKey] || 0;
+                // Если пользователь активен за последние 90 секунд — выводим его ник и статус «онлайн» (оффлайн не выводится)
+                if (lastSeen > 0 && (now - lastSeen <= 90000)) {
                     const display = db[uKey]?.displayName || uKey;
-                    active.push({ key: uKey, displayName: display, isMe: uKey === currentUser });
+                    active.push({
+                        key: uKey,
+                        displayName: display,
+                        isMe: currentUser && uKey.toLowerCase() === currentUser.toLowerCase()
+                    });
                 }
             });
             return active;
@@ -1715,18 +1851,33 @@
             const activeList = getActiveOnlineUsersList();
             const homeBox = document.getElementById('onlineUsersListBox');
             const adminBox = document.getElementById('adminOnlineUsersContainer');
+            const countBadge = document.getElementById('onlineCountBadge');
+
+            if (countBadge) countBadge.innerText = activeList.length;
 
             const html = activeList.length > 0
-                ? activeList.map(u => `<span class="online-badge-pill">● ${u.displayName}${u.isMe ? ' (Вы)' : ''} — онлайн</span>`).join('')
-                : `<span style="font-size:0.76rem; color:var(--muted);">Нет активных пользователей онлайн</span>`;
+                ? activeList.map(u => `
+                    <span class="online-badge-pill">
+                        <span class="online-dot-pulse"></span>
+                        <span>${u.displayName}${u.isMe ? ' (Вы)' : ''} — онлайн</span>
+                    </span>
+                `).join('')
+                : `<span style="font-size:0.76rem; color:var(--muted);">Сейчас никого нет онлайн</span>`;
 
             if (homeBox) homeBox.innerHTML = html;
             if (adminBox) adminBox.innerHTML = html;
         }
 
+        // Регулярный пинг онлайна и фоновая подкачка обновлений
         setInterval(() => {
-            if (currentUser) pingOnlineStatus();
-        }, 20000);
+            if (currentUser) {
+                pingOnlineStatus(true);
+            }
+        }, 18000);
+
+        setInterval(() => {
+            syncUsersFromCloud(false);
+        }, 12000);
 
         window.addEventListener('beforeunload', () => {
             saveUserDataState();
@@ -1793,7 +1944,7 @@
                     scanRealTimeTides();
                     saveUserDataState();
                 },
-                (err) => {
+                () => {
                     if (subEl) subEl.innerText = '⚠️ Доступ к геолокации отклонен (работает район Ката)';
                     document.getElementById('geoMasterToggle').checked = false;
                     geoState.enabled = false;
@@ -1898,16 +2049,19 @@
             return isUnique && pRules.isValid;
         }
 
-        function submitAuthGate() {
+        async function submitAuthGate() {
             ensureAdminAccountExists();
             const login = document.getElementById('gateLoginInput').value.trim();
             const pass = document.getElementById('gatePassInput').value;
-            const db = getUsersDb();
 
             if (!login || !pass) {
                 showAuthError('Пожалуйста, заполните логин и пароль.');
                 return;
             }
+
+            // Перед проверкой подтягиваем свежие учетки из облака
+            await syncUsersFromCloud(false);
+            const db = getUsersDb();
 
             if (authMode === 'login') {
                 const userKey = findUserKeyCaseInsensitive(db, login);
@@ -1945,7 +2099,7 @@
                     updatedAt: Date.now(),
                     data: collectCurrentInputsState()
                 };
-                setUsersDb(db);
+                setUsersDb(db, true);
                 completeLoginSession(login);
             }
         }
@@ -1970,7 +2124,6 @@
             const db = getUsersDb();
             if (!db[targetKey]) return;
 
-            // Если редактируется личная вкладка бюджета или общий интерфейс, сохраняем
             const curState = collectCurrentInputsState();
             if (activeBudgetSubtab === targetKey || activeBudgetSubtab === '__main__') {
                 db[targetKey].data = curState;
@@ -1978,7 +2131,7 @@
                 if (activeBudgetSubtab === '__main__') {
                     saveMainSharedBudget(extractBudgetSnapshotFromDOM());
                 }
-                setUsersDb(db);
+                setUsersDb(db, true);
             }
 
             const statusEl = document.getElementById('autoSaveStatus');
@@ -2030,10 +2183,9 @@
             document.getElementById('authGateOverlay').classList.add('hidden');
             document.getElementById('mainAppContainer').classList.add('authenticated');
 
-            pingOnlineStatus();
+            pingOnlineStatus(true);
             loadUserDataState(currentUser);
             renderHeaderProfileUI();
-            syncUsersFromCloud(false);
             switchTab('home');
         }
 
@@ -2152,7 +2304,7 @@
             u.avatar = newAvatar;
             u.bio = newBio;
             u.updatedAt = Date.now();
-            setUsersDb(db);
+            setUsersDb(db, true);
             renderHeaderProfileUI();
 
             msgEl.style.display = 'block';
@@ -2165,8 +2317,8 @@
             document.getElementById('profileDropdown').classList.remove('open');
             renderAdminUsersList();
             document.getElementById('adminPanelModal').classList.add('open');
-            // Автоматическая синхронизация при открытии настроек сервиса
-            syncUsersFromCloud(false);
+            // При открытии админ-панели автоматически подтягиваем все учетки с облака
+            syncUsersFromCloud(true);
         }
 
         function closeAdminPanelModal() {
@@ -2178,6 +2330,7 @@
             renderOnlineUsersUI();
             const db = getUsersDb();
             const pres = getOnlinePresenceDb();
+            const chkDb = getChecklistsDb();
             const now = Date.now();
             const container = document.getElementById('adminUsersListContainer');
             const keys = Object.keys(db);
@@ -2185,12 +2338,19 @@
             const countEl = document.getElementById('adminTotalUsersCount');
             if (countEl) countEl.innerText = keys.length;
 
+            if (keys.length === 0) {
+                container.innerHTML = `<div style="color:var(--muted);">Нет зарегистрированных пользователей.</div>`;
+                return;
+            }
+
             container.innerHTML = keys.map(uKey => {
                 const u = db[uKey];
                 const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '327000';
                 const isBeingEdited = (inspectedUserByAdmin || currentUser) === uKey;
-                const isUserOnline = (now - (pres[uKey] || 0)) <= 90000;
+                const isUserOnline = (uKey === currentUser) || ((pres[uKey] || 0) > 0 && (now - (pres[uKey] || 0)) <= 90000);
                 const createdStr = u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—';
+                const userChkItems = chkDb[uKey]?.items || [];
+                const userChkDone = userChkItems.filter(i => i.done).length;
 
                 return `
                     <div class="admin-user-row" style="${isBeingEdited ? 'border-color:var(--success);' : ''}">
@@ -2198,10 +2358,10 @@
                             <div style="font-weight:800; color:var(--heading); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                 <span>👤 ${u.displayName || uKey}</span>
                                 ${u.role === 'admin' ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
-                                ${isUserOnline ? '<span class="online-badge-pill" style="padding:1px 7px; font-size:0.68rem;">● онлайн</span>' : ''}
+                                ${isUserOnline ? '<span class="online-badge-pill" style="padding:1px 8px; font-size:0.68rem;"><span class="online-dot-pulse"></span> онлайн</span>' : ''}
                             </div>
                             <div style="font-size:0.75rem; color:var(--muted); margin-top:3px;">
-                                Пароль: <b style="color:var(--text);">${u.password}</b> • Личный бюджет: <b>${budgetVal}</b> • Создан: ${createdStr}
+                                Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b> • Чек-лист: <b>${userChkDone}/${userChkItems.length}</b> • Создан: ${createdStr}
                             </div>
                             ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text); margin-top:2px;">О себе: ${u.bio}</div>` : ''}
                         </div>
@@ -2228,7 +2388,7 @@
             if (db[targetKey]) {
                 db[targetKey].password = newPass;
                 db[targetKey].updatedAt = Date.now();
-                setUsersDb(db);
+                setUsersDb(db, true);
                 renderAdminUsersList();
                 alert(`Пароль пользователя «${targetKey}» успешно заменен на: ${newPass}`);
             }
@@ -2320,7 +2480,16 @@
                 shared = JSON.parse(localStorage.getItem(SHARED_EVENTS_KEY) || '{}');
             } catch (e) { shared = {}; }
 
-            // Собираем также любые события из профилей пользователей, чтобы все записи отображались у всех
+            try {
+                const v4 = JSON.parse(localStorage.getItem('phuket_shared_calendar_events_v4') || '{}');
+                Object.keys(v4).forEach(dIso => {
+                    if (!shared[dIso]) shared[dIso] = [];
+                    (v4[dIso] || []).forEach(ev => {
+                        if (!shared[dIso].some(x => x.id === ev.id)) shared[dIso].push(ev);
+                    });
+                });
+            } catch (e) {}
+
             const db = getUsersDb();
             let merged = false;
             Object.keys(db).forEach(uKey => {
@@ -2345,6 +2514,7 @@
             calendarEvents = sharedObj;
             try {
                 localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(sharedObj));
+                localStorage.setItem(SHARED_EVENTS_KEY + '_ts', String(Date.now()));
                 notifyRealtimePeers();
                 pushStateToCloudSilent();
             } catch (e) {}
@@ -2404,7 +2574,6 @@
 
             const neededByDate = dailySpend * dayIndex;
             const remainingByDate = totalBudgetThb - neededByDate;
-            const daysLeftFromDate = Math.max(1, totalDays - dayIndex + 1);
 
             document.getElementById('schedNeededByDateThb').innerText = `${fmtInt(neededByDate)} ฿`;
             document.getElementById('schedNeededByDateSub').innerText = statusNote;
@@ -2691,11 +2860,22 @@
             box.innerHTML = html;
         }
 
-        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (ПАПКИ УЧАСТНИКОВ, ПОДЗАДАЧИ, ПРАВА) ==================== */
+        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (ПАПКИ, ПРОСМОТР ЧУЖИХ ГАЛОЧЕК И РЕДАКТИРОВАНИЕ ПОЗИЦИЙ) ==================== */
         function getChecklistsDb() {
+            let chk = {};
             try {
-                return JSON.parse(localStorage.getItem(SHARED_CHECKLIST_KEY) || '{}');
-            } catch (e) { return {}; }
+                chk = JSON.parse(localStorage.getItem(SHARED_CHECKLIST_KEY) || '{}');
+            } catch (e) { chk = {}; }
+
+            try {
+                const v4 = JSON.parse(localStorage.getItem('phuket_shared_checklists_v4') || '{}');
+                Object.keys(v4).forEach(uKey => {
+                    if (!chk[uKey] || (v4[uKey]?.updatedAt || 0) > (chk[uKey]?.updatedAt || 0)) {
+                        chk[uKey] = v4[uKey];
+                    }
+                });
+            } catch (e) {}
+            return chk;
         }
 
         function saveChecklistsDb(chkDb) {
@@ -2772,11 +2952,11 @@
                                 📂 Список: ${f.displayName || uKey}
                             </div>
                             <div style="font-size:0.75rem; color:var(--muted); margin-top:3px;">
-                                Позиций: <b>${items.length}</b> (выполнено: <b style="color:var(--success);">${doneCount}</b>)
+                                Позиций: <b>${items.length}</b> (отмечено выполненным: <b style="color:var(--success);">${doneCount}</b>)
                             </div>
                         </div>
                         <span class="status-pill ${canWrite ? 'pill-good' : 'pill-warn'}">
-                            ${canWrite ? '✏️ Редактирование' : '👁️ Чтение'}
+                            ${canWrite ? '✏️ Редактирование' : '👁️ Просмотр'}
                         </span>
                     </div>
                 `;
@@ -2788,11 +2968,64 @@
 
             document.getElementById('chkActiveFolderTitle').innerText = `📂 Чек-лист вещей — автор: ${activeFolder.displayName || activeChecklistFolderUser}`;
             document.getElementById('chkActiveFolderAccessHint').innerHTML = editable
-                ? `<span style="color:var(--success);font-weight:700;">✓ У вас полные права на добавление и отметку вещей в этой папке</span>`
-                : `<span style="color:var(--warning);font-weight:700;">👁️ Режим чтения: вы просматриваете список участника ${activeFolder.displayName || activeChecklistFolderUser}</span>`;
+                ? `<span style="color:var(--success);font-weight:700;">✓ Вы можете создавать, редактировать и отмечать вещи в этой папке</span>`
+                : `<span style="color:var(--warning);font-weight:700;">👁️ Режим чтения: вы видите все вещи и отметки выполнения участника ${activeFolder.displayName || activeChecklistFolderUser}</span>`;
 
             document.getElementById('chkOpenEditorBtn').style.display = editable ? 'inline-block' : 'none';
             renderChecklistItems();
+        }
+
+        function resetChecklistEditorFields() {
+            document.getElementById('chkEditingItemId').value = '';
+            document.getElementById('chkItemTitle').value = '';
+            document.getElementById('chkItemCategory').value = 'take';
+            document.getElementById('chkItemAmount').value = '';
+            document.getElementById('chkItemUrgency').value = 'medium';
+            document.getElementById('chkItemColor').value = '#007aff';
+            document.getElementById('chkItemDesc').value = '';
+            document.getElementById('chkItemImageUrl').value = '';
+            document.getElementById('chkItemLinks').value = '';
+            document.getElementById('chkItemSubtasks').value = '';
+            uploadedChecklistImgData = '';
+            const hdr = document.getElementById('chkEditorHeaderTitle');
+            const btn = document.getElementById('chkSaveItemBtn');
+            if (hdr) hdr.innerText = '➕ Новая позиция в чек-лист';
+            if (btn) btn.innerText = '💾 Сохранить позицию в список';
+        }
+
+        function openNewChecklistItemModal() {
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
+            resetChecklistEditorFields();
+            toggleChecklistItemEditor(true);
+            document.getElementById('chkItemTitle').focus();
+        }
+
+        function openEditChecklistItemModal(itemId) {
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
+            const chkDb = getChecklistsDb();
+            const folder = chkDb[activeChecklistFolderUser];
+            if (!folder) return;
+            const item = (folder.items || []).find(i => i.id === itemId);
+            if (!item) return;
+
+            document.getElementById('chkEditingItemId').value = item.id;
+            document.getElementById('chkItemTitle').value = item.title || '';
+            document.getElementById('chkItemCategory').value = item.category || 'take';
+            document.getElementById('chkItemAmount').value = item.amount > 0 ? item.amount : '';
+            document.getElementById('chkItemUrgency').value = item.urgency || 'medium';
+            document.getElementById('chkItemColor').value = item.color || '#007aff';
+            document.getElementById('chkItemDesc').value = item.desc || '';
+            document.getElementById('chkItemImageUrl').value = item.imageUrl || '';
+            document.getElementById('chkItemLinks').value = (item.links || []).join(', ');
+            document.getElementById('chkItemSubtasks').value = (item.subtasks || []).map(s => s.title).join(', ');
+
+            const hdr = document.getElementById('chkEditorHeaderTitle');
+            const btn = document.getElementById('chkSaveItemBtn');
+            if (hdr) hdr.innerText = `✏️ Редактирование позиции: ${item.title}`;
+            if (btn) btn.innerText = '💾 Сохранить изменения позиции';
+
+            toggleChecklistItemEditor(true);
+            document.getElementById('chkItemTitle').focus();
         }
 
         function toggleChecklistItemEditor(forceState) {
@@ -2801,6 +3034,7 @@
             if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
             const next = typeof forceState === 'boolean' ? forceState : !modal.classList.contains('open');
             modal.classList.toggle('open', next);
+            if (!next) resetChecklistEditorFields();
         }
 
         function setChecklistFilter(mode) {
@@ -2827,6 +3061,7 @@
                 alert('Редактировать можно только свою папку чек-листа!');
                 return;
             }
+            const editingId = document.getElementById('chkEditingItemId').value.trim();
             const title = document.getElementById('chkItemTitle').value.trim();
             if (!title) {
                 alert('Введите название вещи или задачи.');
@@ -2842,40 +3077,61 @@
             const subtasksRaw = document.getElementById('chkItemSubtasks').value;
 
             const links = linksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
-            const subtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
-                id: 'sub_' + Date.now() + '_' + idx,
-                title: st,
-                done: false
-            }));
 
             const chkDb = getChecklistsDb();
-            if (!chkDb[activeChecklistFolderUser]) return;
+            const folder = chkDb[activeChecklistFolderUser];
+            if (!folder) return;
 
-            chkDb[activeChecklistFolderUser].items.push({
-                id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-                title,
-                category,
-                amount,
-                urgency,
-                color,
-                desc,
-                imageUrl,
-                links,
-                subtasks,
-                done: false,
-                author: currentUser
-            });
-            chkDb[activeChecklistFolderUser].updatedAt = Date.now();
+            if (editingId) {
+                // Редактирование существующей позиции
+                const existingItem = (folder.items || []).find(i => i.id === editingId);
+                if (existingItem) {
+                    const oldSubMap = {};
+                    (existingItem.subtasks || []).forEach(st => {
+                        oldSubMap[st.title.toLowerCase()] = st.done;
+                    });
+                    const updatedSubtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
+                        id: 'sub_' + Date.now() + '_' + idx,
+                        title: st,
+                        done: existingItem.done ? true : Boolean(oldSubMap[st.toLowerCase()])
+                    }));
+
+                    existingItem.title = title;
+                    existingItem.category = category;
+                    existingItem.amount = amount;
+                    existingItem.urgency = urgency;
+                    existingItem.color = color;
+                    existingItem.desc = desc;
+                    existingItem.imageUrl = imageUrl;
+                    existingItem.links = links;
+                    existingItem.subtasks = updatedSubtasks;
+                }
+            } else {
+                // Создание новой позиции
+                const subtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
+                    id: 'sub_' + Date.now() + '_' + idx,
+                    title: st,
+                    done: false
+                }));
+
+                folder.items.push({
+                    id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    title,
+                    category,
+                    amount,
+                    urgency,
+                    color,
+                    desc,
+                    imageUrl,
+                    links,
+                    subtasks,
+                    done: false,
+                    author: currentUser
+                });
+            }
+
+            folder.updatedAt = Date.now();
             saveChecklistsDb(chkDb);
-
-            document.getElementById('chkItemTitle').value = '';
-            document.getElementById('chkItemAmount').value = '';
-            document.getElementById('chkItemDesc').value = '';
-            document.getElementById('chkItemImageUrl').value = '';
-            document.getElementById('chkItemLinks').value = '';
-            document.getElementById('chkItemSubtasks').value = '';
-            uploadedChecklistImgData = '';
-
             toggleChecklistItemEditor(false);
             renderChecklistSection();
         }
@@ -2889,7 +3145,7 @@
             if (!item) return;
 
             item.done = !item.done;
-            // Если закрывается основная задача, все ее подзадачи автоматически закрываются (помечаются выполненными)
+            // При закрытии задачи все ее подзадачи автоматически закрываются
             if (item.done && Array.isArray(item.subtasks)) {
                 item.subtasks.forEach(st => { st.done = true; });
             }
@@ -2983,7 +3239,7 @@
                     <div class="chk-item-card ${item.done ? 'done' : ''}" style="border-left-color:${item.color || '#007aff'};">
                         <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
                             <div style="display:flex; align-items:flex-start; gap:10px; flex:1;">
-                                <div class="chk-circle ${item.done ? 'checked' : ''}" onclick="${editable ? `toggleChecklistMainItem('${item.id}')` : ''}" title="${editable ? 'Отметить выполненным' : 'Только чтение'}">
+                                <div class="chk-circle ${item.done ? 'checked' : ''}" onclick="${editable ? `toggleChecklistMainItem('${item.id}')` : ''}" title="${editable ? 'Отметить выполненным' : 'Статус выполнения'}">
                                     ${item.done ? '✓' : ''}
                                 </div>
                                 <div style="flex:1;">
@@ -2992,6 +3248,7 @@
                                         <span class="urgency-badge ${u.cls}">${u.text}</span>
                                         <span style="font-size:0.72rem; color:var(--accent); font-weight:700;">${catNames[item.category] || '🎒 Вещь'}</span>
                                         ${item.amount > 0 ? `<span style="font-size:0.76rem; font-weight:800; color:var(--success);">💰 ${fmtInt(item.amount)} ₽/฿</span>` : ''}
+                                        ${item.done ? `<span style="font-size:0.7rem; color:var(--success); font-weight:700;">[✓ Выполнено]</span>` : ''}
                                     </div>
                                     ${item.desc ? `<div style="font-size:0.8rem; color:var(--desc-text); margin-top:4px;">${item.desc}</div>` : ''}
                                     ${item.imageUrl ? `<div style="margin-top:8px;"><img src="${item.imageUrl}" alt="img" style="max-width:180px; max-height:130px; border-radius:8px; border:1px solid var(--border); object-fit:cover;"></div>` : ''}
@@ -2999,7 +3256,12 @@
                                     ${subtasksHtml ? `<div style="margin-top:8px;">${subtasksHtml}</div>` : ''}
                                 </div>
                             </div>
-                            ${editable ? `<button class="ev-del-btn" onclick="deleteChecklistItem('${item.id}')">✕</button>` : ''}
+                            ${editable ? `
+                                <div style="display:flex; gap:5px; flex-shrink:0;">
+                                    <button class="ev-edit-btn" onclick="openEditChecklistItemModal('${item.id}')" title="Изменить позицию">✏️ Изменить</button>
+                                    <button class="ev-del-btn" onclick="deleteChecklistItem('${item.id}')" title="Удалить">✕</button>
+                                </div>
+                            ` : ''}
                         </div>
                     </div>
                 `;
@@ -3015,7 +3277,7 @@
 
         function saveMainSharedBudget(bObj) {
             try {
-                localStorage.setItem(SHARED_MAIN_BUDGET_KEY, JSON.stringify(bObj));
+                localStorage.setItem(SHARED_MAIN_BUDGET_KEY, JSON.stringify({ ...bObj, updatedAt: Date.now() }));
             } catch (e) {}
         }
 
@@ -3025,7 +3287,8 @@
                 plan_currency: document.getElementById('plan_currency')?.value || 'RUB',
                 plan_people: document.getElementById('plan_people')?.value || '2',
                 plan_days: document.getElementById('plan_days')?.value || '23',
-                cats: {}
+                cats: {},
+                updatedAt: Date.now()
             };
             categoriesData.forEach(cat => {
                 snap.cats[cat.id] = document.getElementById('num_' + cat.id)?.value || cat.val;
@@ -3144,7 +3407,7 @@
                         db[activeBudgetSubtab].data.inputs['rng_' + cId] = snap.cats[cId];
                     });
                     db[activeBudgetSubtab].updatedAt = Date.now();
-                    setUsersDb(db);
+                    setUsersDb(db, true);
                 }
             }
         }
@@ -4787,7 +5050,7 @@
 
         /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v5';
+const CACHE_NAME = 'phuket-pwa-cache-v6';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -4854,7 +5117,7 @@ self.addEventListener('fetch', (event) => {
                 });
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v5').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v6').then(cache => cache.add(location.href)).catch(() => {});
             }
 
             const updateNetStatus = () => {
@@ -4872,12 +5135,13 @@ self.addEventListener('fetch', (event) => {
             updateNetStatus();
         }
 
-        // Инициализация приложения и проверка авторизации («Дверь» при входе)
+        // Инициализация приложения и запуск живой облачной синхронизации
         (function initApp() {
             initPlannerUI();
             initPwaAndOfflineSupport();
             ensureAdminAccountExists();
             loadSharedEvents();
+            startRealtimeCloudStream();
 
             if (window.Telegram && window.Telegram.WebApp) {
                 const tg = window.Telegram.WebApp;
@@ -4898,15 +5162,17 @@ self.addEventListener('fetch', (event) => {
                 }
             });
 
-            const savedSessionUser = localStorage.getItem(ACTIVE_SESSION_KEY);
+            const savedSessionUser = localStorage.getItem(ACTIVE_SESSION_KEY) || localStorage.getItem('phuket_active_session_v4');
             const db = getUsersDb();
             if (savedSessionUser && db[savedSessionUser]) {
                 completeLoginSession(savedSessionUser);
             } else {
                 document.getElementById('mainAppContainer').classList.remove('authenticated');
                 document.getElementById('authGateOverlay').classList.remove('hidden');
-                syncUsersFromCloud(false);
             }
+
+            // При старте сразу подтягиваем свежие данные из облака
+            syncUsersFromCloud(false);
 
             document.addEventListener('input', (e) => {
                 if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk')) {
