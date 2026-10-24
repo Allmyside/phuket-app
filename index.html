@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Phuket Helper">
     <link id="pwaManifestLink" rel="manifest" href="">
-    <title>Пхукет: Дашборд, Планировщик, Курсы и Погода</title>
+    <title>Пхукет: Дашборд, Планировщик, Чек-лист, Курсы и Погода</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
@@ -53,7 +53,7 @@
 
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; transition: background 0.25s, color 0.25s; }
-        .container { max-width: 760px; margin: 0 auto; padding-bottom: 45px; }
+        .container { max-width: 780px; margin: 0 auto; padding-bottom: 45px; }
 
         /* Скрытие основного приложения до авторизации */
         #mainAppContainer { display: none; }
@@ -93,6 +93,17 @@
         .auth-field input:focus { border-color: var(--accent); }
         .auth-field input.invalid { border-color: var(--danger); }
         .auth-field input.valid { border-color: var(--success); }
+
+        .pass-input-wrap { position: relative; display: flex; align-items: center; width: 100%; }
+        .pass-input-wrap input { width: 100%; padding-right: 42px !important; }
+        .pass-eye-btn {
+            position: absolute; right: 6px; top: 50%; transform: translateY(-50%);
+            background: var(--card-alt); border: 1px solid var(--border); color: var(--text);
+            border-radius: 6px; padding: 4px 7px; font-size: 0.85rem; cursor: pointer;
+            line-height: 1; transition: border-color 0.2s;
+        }
+        .pass-eye-btn:hover { border-color: var(--accent); }
+
         .val-checklist {
             background: var(--card-alt); border: 1px solid var(--border);
             border-radius: 8px; padding: 8px 11px; margin-bottom: 12px; font-size: 0.76rem;
@@ -129,7 +140,7 @@
             justify-content: center; font-size: 0.76rem; font-weight: 800; overflow: hidden;
         }
         .profile-dropdown {
-            display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 240px;
+            display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 250px;
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             box-shadow: 0 12px 30px rgba(0,0,0,0.5); padding: 6px; z-index: 1000;
         }
@@ -146,6 +157,37 @@
         .pd-item.danger { color: var(--danger); }
         .pd-item.danger:hover { background: rgba(255, 59, 48, 0.12); }
 
+        /* Онлайн бар и Тумблер Геолокации */
+        .top-status-strip {
+            display: grid; grid-template-columns: 1.2fr 1fr; gap: 10px; margin-bottom: 12px;
+        }
+        @media (max-width: 600px) { .top-status-strip { grid-template-columns: 1fr; } }
+        .online-users-card, .geo-toggle-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 10px 13px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .online-badge-pill {
+            display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px;
+            border-radius: 20px; font-size: 0.75rem; font-weight: 700;
+            background: rgba(52, 199, 89, 0.14); color: var(--success);
+            border: 1px solid rgba(52, 199, 89, 0.35);
+        }
+        .switch-wrap { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+        .ios-switch {
+            position: relative; display: inline-block; width: 44px; height: 24px; flex-shrink: 0;
+        }
+        .ios-switch input { opacity: 0; width: 0; height: 0; }
+        .ios-slider {
+            position: absolute; cursor: pointer; inset: 0; background-color: var(--btn-sec-bg);
+            border: 1px solid var(--input-border); transition: .25s; border-radius: 24px;
+        }
+        .ios-slider:before {
+            position: absolute; content: ""; height: 18px; width: 18px; left: 2px; bottom: 2px;
+            background-color: #fff; transition: .25s; border-radius: 50%;
+        }
+        .ios-switch input:checked + .ios-slider { background-color: var(--success); border-color: var(--success); }
+        .ios-switch input:checked + .ios-slider:before { transform: translateX(20px); }
+
         /* Модальные окна Профиля и Админ-панели */
         .app-modal-backdrop {
             display: none; position: fixed; inset: 0; z-index: 5000;
@@ -154,7 +196,7 @@
         }
         .app-modal-backdrop.open { display: flex; animation: fadeIn 0.2s ease; }
         .app-modal-card {
-            width: 100%; max-width: 520px; max-height: 90vh; overflow-y: auto;
+            width: 100%; max-width: 540px; max-height: 90vh; overflow-y: auto;
             background: var(--card); border: 1px solid var(--border); border-radius: 14px;
             padding: 18px; box-shadow: 0 16px 40px rgba(0,0,0,0.55);
         }
@@ -164,10 +206,10 @@
             align-items: center; flex-wrap: wrap; gap: 8px;
         }
 
-        /* Навигация на 6 вкладок */
+        /* Навигация на 7 вкладок */
         .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--card-alt); padding: 6px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 14px; }
-        @media (min-width: 640px) { .tabs { grid-template-columns: repeat(6, 1fr); } }
-        .tab-btn { padding: 9px 6px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.79rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
+        @media (min-width: 660px) { .tabs { grid-template-columns: repeat(7, 1fr); } }
+        .tab-btn { padding: 9px 5px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.77rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
         .tab-btn:hover { color: var(--text); }
         .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.35); }
 
@@ -241,6 +283,47 @@
         .color-dot.active { transform: scale(1.18); border-color: var(--heading); }
         .ev-list-item { background: var(--card-alt); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .ev-del-btn { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
+        .ev-author-badge { display: inline-block; background: rgba(0, 122, 255, 0.16); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 10px; padding: 1px 7px; font-size: 0.68rem; font-weight: 700; margin-left: 6px; }
+
+        /* Стили Чек-листа вещей (Вкладка 6) */
+        .folder-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
+        @media (max-width: 540px) { .folder-grid { grid-template-columns: 1fr; } }
+        .folder-card {
+            background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+            border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.2s;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .folder-card:hover { border-color: var(--accent); transform: translateY(-1px); }
+        .folder-card.active-folder { border: 2px solid var(--success); background: var(--card-alt); }
+        .chk-item-card {
+            background: var(--card); border: 1px solid var(--border); border-left: 5px solid var(--accent);
+            border-radius: 11px; padding: 12px; margin-bottom: 10px; transition: opacity 0.2s;
+        }
+        .chk-item-card.done { opacity: 0.68; }
+        .chk-circle {
+            width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--accent);
+            display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
+            flex-shrink: 0; font-size: 0.8rem; color: #fff; background: transparent; transition: all 0.15s;
+        }
+        .chk-circle.checked { background: var(--success); border-color: var(--success); }
+        .urgency-badge { padding: 2px 8px; border-radius: 12px; font-size: 0.7rem; font-weight: 700; }
+        .urg-low { background: rgba(52, 199, 89, 0.15); color: var(--success); border: 1px solid rgba(52, 199, 89, 0.35); }
+        .urg-med { background: rgba(255, 159, 10, 0.15); color: var(--warning); border: 1px solid rgba(255, 159, 10, 0.35); }
+        .urg-high { background: rgba(255, 59, 48, 0.18); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.4); }
+        .subtask-row {
+            display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+            background: var(--card-alt); border-radius: 6px; margin-top: 5px; font-size: 0.8rem;
+        }
+
+        /* Подвкладки пользователей в Бюджете */
+        .subtabs-bar {
+            display: flex; gap: 6px; overflow-x: auto; padding-bottom: 6px; margin-bottom: 12px;
+        }
+        .subtab-pill {
+            padding: 7px 13px; border-radius: 20px; background: var(--card); border: 1px solid var(--border);
+            color: var(--muted); font-size: 0.78rem; font-weight: 700; cursor: pointer; white-space: nowrap;
+        }
+        .subtab-pill.active { background: var(--accent); color: #fff; border-color: var(--accent); }
 
         /* Стили Вкладки Приливы, Отливы и Пляжи */
         .tide-hero { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 14px; }
@@ -402,8 +485,11 @@
             </div>
 
             <div class="auth-field">
-                <label>Пароль</label>
-                <input type="password" id="gatePassInput" placeholder="Введите пароль..." autocomplete="current-password" oninput="validateAuthInputsLive()">
+                <label>Пароль (нажмите 👁️, чтобы посмотреть введенный пароль)</label>
+                <div class="pass-input-wrap">
+                    <input type="password" id="gatePassInput" placeholder="Введите пароль..." autocomplete="current-password" oninput="validateAuthInputsLive()">
+                    <button type="button" class="pass-eye-btn" onclick="togglePasswordVisibility('gatePassInput', this)" title="Показать / скрыть пароль">👁️</button>
+                </div>
             </div>
 
             <div class="val-checklist" id="regValidationBox" style="display:none;">
@@ -416,6 +502,9 @@
             </div>
 
             <button class="action-btn" style="width:100%; padding:13px;" id="gateSubmitBtn" onclick="submitAuthGate()">Войти в приложение</button>
+            <div style="text-align:center; margin-top:10px;">
+                <button class="link-btn" onclick="syncUsersFromCloud(true)" title="Подтянуть зарегистрированные профили">🔄 Синхронизировать профили с сервером</button>
+            </div>
         </div>
     </div>
 
@@ -449,18 +538,43 @@
             </div>
         </div>
 
-        <!-- Навигация по 6 вкладкам -->
+        <!-- Навигация по 7 вкладкам -->
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('home')" id="tabBtnHome">🏠 Главная</button>
             <button class="tab-btn" onclick="switchTab('schedule')" id="tabBtnSchedule">📅 Планирование</button>
-            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы валют</button>
+            <button class="tab-btn" onclick="switchTab('checklist')" id="tabBtnChecklist">🧳 Чек-лист вещей</button>
             <button class="tab-btn" onclick="switchTab('planner')" id="tabBtnPlanner">🏖️ Бюджет</button>
+            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы валют</button>
             <button class="tab-btn" onclick="switchTab('tides')" id="tabBtnTides">🌊 Приливы</button>
             <button class="tab-btn" onclick="switchTab('weather')" id="tabBtnWeather">🌤️ Погода</button>
         </div>
 
         <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
         <div id="tab-home" class="tab-content active">
+            <!-- Блок: Кто сейчас онлайн + Тумблер Геолокации -->
+            <div class="top-status-strip">
+                <div class="online-users-card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:6px;">
+                        <span style="font-size:0.76rem; font-weight:800; color:var(--success); text-transform:uppercase;">🟢 Сейчас на сайте (Онлайн)</span>
+                        <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхр.</button>
+                    </div>
+                    <div id="onlineUsersListBox" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"></div>
+                </div>
+
+                <div class="geo-toggle-card">
+                    <div class="switch-wrap">
+                        <div>
+                            <div style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase;">📍 Геолокация сервисов</div>
+                            <div style="font-size:0.72rem; color:var(--muted); margin-top:2px;" id="geoStatusSub">Погода и ближайшие пляжи по GPS</div>
+                        </div>
+                        <label class="ios-switch">
+                            <input type="checkbox" id="geoMasterToggle" onchange="onGeoToggleChange(this.checked)">
+                            <span class="ios-slider"></span>
+                        </label>
+                    </div>
+                </div>
+            </div>
+
             <!-- Алерт высокого УФ-индекса -->
             <div id="homeUvAlertBox" class="uv-alert-banner" style="display:none;">
                 <div>
@@ -584,7 +698,7 @@
                             <div>💰 <b>Общий бюджет:</b> <b id="homePlanTotal">0 ฿</b> (<span style="color:var(--success);font-weight:700;" id="homePlanTotalUsd">0 $</span>)</div>
                             <div>📊 <b>Расход в день:</b> <span id="homePlanDaily">0 ฿/день</span></div>
                             <div>🛡️ <b>Свободный резерв:</b> <b id="homePlanReserve" style="color:var(--success);">0 ฿</b></div>
-                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;">9 категорий отдыха с умными подсказками</div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;">Личные вкладки бюджета для каждого участника</div>
                         </div>
                     </div>
                 </div>
@@ -613,7 +727,7 @@
         <div id="tab-schedule" class="tab-content">
             <div class="trip-calendar-box">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Даты отпуска и таймер обратного отсчета</span>
+                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Даты отпуска и общее расписание всех участников</span>
                     <button class="link-btn" onclick="jumpCalendarToTripStart()">🎯 Перейти к месяцу отпуска</button>
                 </div>
                 <div class="grid-2">
@@ -635,6 +749,31 @@
                 </div>
             </div>
 
+            <!-- Блок сводки бюджета на выбранный день планирования -->
+            <div class="box" id="scheduleBudgetSnapshotBox" style="border-left: 4px solid var(--success);">
+                <h2>
+                    <span>💰 Сводка бюджета на выбранную дату (<span id="schedBudgetDateLbl">--</span>)</span>
+                    <button class="link-btn" onclick="switchTab('planner')">Открыть Бюджет ➔</button>
+                </h2>
+                <div class="grid-3" id="schedBudgetMetricsGrid">
+                    <div class="sum-box">
+                        <div class="sum-label">Нужно к этой дате</div>
+                        <div class="sum-val" id="schedNeededByDateThb">0 ฿</div>
+                        <div class="sum-sub" id="schedNeededByDateSub">По дневному плану</div>
+                    </div>
+                    <div class="sum-box">
+                        <div class="sum-label">Остаток бюджета</div>
+                        <div class="sum-val" id="schedRemainingByDateThb" style="color:var(--success);">0 ฿</div>
+                        <div class="sum-sub" id="schedRemainingByDateSub">До конца поездки</div>
+                    </div>
+                    <div class="sum-box">
+                        <div class="sum-label">Лимит на 1 день</div>
+                        <div class="sum-val" id="schedDailyAllowanceThb">0 ฿</div>
+                        <div class="sum-sub" id="schedDailyAllowanceSub">Свободный резерв учтен</div>
+                    </div>
+                </div>
+            </div>
+
             <div class="box">
                 <div class="cal-header-bar">
                     <div class="cal-nav-group">
@@ -643,7 +782,7 @@
                         <button class="cal-nav-btn" onclick="changeCalendarMonth(1)">След. ▶</button>
                     </div>
                     <div style="font-size:0.74rem; color:var(--muted);">
-                        <span style="display:inline-block; width:10px; height:10px; background:rgba(0,122,255,0.28); border:1px solid var(--accent); border-radius:3px; margin-right:4px;"></span>— дни отпуска
+                        <span style="display:inline-block; width:10px; height:10px; background:rgba(0,122,255,0.28); border:1px solid var(--accent); border-radius:3px; margin-right:4px;"></span>— дни отпуска (видны записи всех пользователей)
                     </div>
                 </div>
 
@@ -659,7 +798,7 @@
                         <div style="font-size:1rem; font-weight:800; color:var(--heading);" id="previewDateTitle">Выберите день в календаре</div>
                         <div style="font-size:0.76rem; color:var(--accent); font-weight:600;" id="previewVacationBadge"></div>
                     </div>
-                    <button class="auth-btn" onclick="openDayEditorModal()" id="openDayEditorBtn">⚙️ Настроить день / Добавить событие</button>
+                    <button class="cal-nav-btn" style="background:var(--accent); color:#fff; border:none;" onclick="openDayEditorModal()" id="openDayEditorBtn">➕ Добавить событие в этот день</button>
                 </div>
                 <div id="previewEventsList" style="font-size:0.83rem; color:var(--desc-text);"></div>
             </div>
@@ -699,6 +838,29 @@
                     </div>
                 </div>
 
+                <!-- Опциональная метка на карте для мероприятия -->
+                <div class="grid-2" style="margin-bottom:8px;">
+                    <div class="field">
+                        <label>📍 Место на карте (опционально — выберите локацию или координаты)</label>
+                        <select id="evMapPresetSelect" onchange="onEventMapPresetChange(this.value)">
+                            <option value="">— Без метки на карте —</option>
+                            <option value="7.8206,98.2981|Пляж Ката (Kata Beach)">🏖️ Пляж Ката (Kata Beach)</option>
+                            <option value="7.8439,98.2936|Пляж Карон (Karon Beach)">🏖️ Пляж Карон (Karon Beach)</option>
+                            <option value="7.8965,98.2954|Патонг и Бангла Роуд">🎉 Патонг и Бангла Роуд</option>
+                            <option value="7.7618,98.3053|Мыс Промтхеп (Закат)">🌇 Мыс Промтхеп (Promthep Cape)</option>
+                            <option value="7.8276,98.3129|Большой Будда (Big Buddha)">🙏 Большой Будда (Big Buddha)</option>
+                            <option value="7.8222,98.3444|Пирс Чалонг (Экскурсии)">⛵ Пирс Чалонг (Chalong Pier)</option>
+                            <option value="7.8840,98.3892|Старый Пхукет-Таун / Рынок">🏮 Старый Пхукет-Таун</option>
+                            <option value="7.8906,98.3669|ТЦ Central Phuket Floresta">🛍️ ТЦ Central Phuket</option>
+                            <option value="custom">✏️ Указать свое название места / ссылку / координаты</option>
+                        </select>
+                    </div>
+                    <div class="field">
+                        <label>Название точки или координаты (широта, долгота)</label>
+                        <input type="text" id="evMapCustomInput" placeholder="Например: 7.8206, 98.2981 или Кафе Море">
+                    </div>
+                </div>
+
                 <div class="field" style="margin-bottom:10px;">
                     <label>Описание, заметки, стоимость или контакты</label>
                     <textarea id="evDescInput" rows="2" placeholder="Трансфер из отеля в 07:30, взять паспорта, купальники и крем SPF 50..."></textarea>
@@ -708,8 +870,122 @@
             </div>
 
             <div class="box" style="margin-top:12px;">
-                <h2><span>📋 Все запланированные события и экскурсии</span></h2>
+                <h2><span>📋 Все запланированные события участников (с автором и картой)</span></h2>
                 <div id="allEventsSummaryList" style="font-size:0.82rem; color:var(--desc-text);"></div>
+            </div>
+        </div>
+
+        <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ ПОЛЬЗОВАТЕЛЕЙ) ==================== -->
+        <div id="tab-checklist" class="tab-content">
+            <div class="box">
+                <h2>
+                    <span>🧳 Списки вещей участников (Папки пользователей)</span>
+                    <span style="font-size:0.72rem; color:var(--muted); font-weight:500;">Чужие папки — просмотр, своя папка — редактирование</span>
+                </h2>
+
+                <!-- Кнопка создания списка, если у текущего пользователя еще нет своей папки -->
+                <div id="createMyChecklistBanner" style="display:none; text-align:center; padding:18px; background:var(--card-alt); border:1px dashed var(--accent); border-radius:12px; margin-bottom:12px;">
+                    <div style="font-size:1.02rem; font-weight:800; color:var(--heading); margin-bottom:6px;">У вас еще нет личного чек-листа вещей</div>
+                    <div style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">Создайте свою именную папку, чтобы добавлять вещи («Взять», «Собрано», «Купить»), ссылки, фото и подзадачи.</div>
+                    <button class="action-btn" onclick="createUserChecklistFolder()">➕ Создать список вещей</button>
+                </div>
+
+                <div class="folder-grid" id="checklistFoldersGrid"></div>
+            </div>
+
+            <!-- Внутренности выбранной папки чек-листа -->
+            <div class="box" id="checklistFolderContentView" style="display:none;">
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:10px;">
+                    <div>
+                        <h3 style="margin:0; font-size:1.05rem; color:var(--heading);" id="chkActiveFolderTitle">📂 Папка пользователя</h3>
+                        <div style="font-size:0.76rem; color:var(--muted); margin-top:2px;" id="chkActiveFolderAccessHint">Права доступа</div>
+                    </div>
+                    <button class="cal-nav-btn" style="background:var(--accent); color:#fff; border:none;" id="chkOpenEditorBtn" onclick="toggleChecklistItemEditor()">➕ Добавить позицию</button>
+                </div>
+
+                <!-- Фильтры: Все / Не выполненные / Выполненные + Категории -->
+                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:12px; background:var(--card-alt); padding:8px 10px; border-radius:10px; border:1px solid var(--border);">
+                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                        <button class="subtab-pill active" id="chkFilter_all" onclick="setChecklistFilter('all')">Все позиции</button>
+                        <button class="subtab-pill" id="chkFilter_open" onclick="setChecklistFilter('open')">⏳ Не выполненные</button>
+                        <button class="subtab-pill" id="chkFilter_done" onclick="setChecklistFilter('done')">✅ Выполненные</button>
+                    </div>
+                    <select id="chkCatFilterSelect" style="width:auto; font-size:0.78rem; padding:5px 8px;" onchange="renderChecklistItems()">
+                        <option value="all">Все категории (Взять / Собрано / Купить)</option>
+                        <option value="take">🎒 Нужно взять</option>
+                        <option value="packed">✅ Уже собрали</option>
+                        <option value="buy">🛒 Надо купить</option>
+                    </select>
+                </div>
+
+                <!-- Редактор добавления позиции чек-листа -->
+                <div class="day-editor-modal" id="checklistItemEditorModal" style="margin-bottom:14px;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3 style="margin:0; font-size:0.96rem; color:var(--accent);">➕ Новая позиция в чек-лист</h3>
+                        <button class="cal-nav-btn" onclick="toggleChecklistItemEditor(false)">✕ Закрыть</button>
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom:8px;">
+                        <div class="field">
+                            <label>Название вещи / задачи</label>
+                            <input type="text" id="chkItemTitle" placeholder="Например: Аптечка и крем SPF 50+">
+                        </div>
+                        <div class="field">
+                            <label>Статус / Раздел</label>
+                            <select id="chkItemCategory">
+                                <option value="take">🎒 Нужно взять из вещей</option>
+                                <option value="packed">✅ Уже собрали</option>
+                                <option value="buy">🛒 Надо купить</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="grid-3" style="margin-bottom:8px;">
+                        <div class="field">
+                            <label>Сумма / Стоимость (опционально)</label>
+                            <input type="number" id="chkItemAmount" placeholder="0" min="0" step="50">
+                        </div>
+                        <div class="field">
+                            <label>Срочность (3 вида)</label>
+                            <select id="chkItemUrgency">
+                                <option value="low">🟢 Не срочно</option>
+                                <option value="medium" selected>🟡 Средняя срочность</option>
+                                <option value="high">🔴 Очень срочно!</option>
+                            </select>
+                        </div>
+                        <div class="field">
+                            <label>Цвет карточки</label>
+                            <input type="color" id="chkItemColor" value="#007aff" style="height:36px; width:100%; background:var(--input-bg); border:1px solid var(--input-border); border-radius:6px; cursor:pointer;">
+                        </div>
+                    </div>
+
+                    <div class="field" style="margin-bottom:8px;">
+                        <label>Описание / детали</label>
+                        <textarea id="chkItemDesc" rows="2" placeholder="Положить в ручную кладь или купить в Boots по прилете..."></textarea>
+                    </div>
+
+                    <div class="grid-2" style="margin-bottom:8px;">
+                        <div class="field">
+                            <label>🖼️ Картинка (URL или загрузите фото)</label>
+                            <input type="text" id="chkItemImageUrl" placeholder="https://...">
+                            <input type="file" accept="image/*" style="margin-top:4px; font-size:0.74rem;" onchange="uploadChecklistImageFile(this)">
+                        </div>
+                        <div class="field">
+                            <label>🔗 Ссылки (через запятую или с новой строки — разделятся отдельно)</label>
+                            <textarea id="chkItemLinks" rows="2" placeholder="https://ozon.ru/... , https://market.yandex.ru/..."></textarea>
+                        </div>
+                    </div>
+
+                    <div class="field" style="margin-bottom:10px;">
+                        <label>📋 Подсписок / Подзадачи (каждая подзадача с новой строки или через запятую)</label>
+                        <textarea id="chkItemSubtasks" rows="2" placeholder="Пантенол, Пластыри, Таблетки от укачивания"></textarea>
+                    </div>
+
+                    <button class="action-btn" style="width:100%;" onclick="saveNewChecklistItem()">💾 Сохранить позицию в список</button>
+                </div>
+
+                <!-- Список карточек позиций -->
+                <div id="checklistItemsContainer"></div>
             </div>
         </div>
 
@@ -817,8 +1093,17 @@
             <div id="output"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 3: ПЛАНИРОВЩИК БЮДЖЕТА (СТАТИЧНАЯ СВОДКА) ==================== -->
+        <!-- ==================== ВКЛАДКА 3: ПЛАНИРОВЩИК БЮДЖЕТА (ПОДВКЛАДКИ УЧАСТНИКОВ) ==================== -->
         <div id="tab-planner" class="tab-content">
+            <!-- Подвкладки: Основная (Общая) + вкладка каждого пользователя -->
+            <div class="box" style="padding:10px 12px; margin-bottom:12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
+                    <span style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase;">👥 Вкладки бюджета (Общая и личные бюджеты участников)</span>
+                    <span id="budgetReadonlyNotice" style="font-size:0.74rem; color:var(--warning); font-weight:700; display:none;">👁️ Только чтение (чужой бюджет)</span>
+                </div>
+                <div class="subtabs-bar" id="budgetUserSubtabs"></div>
+            </div>
+
             <div class="summary-static">
                 <div class="sum-grid">
                     <div class="sum-box">
@@ -857,17 +1142,17 @@
 
             <div class="box">
                 <h2>
-                    <span>Параметры поездки и бюджет</span>
-                    <button class="link-btn" onclick="copyFromExchangeTab()">🔗 Взять сумму из вкладки Обмена</button>
+                    <span id="budgetParamsTitle">Параметры поездки и бюджет</span>
+                    <button class="link-btn" id="btnCopyFromExchange" onclick="copyFromExchangeTab()">🔗 Взять сумму из вкладки Обмена</button>
                 </h2>
                 <div class="grid-2" style="margin-bottom: 8px;">
                     <div class="field">
                         <label>Ваш бюджет на поездку</label>
-                        <input type="number" id="plan_budget" value="327000" step="1000" oninput="updatePlanner()">
+                        <input type="number" id="plan_budget" value="327000" step="1000" oninput="onBudgetControlEdited()">
                     </div>
                     <div class="field">
                         <label>Валюта бюджета</label>
-                        <select id="plan_currency" onchange="updatePlanner()">
+                        <select id="plan_currency" onchange="onBudgetControlEdited()">
                             <option value="RUB">₽ Рубли (через лучший курс)</option>
                             <option value="USD">$ Доллары США</option>
                             <option value="EUR">€ Евро</option>
@@ -879,16 +1164,16 @@
                 <div class="grid-2">
                     <div class="field">
                         <label>Количество человек</label>
-                        <input type="number" id="plan_people" value="2" min="1" max="10" step="1" oninput="updatePlanner()">
+                        <input type="number" id="plan_people" value="2" min="1" max="10" step="1" oninput="onBudgetControlEdited()">
                     </div>
                     <div class="field">
                         <label>Количество дней на Пхукете</label>
-                        <input type="number" id="plan_days" value="23" min="1" max="90" step="1" oninput="updatePlanner()">
+                        <input type="number" id="plan_days" value="23" min="1" max="90" step="1" oninput="onBudgetControlEdited()">
                     </div>
                 </div>
             </div>
 
-            <div class="presets-row">
+            <div class="presets-row" id="budgetPresetsRow">
                 <button class="preset-btn" onclick="applyPreset('eco')">🎒 Эконом-режим</button>
                 <button class="preset-btn" onclick="applyPreset('comfort')">🌴 Комфорт (Оптимум)</button>
                 <button class="preset-btn" onclick="applyPreset('lux')">🦞 На широкую ногу</button>
@@ -959,7 +1244,7 @@
             </div>
 
             <div class="district-selector-box">
-                <label style="font-size:0.78rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:6px; display:block;">📍 Выберите район Пхукета (нажмите для смены локации):</label>
+                <label style="font-size:0.78rem; color:var(--accent); font-weight:700; text-transform:uppercase; margin-bottom:6px; display:block;">📍 Выберите район Пхукета (или включите тумблер Геолокации на Главной):</label>
                 <select id="weatherDistrictSelect" class="district-select" onchange="onDistrictChange()">
                     <option value="kata" selected>Ката (Kata — уютный семейный пляж, пологий вход в море, серфинг и кафе)</option>
                     <option value="karon">Карон (Karon — длинный пляж с «поющим» кварцевым песком и глубоким морем)</option>
@@ -1072,7 +1357,10 @@
 
             <div class="auth-field">
                 <label>Новый пароль (оставьте пустым, если не меняете)</label>
-                <input type="password" id="profNewPassInput" placeholder="Мин. 5 символов: буквы, цифры, спецсимвол">
+                <div class="pass-input-wrap">
+                    <input type="password" id="profNewPassInput" placeholder="Мин. 5 символов: буквы, цифры, спецсимвол">
+                    <button type="button" class="pass-eye-btn" onclick="togglePasswordVisibility('profNewPassInput', this)" title="Показать / скрыть пароль">👁️</button>
+                </div>
             </div>
 
             <div id="profModalMsg" style="font-size:0.8rem; margin-bottom:10px; display:none;"></div>
@@ -1083,24 +1371,37 @@
 
     <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ СЕРВИСА (АДМИН-ПАНЕЛЬ) ==================== -->
     <div class="app-modal-backdrop" id="adminPanelModal">
-        <div class="app-modal-card" style="max-width:640px;">
-            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+        <div class="app-modal-card" style="max-width:660px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <h3 style="margin:0; font-size:1.05rem; color:var(--warning);">🛠️ Управление сервисом (Администратор)</h3>
-                <button class="cal-nav-btn" onclick="closeAdminPanelModal()">✕</button>
+                <div style="display:flex; gap:6px;">
+                    <button class="cal-nav-btn" style="border-color:var(--accent); color:var(--accent);" onclick="syncUsersFromCloud(true)">🔄 Синхронизировать с сайтом</button>
+                    <button class="cal-nav-btn" onclick="closeAdminPanelModal()">✕</button>
+                </div>
             </div>
-            <div style="font-size:0.78rem; color:var(--muted); margin-bottom:10px;">
-                Список всех зарегистрированных пользователей. Вы можете сбросить/заменить пароль любому участнику или переключиться на редактирование его данных.
+
+            <div style="font-size:0.77rem; color:var(--muted); margin-bottom:10px;" id="adminSyncStatusLine">
+                Список автоматически обновляется при открытии. Показаны как пользователи онлайн, так и все зарегистрированные учетные записи.
             </div>
+
+            <!-- Область 1: Пользователи онлайн прямо сейчас -->
+            <div style="background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:12px;">
+                <div style="font-size:0.78rem; font-weight:800; color:var(--success); text-transform:uppercase; margin-bottom:6px;">🟢 Сейчас онлайн на сайте</div>
+                <div id="adminOnlineUsersContainer" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
+            </div>
+
+            <!-- Область 2: Все зарегистрированные учетные записи -->
+            <div style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase; margin-bottom:6px;">👥 Все зарегистрированные учетные записи (<span id="adminTotalUsersCount">0</span>)</div>
             <div id="adminUsersListContainer"></div>
         </div>
     </div>
 <!-- ==================== КОНЕЦ ЧАСТИ 1 (ВСТАВЬТЕ ЧАСТЬ 2 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
  <script>
         function fmt(num, digits = 2) {
-            return num.toLocaleString('ru-RU', {minimumFractionDigits: digits, maximumFractionDigits: digits});
+            return Number(num || 0).toLocaleString('ru-RU', {minimumFractionDigits: digits, maximumFractionDigits: digits});
         }
         function fmtInt(num) {
-            return Math.round(num).toLocaleString('ru-RU');
+            return Math.round(Number(num || 0)).toLocaleString('ru-RU');
         }
 
         /* ==================== ПЕРЕКЛЮЧЕНИЕ ТЕМЫ (СВЕТЛАЯ / ТЕМНАЯ) ==================== */
@@ -1124,31 +1425,131 @@
             saveUserDataState();
         }
 
-        /* ==================== ШАГ 1: АВТОРИЗАЦИЯ, ВАЛИДАЦИЯ, РОУТЕР И АДМИН ==================== */
+        /* ==================== КНОПКА ПРОСМОТРА ПАРОЛЯ («ГЛАЗОК») ==================== */
+        function togglePasswordVisibility(inputId, btnEl) {
+            const inp = document.getElementById(inputId);
+            if (!inp) return;
+            if (inp.type === 'password') {
+                inp.type = 'text';
+                if (btnEl) btnEl.innerText = '🙈';
+            } else {
+                inp.type = 'password';
+                if (btnEl) btnEl.innerText = '👁️';
+            }
+        }
+
+        /* ==================== БАЗА ДАННЫХ, СИНХРОНИЗАЦИЯ И АВТОРИЗАЦИЯ ==================== */
         const USERS_DB_KEY = 'phuket_users_database_v4';
+        const LEGACY_DB_KEYS = ['phuket_users_database_v3', 'phuket_users_database_v2', 'phuket_users_database_v1', 'phuket_users_db'];
         const ACTIVE_SESSION_KEY = 'phuket_active_session_v4';
+        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v4';
+        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v4';
+        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v4';
+        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v4';
+        const CLOUD_SYNC_BUCKET = 'phuket_helper_shared_sync_2026_v4';
 
-        let authMode = 'login'; // 'login' | 'register'
-        let currentUser = null; // Никнейм вошедшего пользователя
-        let inspectedUserByAdmin = null; // Выбранный админом профиль для редактирования
-        let calendarEvents = {}; // { 'YYYY-MM-DD': [ { id, title, start, end, color, desc } ] }
+        let authMode = 'login';
+        let currentUser = null;
+        let inspectedUserByAdmin = null;
+        let activeBudgetSubtab = '__main__'; // '__main__' или ник пользователя
+        let activeChecklistFolderUser = null;
+        let checklistFilterMode = 'all'; // 'all' | 'open' | 'done'
+        let uploadedChecklistImgData = '';
 
-        // Регулярные выражения для валидации
+        // Глобальное состояние геолокации
+        let geoState = {
+            enabled: false,
+            lat: null,
+            lon: null,
+            nearestDistrict: 'kata'
+        };
+
+        // Общие события календаря (видны всем пользователям, с указанием автора)
+        let calendarEvents = {};
+
         const LOGIN_REGEX = /^[a-zA-Zа-яА-ЯёЁ0-9_\-\s]{2,25}$/;
         const HAS_LETTER_REGEX = /[a-zA-Zа-яА-ЯёЁ]/;
         const HAS_DIGIT_REGEX = /[0-9]/;
         const HAS_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
+        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_channel') : null;
+        if (syncChannel) {
+            syncChannel.onmessage = (ev) => {
+                if (ev.data && ev.data.type === 'SYNC_UPDATE') {
+                    loadSharedEvents();
+                    renderOnlineUsersUI();
+                    if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
+                        renderAdminUsersList();
+                    }
+                    renderBudgetSubtabs();
+                    renderChecklistSection();
+                    renderCalendarGrid();
+                    renderSelectedDayPreview();
+                    renderAllEventsSummary();
+                }
+            };
+        }
+
+        window.addEventListener('storage', () => {
+            loadSharedEvents();
+            renderOnlineUsersUI();
+            if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
+                renderAdminUsersList();
+            }
+            renderBudgetSubtabs();
+            renderChecklistSection();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            renderAllEventsSummary();
+        });
+
+        function notifyRealtimePeers() {
+            if (syncChannel) {
+                try { syncChannel.postMessage({ type: 'SYNC_UPDATE', ts: Date.now() }); } catch (e) {}
+            }
+        }
+
         function getUsersDb() {
+            let mainDb = {};
             try {
-                return JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
-            } catch (e) { return {}; }
+                mainDb = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
+            } catch (e) { mainDb = {}; }
+
+            // Автоматическое слияние со старыми ключами, чтобы ни одна регистрация не потерялась
+            let changed = false;
+            LEGACY_DB_KEYS.forEach(k => {
+                try {
+                    const oldRaw = localStorage.getItem(k);
+                    if (oldRaw) {
+                        const oldObj = JSON.parse(oldRaw);
+                        Object.keys(oldObj || {}).forEach(uKey => {
+                            if (!mainDb[uKey]) {
+                                mainDb[uKey] = oldObj[uKey];
+                                changed = true;
+                            }
+                        });
+                    }
+                } catch (e) {}
+            });
+            if (changed) {
+                try { localStorage.setItem(USERS_DB_KEY, JSON.stringify(mainDb)); } catch (e) {}
+            }
+            return mainDb;
         }
 
         function setUsersDb(db) {
             try {
                 localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
+                notifyRealtimePeers();
+                pushStateToCloudSilent();
             } catch (e) {}
+        }
+
+        function isCurrentUserAdmin() {
+            if (!currentUser) return false;
+            const db = getUsersDb();
+            const u = db[currentUser];
+            return Boolean((u && u.role === 'admin') || currentUser.toLowerCase() === 'admin');
         }
 
         // Гарантированное создание учетной записи администратора (admin / Admin!2026)
@@ -1165,11 +1566,246 @@
                     data: {}
                 };
                 setUsersDb(db);
+            } else if (db['admin'].role !== 'admin') {
+                db['admin'].role = 'admin';
+                setUsersDb(db);
             }
         }
 
+        /* ==================== ОБЛАЧНАЯ И ЛОКАЛЬНАЯ СИНХРОНИЗАЦИЯ УЧЕТОК ==================== */
+        async function pushStateToCloudSilent() {
+            try {
+                const payload = {
+                    users: getUsersDb(),
+                    sharedEvents: getSharedEventsDb(),
+                    checklists: getChecklistsDb(),
+                    presence: getOnlinePresenceDb(),
+                    mainBudget: getMainSharedBudget(),
+                    updatedAt: Date.now()
+                };
+                await fetch(`https://kvdb.io/A2x9kLp4mQv7zR1wYt8N/${CLOUD_SYNC_BUCKET}`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            } catch (e) {}
+        }
+
+        async function syncUsersFromCloud(showAlert = false) {
+            ensureAdminAccountExists();
+            const statusLine = document.getElementById('adminSyncStatusLine');
+            if (statusLine) statusLine.innerText = '⏳ Синхронизация базы пользователей и онлайн-статусов...';
+
+            try {
+                const controller = new AbortController();
+                const timer = setTimeout(() => controller.abort(), 3500);
+                const res = await fetch(`https://kvdb.io/A2x9kLp4mQv7zR1wYt8N/${CLOUD_SYNC_BUCKET}?t=${Date.now()}`, { signal: controller.signal });
+                clearTimeout(timer);
+                if (res.ok) {
+                    const cloud = await res.json();
+                    if (cloud && cloud.users) {
+                        const localDb = getUsersDb();
+                        Object.keys(cloud.users).forEach(uKey => {
+                            const cUser = cloud.users[uKey];
+                            const lUser = localDb[uKey];
+                            if (!lUser || (cUser.updatedAt || 0) > (lUser.updatedAt || 0)) {
+                                localDb[uKey] = cUser;
+                            }
+                        });
+                        localStorage.setItem(USERS_DB_KEY, JSON.stringify(localDb));
+                    }
+                    if (cloud && cloud.sharedEvents) {
+                        const localEv = getSharedEventsDb();
+                        Object.keys(cloud.sharedEvents).forEach(dateIso => {
+                            const arr = cloud.sharedEvents[dateIso] || [];
+                            if (!localEv[dateIso]) localEv[dateIso] = [];
+                            arr.forEach(ev => {
+                                if (!localEv[dateIso].some(x => x.id === ev.id)) {
+                                    localEv[dateIso].push(ev);
+                                }
+                            });
+                        });
+                        localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(localEv));
+                    }
+                    if (cloud && cloud.checklists) {
+                        const localChk = getChecklistsDb();
+                        Object.keys(cloud.checklists).forEach(uKey => {
+                            if (!localChk[uKey] || (cloud.checklists[uKey].updatedAt || 0) > (localChk[uKey].updatedAt || 0)) {
+                                localChk[uKey] = cloud.checklists[uKey];
+                            }
+                        });
+                        localStorage.setItem(SHARED_CHECKLIST_KEY, JSON.stringify(localChk));
+                    }
+                    if (cloud && cloud.presence) {
+                        const localPres = getOnlinePresenceDb();
+                        Object.keys(cloud.presence).forEach(uKey => {
+                            localPres[uKey] = Math.max(localPres[uKey] || 0, cloud.presence[uKey] || 0);
+                        });
+                        localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(localPres));
+                    }
+                }
+            } catch (e) {}
+
+            loadSharedEvents();
+            renderOnlineUsersUI();
+            renderBudgetSubtabs();
+            renderChecklistSection();
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+            renderAllEventsSummary();
+
+            if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
+                renderAdminUsersList();
+            }
+
+            const nowStr = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+            if (statusLine) {
+                statusLine.innerHTML = `✅ Синхронизировано в <b>${nowStr}</b>. Все зарегистрированные профили и онлайн-статусы загружены.`;
+            }
+            if (showAlert && !document.getElementById('adminPanelModal')?.classList.contains('open')) {
+                const total = Object.keys(getUsersDb()).length;
+                const badge = document.getElementById('networkBadge');
+                if (badge) badge.innerText = `● Онлайн (Профилей: ${total})`;
+            }
+        }
+
+        /* ==================== ОНЛАЙН-СТАТУС ПОЛЬЗОВАТЕЛЕЙ ==================== */
+        function getOnlinePresenceDb() {
+            try {
+                return JSON.parse(localStorage.getItem(ONLINE_PRESENCE_KEY) || '{}');
+            } catch (e) { return {}; }
+        }
+
+        function pingOnlineStatus() {
+            if (!currentUser) return;
+            const pres = getOnlinePresenceDb();
+            pres[currentUser] = Date.now();
+            try {
+                localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
+            } catch (e) {}
+            renderOnlineUsersUI();
+        }
+
+        function removeCurrentUserFromOnline() {
+            if (!currentUser) return;
+            const pres = getOnlinePresenceDb();
+            delete pres[currentUser];
+            try {
+                localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
+            } catch (e) {}
+            renderOnlineUsersUI();
+        }
+
+        function getActiveOnlineUsersList() {
+            const pres = getOnlinePresenceDb();
+            const db = getUsersDb();
+            const now = Date.now();
+            const active = [];
+            Object.keys(pres).forEach(uKey => {
+                // Считаем пользователя онлайн, если его пинг был не старше 90 секунд (оффлайн не выводится)
+                if (now - (pres[uKey] || 0) <= 90000) {
+                    const display = db[uKey]?.displayName || uKey;
+                    active.push({ key: uKey, displayName: display, isMe: uKey === currentUser });
+                }
+            });
+            return active;
+        }
+
+        function renderOnlineUsersUI() {
+            const activeList = getActiveOnlineUsersList();
+            const homeBox = document.getElementById('onlineUsersListBox');
+            const adminBox = document.getElementById('adminOnlineUsersContainer');
+
+            const html = activeList.length > 0
+                ? activeList.map(u => `<span class="online-badge-pill">● ${u.displayName}${u.isMe ? ' (Вы)' : ''} — онлайн</span>`).join('')
+                : `<span style="font-size:0.76rem; color:var(--muted);">Нет активных пользователей онлайн</span>`;
+
+            if (homeBox) homeBox.innerHTML = html;
+            if (adminBox) adminBox.innerHTML = html;
+        }
+
+        setInterval(() => {
+            if (currentUser) pingOnlineStatus();
+        }, 20000);
+
+        window.addEventListener('beforeunload', () => {
+            saveUserDataState();
+        });
+
+        /* ==================== ТУМБЛЕР ГЕОЛОКАЦИИ НА ГЛАВНОЙ ==================== */
+        function calcDistanceKm(lat1, lon1, lat2, lon2) {
+            const R = 6371;
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        }
+
+        function findNearestPhuketDistrict(lat, lon) {
+            let bestKey = 'kata';
+            let minDist = Infinity;
+            Object.keys(phuketDistricts).forEach(k => {
+                const d = phuketDistricts[k];
+                const dist = calcDistanceKm(lat, lon, d.lat, d.lon);
+                if (dist < minDist) {
+                    minDist = dist;
+                    bestKey = k;
+                }
+            });
+            return { key: bestKey, distKm: minDist };
+        }
+
+        function onGeoToggleChange(checked) {
+            geoState.enabled = Boolean(checked);
+            const subEl = document.getElementById('geoStatusSub');
+            if (!checked) {
+                if (subEl) subEl.innerText = 'Выключено (используется выбранный вручную район)';
+                saveUserDataState();
+                return;
+            }
+
+            if (!('geolocation' in navigator)) {
+                if (subEl) subEl.innerText = '⚠️ Браузер не поддерживает GPS';
+                document.getElementById('geoMasterToggle').checked = false;
+                geoState.enabled = false;
+                return;
+            }
+
+            if (subEl) subEl.innerText = '📡 Определение ваших координат...';
+            navigator.geolocation.getCurrentPosition(
+                (pos) => {
+                    geoState.lat = pos.coords.latitude;
+                    geoState.lon = pos.coords.longitude;
+                    const nearest = findNearestPhuketDistrict(geoState.lat, geoState.lon);
+                    geoState.nearestDistrict = nearest.key;
+
+                    const sel = document.getElementById('weatherDistrictSelect');
+                    if (sel && phuketDistricts[nearest.key]) {
+                        sel.value = nearest.key;
+                    }
+                    const dName = phuketDistricts[nearest.key]?.name || 'Ката';
+                    if (subEl) {
+                        subEl.innerHTML = `<span style="color:var(--success);font-weight:700;">✓ GPS активен:</span> ${geoState.lat.toFixed(3)}°, ${geoState.lon.toFixed(3)}° ➔ <b>${dName}</b>`;
+                    }
+                    onDistrictChange();
+                    scanRealTimeTides();
+                    saveUserDataState();
+                },
+                (err) => {
+                    if (subEl) subEl.innerText = '⚠️ Доступ к геолокации отклонен (работает район Ката)';
+                    document.getElementById('geoMasterToggle').checked = false;
+                    geoState.enabled = false;
+                    saveUserDataState();
+                },
+                { enableHighAccuracy: true, timeout: 7000 }
+            );
+        }
+
+        /* ==================== ВХОД И РЕГИСТРАЦИЯ ==================== */
         function findUserKeyCaseInsensitive(db, nickname) {
-            const target = nickname.trim().toLowerCase();
+            const target = (nickname || '').trim().toLowerCase();
             return Object.keys(db).find(k => k.toLowerCase() === target) || null;
         }
 
@@ -1280,7 +1916,7 @@
                     return;
                 }
                 if (db[userKey].password !== pass) {
-                    showAuthError('Неверный пароль! Проверьте раскладку и регистр.');
+                    showAuthError('Неверный пароль! Нажмите на 👁️, чтобы проверить введенные символы.');
                     return;
                 }
                 completeLoginSession(userKey);
@@ -1306,6 +1942,7 @@
                     bio: '',
                     avatar: '',
                     createdAt: Date.now(),
+                    updatedAt: Date.now(),
                     data: collectCurrentInputsState()
                 };
                 setUsersDb(db);
@@ -1316,13 +1953,13 @@
         function collectCurrentInputsState() {
             const inputs = {};
             document.querySelectorAll('#mainAppContainer input, #mainAppContainer select').forEach(el => {
-                if (el.id && !el.id.startsWith('ev')) {
-                    inputs[el.id] = el.value;
+                if (el.id && !el.id.startsWith('ev') && !el.id.startsWith('chk')) {
+                    inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
                 }
             });
             return {
                 inputs,
-                events: calendarEvents,
+                geoEnabled: geoState.enabled,
                 theme: document.documentElement.getAttribute('data-theme') || 'dark'
             };
         }
@@ -1333,8 +1970,16 @@
             const db = getUsersDb();
             if (!db[targetKey]) return;
 
-            db[targetKey].data = collectCurrentInputsState();
-            setUsersDb(db);
+            // Если редактируется личная вкладка бюджета или общий интерфейс, сохраняем
+            const curState = collectCurrentInputsState();
+            if (activeBudgetSubtab === targetKey || activeBudgetSubtab === '__main__') {
+                db[targetKey].data = curState;
+                db[targetKey].updatedAt = Date.now();
+                if (activeBudgetSubtab === '__main__') {
+                    saveMainSharedBudget(extractBudgetSnapshotFromDOM());
+                }
+                setUsersDb(db);
+            }
 
             const statusEl = document.getElementById('autoSaveStatus');
             if (statusEl) {
@@ -1347,31 +1992,37 @@
             const db = getUsersDb();
             const userRecord = db[username];
             if (userRecord && userRecord.data) {
-                const { inputs, events, theme } = userRecord.data;
+                const { inputs, theme, geoEnabled } = userRecord.data;
                 if (theme) applyTheme(theme);
                 if (inputs) {
                     Object.keys(inputs).forEach(id => {
                         const el = document.getElementById(id);
                         if (el && inputs[id] !== undefined && inputs[id] !== '') {
-                            el.value = inputs[id];
+                            if (el.type === 'checkbox') el.checked = Boolean(inputs[id]);
+                            else el.value = inputs[id];
                         }
                     });
                 }
-                calendarEvents = events || {};
-            } else {
-                calendarEvents = {};
+                const geoToggle = document.getElementById('geoMasterToggle');
+                if (geoToggle) geoToggle.checked = Boolean(geoEnabled);
+                geoState.enabled = Boolean(geoEnabled);
             }
+            loadSharedEvents();
             render(false);
-            updatePlanner();
+            renderBudgetSubtabs();
+            loadBudgetSubtabData(activeBudgetSubtab);
             updateTripCountdown();
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            renderChecklistSection();
         }
 
         function completeLoginSession(userKey) {
             currentUser = userKey;
             inspectedUserByAdmin = null;
+            activeBudgetSubtab = userKey;
+            activeChecklistFolderUser = userKey;
             localStorage.setItem(ACTIVE_SESSION_KEY, currentUser);
 
             document.getElementById('gateLoginInput').value = '';
@@ -1379,13 +2030,16 @@
             document.getElementById('authGateOverlay').classList.add('hidden');
             document.getElementById('mainAppContainer').classList.add('authenticated');
 
+            pingOnlineStatus();
             loadUserDataState(currentUser);
             renderHeaderProfileUI();
+            syncUsersFromCloud(false);
             switchTab('home');
         }
 
         function logoutCurrentUser() {
             saveUserDataState();
+            removeCurrentUserFromOnline();
             currentUser = null;
             inspectedUserByAdmin = null;
             localStorage.removeItem(ACTIVE_SESSION_KEY);
@@ -1401,7 +2055,7 @@
             if (!currentUser) return;
             const db = getUsersDb();
             const u = db[currentUser] || {};
-            const isAdmin = u.role === 'admin' || currentUser.toLowerCase() === 'admin';
+            const isAdmin = isCurrentUserAdmin();
 
             const targetLabel = inspectedUserByAdmin && isAdmin
                 ? `${u.displayName || currentUser} (правки: ${inspectedUserByAdmin})`
@@ -1497,19 +2151,22 @@
 
             u.avatar = newAvatar;
             u.bio = newBio;
+            u.updatedAt = Date.now();
             setUsersDb(db);
             renderHeaderProfileUI();
 
             msgEl.style.display = 'block';
             msgEl.style.color = 'var(--success)';
-            msgEl.innerText = '✅ Профиль успешно сохранен!';
-            setTimeout(() => closeProfileSettingsModal(), 800);
+            msgEl.innerText = '✅ Профиль автоматически сохранен!';
+            setTimeout(() => closeProfileSettingsModal(), 700);
         }
 
         function openAdminPanelModal() {
             document.getElementById('profileDropdown').classList.remove('open');
             renderAdminUsersList();
             document.getElementById('adminPanelModal').classList.add('open');
+            // Автоматическая синхронизация при открытии настроек сервиса
+            syncUsersFromCloud(false);
         }
 
         function closeAdminPanelModal() {
@@ -1517,29 +2174,41 @@
         }
 
         function renderAdminUsersList() {
+            ensureAdminAccountExists();
+            renderOnlineUsersUI();
             const db = getUsersDb();
+            const pres = getOnlinePresenceDb();
+            const now = Date.now();
             const container = document.getElementById('adminUsersListContainer');
             const keys = Object.keys(db);
+
+            const countEl = document.getElementById('adminTotalUsersCount');
+            if (countEl) countEl.innerText = keys.length;
 
             container.innerHTML = keys.map(uKey => {
                 const u = db[uKey];
                 const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '327000';
                 const isBeingEdited = (inspectedUserByAdmin || currentUser) === uKey;
+                const isUserOnline = (now - (pres[uKey] || 0)) <= 90000;
+                const createdStr = u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—';
+
                 return `
                     <div class="admin-user-row" style="${isBeingEdited ? 'border-color:var(--success);' : ''}">
                         <div>
-                            <div style="font-weight:800; color:var(--heading);">
-                                👤 ${u.displayName || uKey} ${u.role === 'admin' ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
+                            <div style="font-weight:800; color:var(--heading); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                <span>👤 ${u.displayName || uKey}</span>
+                                ${u.role === 'admin' ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
+                                ${isUserOnline ? '<span class="online-badge-pill" style="padding:1px 7px; font-size:0.68rem;">● онлайн</span>' : ''}
                             </div>
-                            <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">
-                                Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b>
+                            <div style="font-size:0.75rem; color:var(--muted); margin-top:3px;">
+                                Пароль: <b style="color:var(--text);">${u.password}</b> • Личный бюджет: <b>${budgetVal}</b> • Создан: ${createdStr}
                             </div>
-                            ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text);">О себе: ${u.bio}</div>` : ''}
+                            ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text); margin-top:2px;">О себе: ${u.bio}</div>` : ''}
                         </div>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <button class="link-btn" onclick="adminResetUserPassword('${uKey}')">🔑 Сбросить/Изменить пароль</button>
+                            <button class="link-btn" onclick="adminResetUserPassword('${uKey}')">🔑 Сбросить/Заменить пароль</button>
                             <button class="link-btn" style="color:var(--success); border-color:var(--success);" onclick="adminSwitchToUserContext('${uKey}')">
-                                ${isBeingEdited ? '✓ Активен для правок' : '✏️ Редактировать раздел'}
+                                ${isBeingEdited ? '✓ Активен для правок' : '✏️ Редактировать разделы'}
                             </button>
                         </div>
                     </div>
@@ -1548,7 +2217,7 @@
         }
 
         function adminResetUserPassword(targetKey) {
-            const newPass = prompt(`Введите новый пароль для пользователя «${targetKey}» (минимум 5 символов, буквы, цифры и спецсимвол):`, 'Temp!12345');
+            const newPass = prompt(`Введите новый пароль для пользователя «${targetKey}» (минимум 5 символов, буквы, цифры и спецсимвол):`, 'Reset!2026');
             if (!newPass) return;
             const pRules = validatePasswordRules(newPass);
             if (!pRules.isValid) {
@@ -1558,15 +2227,18 @@
             const db = getUsersDb();
             if (db[targetKey]) {
                 db[targetKey].password = newPass;
+                db[targetKey].updatedAt = Date.now();
                 setUsersDb(db);
                 renderAdminUsersList();
-                alert(`Пароль пользователя «${targetKey}» успешно изменен на: ${newPass}`);
+                alert(`Пароль пользователя «${targetKey}» успешно заменен на: ${newPass}`);
             }
         }
 
         function adminSwitchToUserContext(targetKey) {
             saveUserDataState();
             inspectedUserByAdmin = (targetKey === currentUser) ? null : targetKey;
+            activeBudgetSubtab = targetKey;
+            activeChecklistFolderUser = targetKey;
             loadUserDataState(inspectedUserByAdmin || currentUser);
             renderHeaderProfileUI();
             renderAdminUsersList();
@@ -1595,22 +2267,31 @@
                 return;
             }
 
-            ['home', 'schedule', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
+            ['home', 'schedule', 'checklist', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
-            document.getElementById('tabBtnHome').classList.toggle('active', tab === 'home');
-            document.getElementById('tabBtnSchedule').classList.toggle('active', tab === 'schedule');
-            document.getElementById('tabBtnExchange').classList.toggle('active', tab === 'exchange');
-            document.getElementById('tabBtnPlanner').classList.toggle('active', tab === 'planner');
-            document.getElementById('tabBtnTides').classList.toggle('active', tab === 'tides');
-            document.getElementById('tabBtnWeather').classList.toggle('active', tab === 'weather');
+            document.getElementById('tabBtnHome')?.classList.toggle('active', tab === 'home');
+            document.getElementById('tabBtnSchedule')?.classList.toggle('active', tab === 'schedule');
+            document.getElementById('tabBtnChecklist')?.classList.toggle('active', tab === 'checklist');
+            document.getElementById('tabBtnExchange')?.classList.toggle('active', tab === 'exchange');
+            document.getElementById('tabBtnPlanner')?.classList.toggle('active', tab === 'planner');
+            document.getElementById('tabBtnTides')?.classList.toggle('active', tab === 'tides');
+            document.getElementById('tabBtnWeather')?.classList.toggle('active', tab === 'weather');
 
-            if (tab === 'planner') updatePlanner();
+            if (tab === 'planner') {
+                renderBudgetSubtabs();
+                loadBudgetSubtabData(activeBudgetSubtab);
+            }
             if (tab === 'schedule') {
+                loadSharedEvents();
                 renderCalendarGrid();
                 renderSelectedDayPreview();
                 renderAllEventsSummary();
+                updateScheduleBudgetSnapshot();
+            }
+            if (tab === 'checklist') {
+                renderChecklistSection();
             }
             if (tab === 'tides' && !window._tidesLoaded) {
                 window._tidesLoaded = true;
@@ -1623,14 +2304,119 @@
             if (tab === 'home') {
                 updateTripCountdown();
                 renderSeasonalWarnings();
+                renderOnlineUsersUI();
             }
         }
 
-        /* ==================== КАЛЕНДАРЬ ПЛАНИРОВАНИЯ И СОБЫТИЯ ==================== */
+        /* ==================== ОБЩИЙ КАЛЕНДАРЬ ПЛАНИРОВАНИЯ (ВИДЕН ВСЕМ, С АВТОРОМ, КАРТОЙ И БЮДЖЕТОМ) ==================== */
         let calViewYear = 2026;
         let calViewMonth = 11;
         let selectedDateIso = '2026-12-16';
         let selectedEventColor = '#007aff';
+
+        function getSharedEventsDb() {
+            let shared = {};
+            try {
+                shared = JSON.parse(localStorage.getItem(SHARED_EVENTS_KEY) || '{}');
+            } catch (e) { shared = {}; }
+
+            // Собираем также любые события из профилей пользователей, чтобы все записи отображались у всех
+            const db = getUsersDb();
+            let merged = false;
+            Object.keys(db).forEach(uKey => {
+                const uEvs = db[uKey]?.data?.events || {};
+                Object.keys(uEvs).forEach(dateIso => {
+                    if (!shared[dateIso]) shared[dateIso] = [];
+                    (uEvs[dateIso] || []).forEach(ev => {
+                        if (!shared[dateIso].some(x => x.id === ev.id)) {
+                            shared[dateIso].push({ ...ev, author: ev.author || db[uKey]?.displayName || uKey });
+                            merged = true;
+                        }
+                    });
+                });
+            });
+            if (merged) {
+                try { localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(shared)); } catch (e) {}
+            }
+            return shared;
+        }
+
+        function saveSharedEventsDb(sharedObj) {
+            calendarEvents = sharedObj;
+            try {
+                localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(sharedObj));
+                notifyRealtimePeers();
+                pushStateToCloudSilent();
+            } catch (e) {}
+        }
+
+        function loadSharedEvents() {
+            calendarEvents = getSharedEventsDb();
+        }
+
+        function onEventMapPresetChange(val) {
+            const customInp = document.getElementById('evMapCustomInput');
+            if (!customInp) return;
+            if (!val) {
+                customInp.value = '';
+            } else if (val === 'custom') {
+                customInp.value = '';
+                customInp.focus();
+            } else {
+                const [coords, label] = val.split('|');
+                customInp.value = `${label} (${coords})`;
+            }
+        }
+
+        function updateScheduleBudgetSnapshot() {
+            const dateLbl = document.getElementById('schedBudgetDateLbl');
+            if (!dateLbl) return;
+            dateLbl.innerText = formatIsoHuman(selectedDateIso);
+
+            const totalBudgetThb = getTotalBudgetInThb();
+            let totalPlannedThb = 0;
+            categoriesData.forEach(cat => {
+                const el = document.getElementById('num_' + cat.id);
+                if (el) totalPlannedThb += parseFloat(el.value) || 0;
+            });
+
+            const startStr = document.getElementById('trip_start').value;
+            const endStr = document.getElementById('trip_end').value;
+            const startDate = startStr ? new Date(startStr + 'T00:00:00') : new Date('2026-12-16T00:00:00');
+            const endDate = endStr ? new Date(endStr + 'T23:59:59') : new Date('2027-01-08T23:59:59');
+            const selDate = new Date(selectedDateIso + 'T12:00:00');
+
+            const totalDays = Math.max(1, Math.round((endDate - startDate) / 86400000));
+            const dailySpend = totalPlannedThb / totalDays;
+
+            let dayIndex = 0;
+            let statusNote = '';
+            if (selDate < startDate) {
+                dayIndex = 0;
+                statusNote = 'До начала поездки (0 дн. из ' + totalDays + ')';
+            } else if (selDate > endDate) {
+                dayIndex = totalDays;
+                statusNote = `После окончания поездки (все ${totalDays} дн.)`;
+            } else {
+                dayIndex = Math.floor((selDate - startDate) / 86400000) + 1;
+                statusNote = `День ${dayIndex} из ${totalDays} отпуска`;
+            }
+
+            const neededByDate = dailySpend * dayIndex;
+            const remainingByDate = totalBudgetThb - neededByDate;
+            const daysLeftFromDate = Math.max(1, totalDays - dayIndex + 1);
+
+            document.getElementById('schedNeededByDateThb').innerText = `${fmtInt(neededByDate)} ฿`;
+            document.getElementById('schedNeededByDateSub').innerText = statusNote;
+
+            const remEl = document.getElementById('schedRemainingByDateThb');
+            remEl.innerText = `${remainingByDate >= 0 ? '' : '-'}${fmtInt(Math.abs(remainingByDate))} ฿`;
+            remEl.style.color = remainingByDate >= 0 ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('schedRemainingByDateSub').innerText = `Остается на ${Math.max(0, totalDays - dayIndex)} дн. вперед`;
+
+            document.getElementById('schedDailyAllowanceThb').innerText = `${fmtInt(dailySpend)} ฿/день`;
+            document.getElementById('schedDailyAllowanceSub').innerText = `Общий план: ${fmtInt(totalPlannedThb)} ฿ из ${fmtInt(totalBudgetThb)} ฿`;
+        }
 
         function onTripDatesChanged(source) {
             const hStart = document.getElementById('trip_start');
@@ -1648,6 +2434,7 @@
             updateTripCountdown();
             renderCalendarGrid();
             renderSelectedDayPreview();
+            updateScheduleBudgetSnapshot();
             saveUserDataState();
         }
 
@@ -1660,6 +2447,7 @@
                 selectedDateIso = startStr;
                 renderCalendarGrid();
                 renderSelectedDayPreview();
+                updateScheduleBudgetSnapshot();
             }
         }
 
@@ -1701,8 +2489,9 @@
                 const dayEvents = (calendarEvents[iso] || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
                 let pillsHtml = '';
                 dayEvents.slice(0, 2).forEach(ev => {
-                    const timePart = ev.start ? `${ev.start}${ev.end ? '-' + ev.end : ''}` : '';
-                    pillsHtml += `<div class="cal-ev-pill" style="background:${ev.color || '#007aff'};" title="${timePart} ${ev.title}">${timePart} ${ev.title}</div>`;
+                    const timePart = ev.start ? `${ev.start}` : '';
+                    const authorTag = ev.author ? `[${ev.author}] ` : '';
+                    pillsHtml += `<div class="cal-ev-pill" style="background:${ev.color || '#007aff'};" title="${authorTag}${timePart} ${ev.title}">${timePart} ${ev.title}</div>`;
                 });
                 if (dayEvents.length > 2) {
                     pillsHtml += `<div class="cal-ev-more">+ ещё ${dayEvents.length - 2}</div>`;
@@ -1727,12 +2516,25 @@
             closeDayEditorModal();
             renderCalendarGrid();
             renderSelectedDayPreview();
+            updateScheduleBudgetSnapshot();
         }
 
         function formatIsoHuman(iso) {
             const [y, m, d] = iso.split('-').map(Number);
             const dt = new Date(y, m - 1, d);
             return dt.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric', weekday: 'short' });
+        }
+
+        function buildEventMapHtml(ev) {
+            if (!ev.mapPin) return '';
+            const q = encodeURIComponent(ev.mapCoords || ev.mapPin);
+            return `
+                <div style="margin-top:5px;">
+                    <a href="https://www.google.com/maps/search/?api=1&query=${q}" target="_blank" rel="noopener" class="vp-link" style="display:inline-flex; align-items:center; gap:4px; background:rgba(0,122,255,0.12); padding:3px 8px; border-radius:6px; border:1px solid rgba(0,122,255,0.3);">
+                        📍 Место на карте: ${ev.mapPin} ↗
+                    </a>
+                </div>
+            `;
         }
 
         function renderSelectedDayPreview() {
@@ -1754,19 +2556,25 @@
 
             const evs = (calendarEvents[selectedDateIso] || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
             if (evs.length === 0) {
-                listEl.innerHTML = `<div style="color:var(--muted); padding:6px 0;">На этот день пока нет записанных событий или экскурсий. Нажмите <b>«⚙️ Настроить день»</b>, чтобы добавить план.</div>`;
+                listEl.innerHTML = `<div style="color:var(--muted); padding:6px 0;">На этот день пока нет записанных событий. Нажмите <b>«➕ Добавить событие в этот день»</b>, чтобы запланировать мероприятие.</div>`;
             } else {
-                listEl.innerHTML = evs.map(ev => `
-                    <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'};">
-                        <div>
-                            <div style="font-weight:700; color:var(--heading);">
-                                <span style="color:${ev.color || '#007aff'};">⏰ ${ev.start || '--:--'}${ev.end ? ' — ' + ev.end : ''}</span> • ${ev.title}
+                const isAdmin = isCurrentUserAdmin();
+                listEl.innerHTML = evs.map(ev => {
+                    const canDelete = isAdmin || !ev.author || ev.author.toLowerCase() === (currentUser || '').toLowerCase();
+                    return `
+                        <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'};">
+                            <div>
+                                <div style="font-weight:700; color:var(--heading);">
+                                    <span style="color:${ev.color || '#007aff'};">⏰ ${ev.start || '--:--'}${ev.end ? ' — ' + ev.end : ''}</span> • ${ev.title}
+                                    <span class="ev-author-badge">✍️ Автор: ${ev.author || 'Участник'}</span>
+                                </div>
+                                ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
+                                ${buildEventMapHtml(ev)}
                             </div>
-                            ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
+                            ${canDelete ? `<button class="ev-del-btn" onclick="deleteCalendarEvent('${selectedDateIso}', '${ev.id}')">Удалить</button>` : ''}
                         </div>
-                        <button class="ev-del-btn" onclick="deleteCalendarEvent('${selectedDateIso}', '${ev.id}')">Удалить</button>
-                    </div>
-                `).join('');
+                    `;
+                }).join('');
             }
         }
 
@@ -1794,11 +2602,26 @@
             const start = document.getElementById('evStartInput').value;
             const end = document.getElementById('evEndInput').value;
             const desc = document.getElementById('evDescInput').value.trim();
+            const presetVal = document.getElementById('evMapPresetSelect').value;
+            const customMap = document.getElementById('evMapCustomInput').value.trim();
 
             if (!title) {
                 alert('Укажите название события (например: Экскурсия на Симиланы).');
                 return;
             }
+
+            let mapPin = customMap;
+            let mapCoords = customMap;
+            if (presetVal && presetVal !== 'custom' && presetVal.includes('|')) {
+                const [coords, label] = presetVal.split('|');
+                mapCoords = coords;
+                if (!mapPin) mapPin = label;
+            }
+
+            const db = getUsersDb();
+            const authorName = db[currentUser]?.displayName || currentUser || 'Участник';
+
+            loadSharedEvents();
             if (!calendarEvents[selectedDateIso]) calendarEvents[selectedDateIso] = [];
             calendarEvents[selectedDateIso].push({
                 id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
@@ -1807,22 +2630,28 @@
                 end,
                 color: selectedEventColor,
                 desc,
-                author: currentUser || 'Гость'
+                mapPin,
+                mapCoords,
+                author: authorName
             });
 
             document.getElementById('evTitleInput').value = '';
             document.getElementById('evDescInput').value = '';
-            saveUserDataState();
+            document.getElementById('evMapPresetSelect').value = '';
+            document.getElementById('evMapCustomInput').value = '';
+
+            saveSharedEventsDb(calendarEvents);
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
         }
 
         function deleteCalendarEvent(dateIso, evId) {
+            loadSharedEvents();
             if (!calendarEvents[dateIso]) return;
             calendarEvents[dateIso] = calendarEvents[dateIso].filter(e => e.id !== evId);
             if (calendarEvents[dateIso].length === 0) delete calendarEvents[dateIso];
-            saveUserDataState();
+            saveSharedEventsDb(calendarEvents);
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
@@ -1836,25 +2665,494 @@
                 box.innerHTML = `<div style="color:var(--muted);">Пока не добавлено ни одного события. Выберите любую дату в календаре выше.</div>`;
                 return;
             }
+            const isAdmin = isCurrentUserAdmin();
             let html = '';
             allDates.forEach(dIso => {
                 const evs = calendarEvents[dIso].slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
                 evs.forEach(ev => {
+                    const canDelete = isAdmin || !ev.author || ev.author.toLowerCase() === (currentUser || '').toLowerCase();
                     html += `
                         <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'}; cursor:pointer;" onclick="selectCalendarDate('${dIso}')">
                             <div>
-                                <div style="font-size:0.74rem; color:var(--muted); font-weight:600;">📅 ${formatIsoHuman(dIso)}</div>
-                                <div style="font-weight:700; color:var(--heading); margin-top:1px;">
+                                <div style="font-size:0.74rem; color:var(--muted); font-weight:600;">
+                                    📅 ${formatIsoHuman(dIso)} <span class="ev-author-badge">✍️ Автор: ${ev.author || 'Участник'}</span>
+                                </div>
+                                <div style="font-weight:700; color:var(--heading); margin-top:2px;">
                                     <span style="color:${ev.color || '#007aff'};">${ev.start || '--:--'}${ev.end ? '–' + ev.end : ''}</span> • ${ev.title}
                                 </div>
                                 ${ev.desc ? `<div style="font-size:0.77rem; color:var(--muted); margin-top:2px;">${ev.desc}</div>` : ''}
+                                ${buildEventMapHtml(ev)}
                             </div>
-                            <button class="ev-del-btn" onclick="event.stopPropagation(); deleteCalendarEvent('${dIso}', '${ev.id}')">✕</button>
+                            ${canDelete ? `<button class="ev-del-btn" onclick="event.stopPropagation(); deleteCalendarEvent('${dIso}', '${ev.id}')">✕</button>` : ''}
                         </div>
                     `;
                 });
             });
             box.innerHTML = html;
+        }
+
+        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (ПАПКИ УЧАСТНИКОВ, ПОДЗАДАЧИ, ПРАВА) ==================== */
+        function getChecklistsDb() {
+            try {
+                return JSON.parse(localStorage.getItem(SHARED_CHECKLIST_KEY) || '{}');
+            } catch (e) { return {}; }
+        }
+
+        function saveChecklistsDb(chkDb) {
+            try {
+                localStorage.setItem(SHARED_CHECKLIST_KEY, JSON.stringify(chkDb));
+                notifyRealtimePeers();
+                pushStateToCloudSilent();
+            } catch (e) {}
+        }
+
+        function canEditChecklistFolder(folderOwnerKey) {
+            if (!currentUser || !folderOwnerKey) return false;
+            if (isCurrentUserAdmin()) return true;
+            return folderOwnerKey.toLowerCase() === currentUser.toLowerCase();
+        }
+
+        function createUserChecklistFolder() {
+            if (!currentUser) return;
+            const chkDb = getChecklistsDb();
+            const db = getUsersDb();
+            if (!chkDb[currentUser]) {
+                chkDb[currentUser] = {
+                    owner: currentUser,
+                    displayName: db[currentUser]?.displayName || currentUser,
+                    createdAt: Date.now(),
+                    updatedAt: Date.now(),
+                    items: []
+                };
+                saveChecklistsDb(chkDb);
+            }
+            activeChecklistFolderUser = currentUser;
+            renderChecklistSection();
+        }
+
+        function selectChecklistFolder(ownerKey) {
+            activeChecklistFolderUser = ownerKey;
+            toggleChecklistItemEditor(false);
+            renderChecklistSection();
+        }
+
+        function renderChecklistSection() {
+            const chkDb = getChecklistsDb();
+            const createBanner = document.getElementById('createMyChecklistBanner');
+            const foldersGrid = document.getElementById('checklistFoldersGrid');
+            const folderView = document.getElementById('checklistFolderContentView');
+            if (!foldersGrid || !folderView) return;
+
+            const hasOwnFolder = Boolean(currentUser && chkDb[currentUser]);
+            if (createBanner) {
+                createBanner.style.display = hasOwnFolder ? 'none' : 'block';
+            }
+
+            const folderKeys = Object.keys(chkDb);
+            if (folderKeys.length === 0) {
+                foldersGrid.innerHTML = `<div style="grid-column:1/-1; color:var(--muted); font-size:0.82rem;">Пока ни один пользователь не создал папку чек-листа. Нажмите <b>«➕ Создать список вещей»</b> выше!</div>`;
+                folderView.style.display = 'none';
+                return;
+            }
+
+            if (!activeChecklistFolderUser || !chkDb[activeChecklistFolderUser]) {
+                activeChecklistFolderUser = hasOwnFolder ? currentUser : folderKeys[0];
+            }
+
+            foldersGrid.innerHTML = folderKeys.map(uKey => {
+                const f = chkDb[uKey];
+                const items = f.items || [];
+                const doneCount = items.filter(i => i.done).length;
+                const isSelected = uKey === activeChecklistFolderUser;
+                const canWrite = canEditChecklistFolder(uKey);
+                return `
+                    <div class="folder-card ${isSelected ? 'active-folder' : ''}" onclick="selectChecklistFolder('${uKey}')">
+                        <div>
+                            <div style="font-weight:800; color:var(--heading); font-size:0.95rem;">
+                                📂 Список: ${f.displayName || uKey}
+                            </div>
+                            <div style="font-size:0.75rem; color:var(--muted); margin-top:3px;">
+                                Позиций: <b>${items.length}</b> (выполнено: <b style="color:var(--success);">${doneCount}</b>)
+                            </div>
+                        </div>
+                        <span class="status-pill ${canWrite ? 'pill-good' : 'pill-warn'}">
+                            ${canWrite ? '✏️ Редактирование' : '👁️ Чтение'}
+                        </span>
+                    </div>
+                `;
+            }).join('');
+
+            folderView.style.display = 'block';
+            const activeFolder = chkDb[activeChecklistFolderUser];
+            const editable = canEditChecklistFolder(activeChecklistFolderUser);
+
+            document.getElementById('chkActiveFolderTitle').innerText = `📂 Чек-лист вещей — автор: ${activeFolder.displayName || activeChecklistFolderUser}`;
+            document.getElementById('chkActiveFolderAccessHint').innerHTML = editable
+                ? `<span style="color:var(--success);font-weight:700;">✓ У вас полные права на добавление и отметку вещей в этой папке</span>`
+                : `<span style="color:var(--warning);font-weight:700;">👁️ Режим чтения: вы просматриваете список участника ${activeFolder.displayName || activeChecklistFolderUser}</span>`;
+
+            document.getElementById('chkOpenEditorBtn').style.display = editable ? 'inline-block' : 'none';
+            renderChecklistItems();
+        }
+
+        function toggleChecklistItemEditor(forceState) {
+            const modal = document.getElementById('checklistItemEditorModal');
+            if (!modal) return;
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
+            const next = typeof forceState === 'boolean' ? forceState : !modal.classList.contains('open');
+            modal.classList.toggle('open', next);
+        }
+
+        function setChecklistFilter(mode) {
+            checklistFilterMode = mode;
+            ['all', 'open', 'done'].forEach(m => {
+                document.getElementById('chkFilter_' + m)?.classList.toggle('active', m === mode);
+            });
+            renderChecklistItems();
+        }
+
+        function uploadChecklistImageFile(inputEl) {
+            const file = inputEl.files?.[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = (ev) => {
+                uploadedChecklistImgData = ev.target.result;
+                document.getElementById('chkItemImageUrl').value = uploadedChecklistImgData;
+            };
+            reader.readAsDataURL(file);
+        }
+
+        function saveNewChecklistItem() {
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) {
+                alert('Редактировать можно только свою папку чек-листа!');
+                return;
+            }
+            const title = document.getElementById('chkItemTitle').value.trim();
+            if (!title) {
+                alert('Введите название вещи или задачи.');
+                return;
+            }
+            const category = document.getElementById('chkItemCategory').value;
+            const amount = parseFloat(document.getElementById('chkItemAmount').value) || 0;
+            const urgency = document.getElementById('chkItemUrgency').value;
+            const color = document.getElementById('chkItemColor').value || '#007aff';
+            const desc = document.getElementById('chkItemDesc').value.trim();
+            const imageUrl = document.getElementById('chkItemImageUrl').value.trim();
+            const linksRaw = document.getElementById('chkItemLinks').value;
+            const subtasksRaw = document.getElementById('chkItemSubtasks').value;
+
+            const links = linksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
+            const subtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
+                id: 'sub_' + Date.now() + '_' + idx,
+                title: st,
+                done: false
+            }));
+
+            const chkDb = getChecklistsDb();
+            if (!chkDb[activeChecklistFolderUser]) return;
+
+            chkDb[activeChecklistFolderUser].items.push({
+                id: 'item_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                title,
+                category,
+                amount,
+                urgency,
+                color,
+                desc,
+                imageUrl,
+                links,
+                subtasks,
+                done: false,
+                author: currentUser
+            });
+            chkDb[activeChecklistFolderUser].updatedAt = Date.now();
+            saveChecklistsDb(chkDb);
+
+            document.getElementById('chkItemTitle').value = '';
+            document.getElementById('chkItemAmount').value = '';
+            document.getElementById('chkItemDesc').value = '';
+            document.getElementById('chkItemImageUrl').value = '';
+            document.getElementById('chkItemLinks').value = '';
+            document.getElementById('chkItemSubtasks').value = '';
+            uploadedChecklistImgData = '';
+
+            toggleChecklistItemEditor(false);
+            renderChecklistSection();
+        }
+
+        function toggleChecklistMainItem(itemId) {
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
+            const chkDb = getChecklistsDb();
+            const folder = chkDb[activeChecklistFolderUser];
+            if (!folder) return;
+            const item = (folder.items || []).find(i => i.id === itemId);
+            if (!item) return;
+
+            item.done = !item.done;
+            // Если закрывается основная задача, все ее подзадачи автоматически закрываются (помечаются выполненными)
+            if (item.done && Array.isArray(item.subtasks)) {
+                item.subtasks.forEach(st => { st.done = true; });
+            }
+            folder.updatedAt = Date.now();
+            saveChecklistsDb(chkDb);
+            renderChecklistSection();
+        }
+
+        function toggleChecklistSubtask(itemId, subId) {
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
+            const chkDb = getChecklistsDb();
+            const folder = chkDb[activeChecklistFolderUser];
+            if (!folder) return;
+            const item = (folder.items || []).find(i => i.id === itemId);
+            if (!item || !Array.isArray(item.subtasks)) return;
+
+            const sub = item.subtasks.find(s => s.id === subId);
+            if (!sub) return;
+            sub.done = !sub.done;
+
+            if (item.subtasks.length > 0 && item.subtasks.every(s => s.done)) {
+                item.done = true;
+            } else if (!sub.done) {
+                item.done = false;
+            }
+            folder.updatedAt = Date.now();
+            saveChecklistsDb(chkDb);
+            renderChecklistSection();
+        }
+
+        function deleteChecklistItem(itemId) {
+            if (!canEditChecklistFolder(activeChecklistFolderUser)) return;
+            const chkDb = getChecklistsDb();
+            const folder = chkDb[activeChecklistFolderUser];
+            if (!folder) return;
+            folder.items = (folder.items || []).filter(i => i.id !== itemId);
+            folder.updatedAt = Date.now();
+            saveChecklistsDb(chkDb);
+            renderChecklistSection();
+        }
+
+        function renderChecklistItems() {
+            const container = document.getElementById('checklistItemsContainer');
+            if (!container) return;
+            const chkDb = getChecklistsDb();
+            const folder = chkDb[activeChecklistFolderUser];
+            if (!folder) {
+                container.innerHTML = '';
+                return;
+            }
+
+            const editable = canEditChecklistFolder(activeChecklistFolderUser);
+            const catFilter = document.getElementById('chkCatFilterSelect')?.value || 'all';
+
+            let items = (folder.items || []).slice();
+            if (checklistFilterMode === 'open') items = items.filter(i => !i.done);
+            if (checklistFilterMode === 'done') items = items.filter(i => i.done);
+            if (catFilter !== 'all') items = items.filter(i => i.category === catFilter);
+
+            if (items.length === 0) {
+                container.innerHTML = `<div style="color:var(--muted); padding:10px 0; text-align:center;">В этом списке пока нет позиций по выбранному фильтру.</div>`;
+                return;
+            }
+
+            const catNames = {
+                take: '🎒 Нужно взять',
+                packed: '✅ Уже собрали',
+                buy: '🛒 Надо купить'
+            };
+            const urgMeta = {
+                low: { cls: 'urg-low', text: '🟢 Не срочно' },
+                medium: { cls: 'urg-med', text: '🟡 Средняя срочность' },
+                high: { cls: 'urg-high', text: '🔴 Очень срочно!' }
+            };
+
+            container.innerHTML = items.map(item => {
+                const u = urgMeta[item.urgency] || urgMeta.medium;
+                const linksHtml = (item.links || []).map((lnk, idx) => {
+                    const href = lnk.startsWith('http') ? lnk : 'https://' + lnk;
+                    return `<a href="${href}" target="_blank" rel="noopener" class="vp-link" style="background:rgba(0,122,255,0.14); padding:3px 8px; border-radius:6px; border:1px solid rgba(0,122,255,0.3);">🔗 Ссылка #${idx + 1} ↗</a>`;
+                }).join(' ');
+
+                const subtasksHtml = (item.subtasks || []).map(st => `
+                    <div class="subtask-row" onclick="${editable ? `toggleChecklistSubtask('${item.id}', '${st.id}')` : ''}" style="cursor:${editable ? 'pointer' : 'default'};">
+                        <span class="chk-circle ${st.done ? 'checked' : ''}" style="width:18px; height:18px; font-size:0.65rem;">${st.done ? '✓' : ''}</span>
+                        <span style="${st.done ? 'text-decoration:line-through; color:var(--muted);' : 'color:var(--text);'}">${st.title}</span>
+                    </div>
+                `).join('');
+
+                return `
+                    <div class="chk-item-card ${item.done ? 'done' : ''}" style="border-left-color:${item.color || '#007aff'};">
+                        <div style="display:flex; justify-content:space-between; align-items:flex-start; gap:10px;">
+                            <div style="display:flex; align-items:flex-start; gap:10px; flex:1;">
+                                <div class="chk-circle ${item.done ? 'checked' : ''}" onclick="${editable ? `toggleChecklistMainItem('${item.id}')` : ''}" title="${editable ? 'Отметить выполненным' : 'Только чтение'}">
+                                    ${item.done ? '✓' : ''}
+                                </div>
+                                <div style="flex:1;">
+                                    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                        <span style="font-size:0.96rem; font-weight:800; color:var(--heading); ${item.done ? 'text-decoration:line-through;' : ''}">${item.title}</span>
+                                        <span class="urgency-badge ${u.cls}">${u.text}</span>
+                                        <span style="font-size:0.72rem; color:var(--accent); font-weight:700;">${catNames[item.category] || '🎒 Вещь'}</span>
+                                        ${item.amount > 0 ? `<span style="font-size:0.76rem; font-weight:800; color:var(--success);">💰 ${fmtInt(item.amount)} ₽/฿</span>` : ''}
+                                    </div>
+                                    ${item.desc ? `<div style="font-size:0.8rem; color:var(--desc-text); margin-top:4px;">${item.desc}</div>` : ''}
+                                    ${item.imageUrl ? `<div style="margin-top:8px;"><img src="${item.imageUrl}" alt="img" style="max-width:180px; max-height:130px; border-radius:8px; border:1px solid var(--border); object-fit:cover;"></div>` : ''}
+                                    ${linksHtml ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:7px;">${linksHtml}</div>` : ''}
+                                    ${subtasksHtml ? `<div style="margin-top:8px;">${subtasksHtml}</div>` : ''}
+                                </div>
+                            </div>
+                            ${editable ? `<button class="ev-del-btn" onclick="deleteChecklistItem('${item.id}')">✕</button>` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        /* ==================== БЮДЖЕТ С ПОДВКЛАДКАМИ КАЖДОГО ПОЛЬЗОВАТЕЛЯ ==================== */
+        function getMainSharedBudget() {
+            try {
+                return JSON.parse(localStorage.getItem(SHARED_MAIN_BUDGET_KEY) || 'null');
+            } catch (e) { return null; }
+        }
+
+        function saveMainSharedBudget(bObj) {
+            try {
+                localStorage.setItem(SHARED_MAIN_BUDGET_KEY, JSON.stringify(bObj));
+            } catch (e) {}
+        }
+
+        function extractBudgetSnapshotFromDOM() {
+            const snap = {
+                plan_budget: document.getElementById('plan_budget')?.value || '327000',
+                plan_currency: document.getElementById('plan_currency')?.value || 'RUB',
+                plan_people: document.getElementById('plan_people')?.value || '2',
+                plan_days: document.getElementById('plan_days')?.value || '23',
+                cats: {}
+            };
+            categoriesData.forEach(cat => {
+                snap.cats[cat.id] = document.getElementById('num_' + cat.id)?.value || cat.val;
+            });
+            return snap;
+        }
+
+        function canEditBudgetSubtab(subtabKey) {
+            if (!currentUser) return false;
+            if (isCurrentUserAdmin()) return true;
+            if (subtabKey === '__main__') return true;
+            return subtabKey.toLowerCase() === currentUser.toLowerCase();
+        }
+
+        function renderBudgetSubtabs() {
+            const bar = document.getElementById('budgetUserSubtabs');
+            if (!bar) return;
+            const db = getUsersDb();
+            const keys = Object.keys(db);
+
+            let html = `<button class="subtab-pill ${activeBudgetSubtab === '__main__' ? 'active' : ''}" onclick="switchBudgetSubtab('__main__')">🌐 Основная (Общий бюджет)</button>`;
+            keys.forEach(uKey => {
+                const u = db[uKey];
+                const isMe = currentUser && uKey.toLowerCase() === currentUser.toLowerCase();
+                html += `<button class="subtab-pill ${activeBudgetSubtab === uKey ? 'active' : ''}" onclick="switchBudgetSubtab('${uKey}')">👤 ${u.displayName || uKey}${isMe ? ' (Вы)' : ''}</button>`;
+            });
+            bar.innerHTML = html;
+        }
+
+        function switchBudgetSubtab(subtabKey) {
+            activeBudgetSubtab = subtabKey;
+            renderBudgetSubtabs();
+            loadBudgetSubtabData(subtabKey);
+        }
+
+        function loadBudgetSubtabData(subtabKey) {
+            const db = getUsersDb();
+            let snap = null;
+
+            if (subtabKey === '__main__') {
+                snap = getMainSharedBudget();
+            } else if (db[subtabKey]?.data?.inputs) {
+                const inp = db[subtabKey].data.inputs;
+                snap = {
+                    plan_budget: inp.plan_budget || '327000',
+                    plan_currency: inp.plan_currency || 'RUB',
+                    plan_people: inp.plan_people || '2',
+                    plan_days: inp.plan_days || '23',
+                    cats: {}
+                };
+                categoriesData.forEach(cat => {
+                    snap.cats[cat.id] = inp['num_' + cat.id] !== undefined ? inp['num_' + cat.id] : cat.val;
+                });
+            }
+
+            if (snap) {
+                if (document.getElementById('plan_budget')) document.getElementById('plan_budget').value = snap.plan_budget;
+                if (document.getElementById('plan_currency')) document.getElementById('plan_currency').value = snap.plan_currency;
+                if (document.getElementById('plan_people')) document.getElementById('plan_people').value = snap.plan_people;
+                if (document.getElementById('plan_days')) document.getElementById('plan_days').value = snap.plan_days;
+                categoriesData.forEach(cat => {
+                    const v = snap.cats?.[cat.id] ?? cat.val;
+                    const numEl = document.getElementById('num_' + cat.id);
+                    const rngEl = document.getElementById('rng_' + cat.id);
+                    if (numEl) numEl.value = v;
+                    if (rngEl) {
+                        if (parseFloat(v) > parseFloat(rngEl.max)) rngEl.max = parseFloat(v) * 1.25;
+                        rngEl.value = v;
+                    }
+                });
+            }
+
+            const editable = canEditBudgetSubtab(subtabKey);
+            document.getElementById('budgetReadonlyNotice').style.display = editable ? 'none' : 'inline-block';
+            document.getElementById('budgetPresetsRow').style.display = editable ? 'flex' : 'none';
+            document.getElementById('btnCopyFromExchange').style.display = editable ? 'inline-block' : 'none';
+
+            const titleEl = document.getElementById('budgetParamsTitle');
+            if (titleEl) {
+                titleEl.innerText = subtabKey === '__main__'
+                    ? 'Параметры общего бюджета поездки'
+                    : `Личный бюджет участника: ${db[subtabKey]?.displayName || subtabKey}`;
+            }
+
+            ['plan_budget', 'plan_currency', 'plan_people', 'plan_days'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.disabled = !editable;
+            });
+            categoriesData.forEach(cat => {
+                const numEl = document.getElementById('num_' + cat.id);
+                const rngEl = document.getElementById('rng_' + cat.id);
+                if (numEl) numEl.disabled = !editable;
+                if (rngEl) rngEl.disabled = !editable;
+            });
+
+            updatePlanner();
+        }
+
+        function persistActiveBudgetSubtab() {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
+            const snap = extractBudgetSnapshotFromDOM();
+            if (activeBudgetSubtab === '__main__') {
+                saveMainSharedBudget(snap);
+                pushStateToCloudSilent();
+            } else {
+                const db = getUsersDb();
+                if (db[activeBudgetSubtab]) {
+                    if (!db[activeBudgetSubtab].data) db[activeBudgetSubtab].data = { inputs: {} };
+                    if (!db[activeBudgetSubtab].data.inputs) db[activeBudgetSubtab].data.inputs = {};
+                    db[activeBudgetSubtab].data.inputs.plan_budget = snap.plan_budget;
+                    db[activeBudgetSubtab].data.inputs.plan_currency = snap.plan_currency;
+                    db[activeBudgetSubtab].data.inputs.plan_people = snap.plan_people;
+                    db[activeBudgetSubtab].data.inputs.plan_days = snap.plan_days;
+                    Object.keys(snap.cats).forEach(cId => {
+                        db[activeBudgetSubtab].data.inputs['num_' + cId] = snap.cats[cId];
+                        db[activeBudgetSubtab].data.inputs['rng_' + cId] = snap.cats[cId];
+                    });
+                    db[activeBudgetSubtab].updatedAt = Date.now();
+                    setUsersDb(db);
+                }
+            }
+        }
+
+        function onBudgetControlEdited() {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
+            updatePlanner();
+            persistActiveBudgetSubtab();
         }
 
         /* ==================== КАЛЕНДАРЬ ПОЕЗДКИ И СЕЗОННЫЕ ПРЕДУПРЕЖДЕНИЯ ==================== */
@@ -1915,7 +3213,7 @@
             const days = Math.max(1, Math.round((new Date(endStr) - new Date(startStr)) / 86400000));
             document.getElementById('plan_days').value = days;
             updatePlanner();
-            saveUserDataState();
+            persistActiveBudgetSubtab();
             switchTab('planner');
         }
 
@@ -2206,6 +3504,11 @@
                 else score += 6;
             } else {
                 score += 8;
+            }
+
+            if (geoState.enabled && geoState.lat && geoState.lon) {
+                const dKm = calcDistanceKm(geoState.lat, geoState.lon, beach.lat, beach.lon);
+                if (dKm < 8) score += 6;
             }
 
             if (waveH >= 1.35) {
@@ -2876,10 +4179,11 @@
 
         /* ==================== КУРСЫ ВАЛЮТ И ОФИЦИАЛЬНЫЙ БЕНЧМАРК ==================== */
         function copyFromExchangeTab() {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             document.getElementById('plan_budget').value = document.getElementById('budget').value;
             document.getElementById('plan_currency').value = document.getElementById('currency').value;
             updatePlanner();
-            saveUserDataState();
+            persistActiveBudgetSubtab();
         }
 
         function flashInputs(ids) {
@@ -3298,17 +4602,19 @@
         }
 
         function syncCatInput(id, val) {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             document.getElementById('num_' + id).value = val;
             updatePlanner();
-            saveUserDataState();
+            persistActiveBudgetSubtab();
         }
 
         function syncCatSlider(id, val) {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             const rng = document.getElementById('rng_' + id);
             if (parseFloat(val) > parseFloat(rng.max)) rng.max = parseFloat(val) * 1.2;
             rng.value = val || 0;
             updatePlanner();
-            saveUserDataState();
+            persistActiveBudgetSubtab();
         }
 
         function getBestRubToThbRate() {
@@ -3420,9 +4726,12 @@
 
             document.getElementById('planProgressText').innerText = `Распределено: ${pct.toFixed(1)}% бюджета (Резерв: ${Math.max(0, 100 - pct).toFixed(1)}%)`;
             document.getElementById('planPerPersonText').innerText = `Средний расход на 1 чел/день: ${fmtInt((totalSpentThb / days) / people)} ฿ (${fmt(((totalSpentThb / days) / people) / usdVp)} $)`;
+
+            updateScheduleBudgetSnapshot();
         }
 
         function applyPreset(mode) {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             const people = Math.max(1, parseInt(document.getElementById('plan_people').value) || 1);
             const days = Math.max(1, parseInt(document.getElementById('plan_days').value) || 1);
 
@@ -3435,10 +4744,11 @@
                 document.getElementById('num_' + cat.id).value = calcTotal;
             });
             updatePlanner();
-            saveUserDataState();
+            persistActiveBudgetSubtab();
         }
 
         function fitToBudget() {
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             const totalBudgetThb = getTotalBudgetInThb();
             if (totalBudgetThb <= 0) return;
             const targetSpend = totalBudgetThb * 0.85;
@@ -3458,7 +4768,7 @@
                 document.getElementById('num_' + cat.id).value = newVal;
             });
             updatePlanner();
-            saveUserDataState();
+            persistActiveBudgetSubtab();
         }
 
         async function refreshAllDashboard() {
@@ -3467,7 +4777,8 @@
             await Promise.all([
                 syncLiveRates(),
                 scanRealTimeTides(),
-                syncDistrictWeather()
+                syncDistrictWeather(),
+                syncUsersFromCloud(false)
             ]);
             updateTripCountdown();
             btn.innerText = '✅ Все сводки обновлены!';
@@ -3476,7 +4787,7 @@
 
         /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v4';
+const CACHE_NAME = 'phuket-pwa-cache-v5';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -3521,7 +4832,7 @@ self.addEventListener('fetch', (event) => {
 
         function initPwaAndOfflineSupport() {
             const manifestObj = {
-                name: "Пхукет: Дашборд, Планировщик и Курсы",
+                name: "Пхукет: Дашборд, Планировщик, Чек-лист и Курсы",
                 short_name: "Phuket App",
                 start_url: "./index.html",
                 display: "standalone",
@@ -3543,7 +4854,7 @@ self.addEventListener('fetch', (event) => {
                 });
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v4').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v5').then(cache => cache.add(location.href)).catch(() => {});
             }
 
             const updateNetStatus = () => {
@@ -3566,6 +4877,7 @@ self.addEventListener('fetch', (event) => {
             initPlannerUI();
             initPwaAndOfflineSupport();
             ensureAdminAccountExists();
+            loadSharedEvents();
 
             if (window.Telegram && window.Telegram.WebApp) {
                 const tg = window.Telegram.WebApp;
@@ -3577,7 +4889,6 @@ self.addEventListener('fetch', (event) => {
                 } catch (e) {}
             }
 
-            // Поддержка нажатия Enter в полях окна авторизации
             ['gateLoginInput', 'gatePassInput'].forEach(id => {
                 const el = document.getElementById(id);
                 if (el) {
@@ -3587,7 +4898,6 @@ self.addEventListener('fetch', (event) => {
                 }
             });
 
-            // Проверяем сохраненную сессию
             const savedSessionUser = localStorage.getItem(ACTIVE_SESSION_KEY);
             const db = getUsersDb();
             if (savedSessionUser && db[savedSessionUser]) {
@@ -3595,26 +4905,27 @@ self.addEventListener('fetch', (event) => {
             } else {
                 document.getElementById('mainAppContainer').classList.remove('authenticated');
                 document.getElementById('authGateOverlay').classList.remove('hidden');
+                syncUsersFromCloud(false);
             }
 
-            // Мгновенное автосохранение за текущим пользователем при любом вводе
             document.addEventListener('input', (e) => {
-                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev')) {
+                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk')) {
                     saveUserDataState();
                 }
             });
             document.addEventListener('change', (e) => {
-                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev')) {
+                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk')) {
                     saveUserDataState();
                 }
             });
 
-            // Фоновое обновление сводок
             updateTripCountdown();
             renderSeasonalWarnings();
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            updateScheduleBudgetSnapshot();
+            renderChecklistSection();
             scanRealTimeTides();
             syncDistrictWeather();
         })();
