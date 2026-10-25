@@ -10,6 +10,8 @@
     <link id="pwaManifestLink" rel="manifest" href="">
     <title>Пхукет: Дашборд, Планировщик, Чек-лист, Курсы и Погода</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <!-- Мгновенный WebSocket-клиент для синхронизации между устройствами и браузерами за 0.1 сек -->
+    <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
     <style>
         :root {
             --bg: #0f1115;
@@ -53,7 +55,7 @@
 
         * { box-sizing: border-box; }
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; transition: background 0.25s, color 0.25s; }
-        .container { max-width: 780px; margin: 0 auto; padding-bottom: 45px; }
+        .container { max-width: 820px; margin: 0 auto; padding-bottom: 45px; }
 
         /* Скрытие основного приложения до авторизации */
         #mainAppContainer { display: none; }
@@ -135,12 +137,13 @@
         }
         .profile-trigger-btn:hover { border-color: var(--accent); }
         .profile-avatar-sm {
-            width: 26px; height: 26px; border-radius: 50%; object-fit: cover;
-            background: var(--accent); color: #fff; display: flex; align-items: center;
-            justify-content: center; font-size: 0.76rem; font-weight: 800; overflow: hidden;
+            width: 28px; height: 28px; border-radius: 50%; object-fit: cover;
+            background: linear-gradient(135deg, #007aff, #00c7be); color: #fff; display: flex; align-items: center;
+            justify-content: center; font-size: 0.78rem; font-weight: 800; overflow: hidden; flex-shrink: 0;
         }
+        .profile-avatar-sm img { width: 100%; height: 100%; object-fit: cover; display: block; }
         .profile-dropdown {
-            display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 250px;
+            display: none; position: absolute; right: 0; top: calc(100% + 8px); width: 255px;
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             box-shadow: 0 12px 30px rgba(0,0,0,0.5); padding: 6px; z-index: 1000;
         }
@@ -159,9 +162,9 @@
 
         /* Онлайн бар и Тумблер Геолокации */
         .top-status-strip {
-            display: grid; grid-template-columns: 1.25fr 1fr; gap: 10px; margin-bottom: 12px;
+            display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; margin-bottom: 12px;
         }
-        @media (max-width: 600px) { .top-status-strip { grid-template-columns: 1fr; } }
+        @media (max-width: 620px) { .top-status-strip { grid-template-columns: 1fr; } }
         .online-users-card, .geo-toggle-card {
             background: var(--card); border: 1px solid var(--border); border-radius: 12px;
             padding: 10px 13px; display: flex; flex-direction: column; justify-content: space-between;
@@ -174,7 +177,7 @@
         }
         .online-dot-pulse {
             width: 8px; height: 8px; border-radius: 50%; background: var(--success);
-            box-shadow: 0 0 8px var(--success); display: inline-block;
+            box-shadow: 0 0 8px var(--success); display: inline-block; flex-shrink: 0;
         }
         .switch-wrap { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .ios-switch {
@@ -192,6 +195,27 @@
         .ios-switch input:checked + .ios-slider { background-color: var(--success); border-color: var(--success); }
         .ios-switch input:checked + .ios-slider:before { transform: translateX(20px); }
 
+        /* Сетка: Даты поездки + Ближайшее событие на Главной */
+        .trip-and-event-grid {
+            display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px; margin-bottom: 12px;
+        }
+        @media (max-width: 680px) { .trip-and-event-grid { grid-template-columns: 1fr; } }
+        .trip-calendar-box { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; }
+        .next-event-hero-box {
+            background: var(--hero-grad); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+            border-radius: 12px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between;
+        }
+        .trip-countdown-badge { background: rgba(52, 199, 89, 0.12); border: 1px solid rgba(52, 199, 89, 0.35); border-radius: 9px; padding: 10px 12px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+
+        /* Быстрый выбор эмодзи-аватара */
+        .avatar-presets-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
+        .avatar-preset-btn {
+            width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
+            background: var(--card-alt); font-size: 1.05rem; cursor: pointer; display: flex;
+            align-items: center; justify-content: center; transition: transform 0.15s, border-color 0.15s;
+        }
+        .avatar-preset-btn:hover { transform: scale(1.12); border-color: var(--accent); }
+
         /* Модальные окна Профиля и Админ-панели */
         .app-modal-backdrop {
             display: none; position: fixed; inset: 0; z-index: 5000;
@@ -207,7 +231,7 @@
         .admin-user-row {
             background: var(--card-alt); border: 1px solid var(--border); border-radius: 10px;
             padding: 10px 12px; margin-bottom: 8px; display: flex; justify-content: space-between;
-            align-items: center; flex-wrap: wrap; gap: 8px;
+            align-items: center; flex-wrap: wrap; gap: 10px;
         }
 
         /* Навигация на 7 вкладок */
@@ -243,9 +267,6 @@
         .w-card.uv-danger { background: rgba(255, 59, 48, 0.16); border-color: var(--danger); animation: uvPulse 2.2s infinite; }
         .w-card.uv-warn { background: rgba(255, 159, 10, 0.14); border-color: var(--warning); }
 
-        /* Календарь поездки */
-        .trip-calendar-box { background: var(--hero-grad); border: 1px solid var(--border); border-radius: 12px; padding: 14px; margin-bottom: 12px; }
-        .trip-countdown-badge { background: rgba(52, 199, 89, 0.12); border: 1px solid rgba(52, 199, 89, 0.35); border-radius: 9px; padding: 10px 12px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
         input[type="date"], input[type="time"], input[type="text"], input[type="password"], textarea { background: var(--input-bg); border: 1px solid var(--input-border); color: var(--text); padding: 7px 9px; border-radius: 6px; font-size: 0.88rem; width: 100%; font-family: inherit; outline: none; }
         input[type="date"]:focus, input[type="time"]:focus, input[type="text"]:focus, textarea:focus { border-color: var(--accent); }
 
@@ -296,7 +317,7 @@
         .folder-card {
             background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent);
             border-radius: 12px; padding: 14px; cursor: pointer; transition: all 0.2s;
-            display: flex; justify-content: space-between; align-items: center;
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
         }
         .folder-card:hover { border-color: var(--accent); transform: translateY(-1px); }
         .folder-card.active-folder { border: 2px solid var(--success); background: var(--card-alt); }
@@ -318,6 +339,10 @@
         .subtask-row {
             display: flex; align-items: center; gap: 8px; padding: 5px 8px;
             background: var(--card-alt); border-radius: 6px; margin-top: 5px; font-size: 0.8rem;
+        }
+        .checklist-total-footer {
+            background: var(--hero-grad); border: 1px solid var(--accent); border-left: 5px solid var(--success);
+            border-radius: 12px; padding: 14px; margin-top: 14px;
         }
 
         /* Подвкладки пользователей в Бюджете */
@@ -519,7 +544,7 @@
             <h1>🌴 Пхукет: Помощник</h1>
             <div class="header-right">
                 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Переключить тему">☀️ Светлая</button>
-                <div class="pwa-badge online" id="networkBadge" title="Статус сети и синхронизации">● Онлайн</div>
+                <div class="pwa-badge online" id="networkBadge" title="Статус живой синхронизации">● Live Синхр.</div>
 
                 <!-- Иконка и меню профиля справа сверху -->
                 <div class="profile-menu-wrap" id="profileMenuWrap">
@@ -533,7 +558,7 @@
                         <div class="pd-header">
                             <div class="pd-name" id="pdUsername">Гость</div>
                             <div class="pd-role" id="pdRoleLabel">Путешественник</div>
-                            <div style="font-size:0.68rem; color:var(--success); margin-top:2px;" id="autoSaveStatus">✓ Автосохранение активно</div>
+                            <div style="font-size:0.68rem; color:var(--success); margin-top:2px;" id="autoSaveStatus">✓ Живая синхронизация активна</div>
                         </div>
                         <button class="pd-item" onclick="openProfileSettingsModal()">⚙️ Настроить профиль</button>
                         <button class="pd-item" id="pdAdminBtn" style="display:none; color:var(--warning);" onclick="openAdminPanelModal()">🛠️ Настройки сервиса (Админ)</button>
@@ -591,31 +616,49 @@
                 <button class="dash-goto" onclick="switchTab('weather')">Радар УФ ➔</button>
             </div>
 
-            <!-- 1. Календарь поездки и обратный отсчет -->
-            <div class="trip-calendar-box">
-                <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Даты вашего отпуска на Пхукете</span>
-                    <div style="display:flex; gap:6px;">
-                        <button class="link-btn" onclick="switchTab('schedule')">📅 Открыть календарь ивентов</button>
-                        <button class="link-btn" onclick="syncTripDaysToPlanner()">🔄 Дни в Бюджет</button>
-                    </div>
-                </div>
-                <div class="grid-2">
-                    <div class="field">
-                        <label>Дата прилета на Пхукет</label>
-                        <input type="date" id="trip_start" value="2026-12-16" onchange="onTripDatesChanged('home')">
-                    </div>
-                    <div class="field">
-                        <label>Дата вылета домой</label>
-                        <input type="date" id="trip_end" value="2027-01-08" onchange="onTripDatesChanged('home')">
-                    </div>
-                </div>
-                <div class="trip-countdown-badge" id="tripCountdownBanner">
+            <!-- 1. Сетка: Даты поездки + Ближайшее запланированное событие -->
+            <div class="trip-and-event-grid">
+                <div class="trip-calendar-box">
                     <div>
-                        <div style="font-size:0.98rem; font-weight:700; color:var(--heading);" id="tripStatusMain">Расчет дат поездки...</div>
-                        <div style="font-size:0.77rem; color:var(--muted); margin-top:2px;" id="tripStatusSub">--</div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
+                            <span style="font-size:0.84rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Даты вашего отпуска</span>
+                            <button class="link-btn" onclick="syncTripDaysToPlanner()">🔄 Дни в Бюджет</button>
+                        </div>
+                        <div class="grid-2">
+                            <div class="field">
+                                <label>Дата прилета на Пхукет</label>
+                                <input type="date" id="trip_start" value="2026-12-16" onchange="onTripDatesChanged('home')">
+                            </div>
+                            <div class="field">
+                                <label>Дата вылета домой</label>
+                                <input type="date" id="trip_end" value="2027-01-08" onchange="onTripDatesChanged('home')">
+                            </div>
+                        </div>
                     </div>
-                    <span class="status-pill pill-good" id="tripDaysBadge">23 дня</span>
+                    <div class="trip-countdown-badge" id="tripCountdownBanner">
+                        <div>
+                            <div style="font-size:0.94rem; font-weight:700; color:var(--heading);" id="tripStatusMain">Расчет дат поездки...</div>
+                            <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="tripStatusSub">--</div>
+                        </div>
+                        <span class="status-pill pill-good" id="tripDaysBadge">23 дня</span>
+                    </div>
+                </div>
+
+                <!-- Блок ближайшего события из календаря планирования -->
+                <div class="next-event-hero-box" id="homeNextEventBox">
+                    <div>
+                        <div style="display:flex; justify-content:space-between; align-items:center; gap:6px; margin-bottom:8px;">
+                            <span style="font-size:0.82rem; font-weight:800; color:var(--accent); text-transform:uppercase;">📌 Ближайшее событие по плану</span>
+                            <button class="link-btn" onclick="switchTab('schedule')">📅 Календарь ➔</button>
+                        </div>
+                        <div id="homeNextEventContent" style="font-size:0.83rem; color:var(--desc-text); line-height:1.45;">
+                            Загрузка расписания...
+                        </div>
+                    </div>
+                    <div style="margin-top:10px; padding-top:8px; border-top:1px dashed var(--border); display:flex; justify-content:space-between; align-items:center; font-size:0.74rem; color:var(--muted);">
+                        <span id="homeTotalEventsCountLbl">Всего событий: 0</span>
+                        <button class="link-btn" onclick="switchTab('schedule'); openDayEditorModal();">➕ Добавить ивент</button>
+                    </div>
                 </div>
             </div>
 
@@ -732,7 +775,7 @@
 
         <!-- ==================== ВКЛАДКА 1: КАЛЕНДАРЬ И ПЛАНИРОВАНИЕ ИВЕНТОВ ==================== -->
         <div id="tab-schedule" class="tab-content">
-            <div class="trip-calendar-box">
+            <div class="trip-calendar-box" style="margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
                     <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Даты отпуска и общее расписание всех участников</span>
                     <button class="link-btn" onclick="jumpCalendarToTripStart()">🎯 Перейти к месяцу отпуска</button>
@@ -881,13 +924,13 @@
                 <div id="allEventsSummaryList" style="font-size:0.82rem; color:var(--desc-text);"></div>
             </div>
         </div>
-
-        <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ ПОЛЬЗОВАТЕЛЕЙ + РЕДАКТИРОВАНИЕ) ==================== -->
+<!-- ==================== КОНЕЦ ЧАСТИ 1 (ВСТАВЬТЕ ЧАСТЬ 2 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
+ <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ, ВАЛЮТА, РЕДАКТИРОВАНИЕ И ПОЛНАЯ СУММА) ==================== -->
         <div id="tab-checklist" class="tab-content">
             <div class="box">
                 <h2>
                     <span>🧳 Списки вещей участников (Папки пользователей)</span>
-                    <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Обновить папки участников</button>
+                    <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхронизировать списки</button>
                 </h2>
 
                 <!-- Кнопка создания списка, если у текущего пользователя еще нет своей папки -->
@@ -907,7 +950,18 @@
                         <h3 style="margin:0; font-size:1.05rem; color:var(--heading);" id="chkActiveFolderTitle">📂 Папка пользователя</h3>
                         <div style="font-size:0.76rem; color:var(--muted); margin-top:2px;" id="chkActiveFolderAccessHint">Права доступа</div>
                     </div>
-                    <button class="cal-nav-btn" style="background:var(--accent); color:#fff; border:none;" id="chkOpenEditorBtn" onclick="openNewChecklistItemModal()">➕ Добавить позицию</button>
+                    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+                        <div style="display:flex; align-items:center; gap:5px; background:var(--card-alt); padding:4px 8px; border-radius:8px; border:1px solid var(--border);">
+                            <span style="font-size:0.74rem; color:var(--muted); font-weight:600;">Валюта списка:</span>
+                            <select id="chkFolderCurrencySelect" style="width:auto; padding:4px 8px; font-size:0.8rem; font-weight:700;" onchange="onChecklistCurrencyChange(this.value)">
+                                <option value="RUB">₽ Рубли (RUB)</option>
+                                <option value="THB">฿ Баты (THB)</option>
+                                <option value="USD">$ Доллары (USD)</option>
+                                <option value="EUR">€ Евро (EUR)</option>
+                            </select>
+                        </div>
+                        <button class="cal-nav-btn" style="background:var(--accent); color:#fff; border:none;" id="chkOpenEditorBtn" onclick="openNewChecklistItemModal()">➕ Добавить позицию</button>
+                    </div>
                 </div>
 
                 <!-- Фильтры: Все / Не выполненные / Выполненные + Категории -->
@@ -951,8 +1005,16 @@
 
                     <div class="grid-3" style="margin-bottom:8px;">
                         <div class="field">
-                            <label>Сумма / Стоимость (опционально)</label>
-                            <input type="number" id="chkItemAmount" placeholder="0" min="0" step="50">
+                            <label>Сумма + Валюта позиции</label>
+                            <div style="display:flex; gap:4px;">
+                                <input type="number" id="chkItemAmount" placeholder="0" min="0" step="50" style="flex:1;">
+                                <select id="chkItemCurrency" style="width:76px; padding:6px;">
+                                    <option value="RUB">₽ RUB</option>
+                                    <option value="THB">฿ THB</option>
+                                    <option value="USD">$ USD</option>
+                                    <option value="EUR">€ EUR</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="field">
                             <label>Срочность (3 вида)</label>
@@ -975,7 +1037,7 @@
 
                     <div class="grid-2" style="margin-bottom:8px;">
                         <div class="field">
-                            <label>🖼️ Картинка (URL или загрузите фото)</label>
+                            <label>🖼️ Картинка (URL или выберите фото — сожмется автоматически)</label>
                             <input type="text" id="chkItemImageUrl" placeholder="https://...">
                             <input type="file" accept="image/*" style="margin-top:4px; font-size:0.74rem;" onchange="uploadChecklistImageFile(this)">
                         </div>
@@ -995,6 +1057,31 @@
 
                 <!-- Список карточек позиций -->
                 <div id="checklistItemsContainer"></div>
+
+                <!-- Итоговый блок полной суммы внизу чек-листа -->
+                <div class="checklist-total-footer" id="checklistTotalFooter">
+                    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px; margin-bottom:8px;">
+                        <span style="font-size:0.84rem; font-weight:800; color:var(--accent); text-transform:uppercase;">🧮 Итоговая стоимость всех позиций в списке</span>
+                        <span style="font-size:0.75rem; color:var(--muted);" id="chkFooterPositionsCount">Позиций: 0</span>
+                    </div>
+                    <div class="sum-grid">
+                        <div class="sum-box">
+                            <div class="sum-label">Полная сумма всех позиций</div>
+                            <div class="sum-val" id="chkTotalAllVal" style="color:var(--heading);">0 ₽</div>
+                            <div class="sum-sub" id="chkTotalAllEq">~ 0 ฿</div>
+                        </div>
+                        <div class="sum-box">
+                            <div class="sum-label">Осталось купить / собрать</div>
+                            <div class="sum-val" id="chkTotalOpenVal" style="color:var(--warning);">0 ₽</div>
+                            <div class="sum-sub" id="chkTotalOpenEq">Не закрытые пункты</div>
+                        </div>
+                        <div class="sum-box">
+                            <div class="sum-label">Уже куплено / готово</div>
+                            <div class="sum-val" id="chkTotalDoneVal" style="color:var(--success);">0 ₽</div>
+                            <div class="sum-sub" id="chkTotalDoneEq">Выполненные пункты</div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -1337,16 +1424,18 @@
         </div>
     </div>
 
-    <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКА ПРОФИЛЯ ==================== -->
+    <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКА ПРОФИЛЯ (ДЛЯ ПОЛЬЗОВАТЕЛЯ И АДМИНА) ==================== -->
     <div class="app-modal-backdrop" id="profileSettingsModal">
         <div class="app-modal-card">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <h3 style="margin:0; font-size:1.05rem; color:var(--accent);">⚙️ Настройки профиля</h3>
+                <h3 style="margin:0; font-size:1.05rem; color:var(--accent);" id="profModalHeaderTitle">⚙️ Настройки профиля</h3>
                 <button class="cal-nav-btn" onclick="closeProfileSettingsModal()">✕</button>
             </div>
 
-            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; background:var(--card-alt); padding:10px; border-radius:10px;">
-                <div class="profile-avatar-sm" id="modalAvatarPreview" style="width:52px; height:52px; font-size:1.4rem;">👤</div>
+            <input type="hidden" id="profTargetUserKey" value="">
+
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:14px; background:var(--card-alt); padding:10px; border-radius:10px; border:1px solid var(--border);">
+                <div class="profile-avatar-sm" id="modalAvatarPreview" style="width:54px; height:54px; font-size:1.45rem;">👤</div>
                 <div style="flex:1;">
                     <div style="font-weight:800; color:var(--heading);" id="modalProfileName">Никнейм</div>
                     <div style="font-size:0.76rem; color:var(--muted);" id="modalProfileBioPreview">Описание не указано</div>
@@ -1354,9 +1443,25 @@
             </div>
 
             <div class="auth-field">
-                <label>Картинка на аватар (ссылка URL или выберите фото с устройства)</label>
-                <input type="text" id="profAvatarUrlInput" placeholder="https://..." oninput="previewProfileAvatar(this.value)">
-                <input type="file" accept="image/*" style="margin-top:6px; font-size:0.78rem;" onchange="uploadProfileAvatarFile(this)">
+                <label>Отображаемое имя / Никнейм</label>
+                <input type="text" id="profDisplayNameInput" placeholder="Ваше имя или ник">
+            </div>
+
+            <div class="auth-field">
+                <label>Аватарка: выберите фото с устройства (100% работает у всех), вставьте ссылку или выберите иконку ниже</label>
+                <input type="file" accept="image/*" style="margin-bottom:6px; font-size:0.78rem;" onchange="uploadProfileAvatarFile(this)">
+                <input type="text" id="profAvatarUrlInput" placeholder="Или вставьте ссылку на картинку..." oninput="previewProfileAvatar(this.value)">
+                <div class="avatar-presets-row">
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('🌴')">🌴</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('😎')">😎</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('🌺')">🌺</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('🐬')">🐬</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('🍹')">🍹</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('🏄‍♂️')">🏄‍♂️</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('🍍')">🍍</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('👑')">👑</button>
+                    <button type="button" class="avatar-preset-btn" onclick="selectPresetEmojiAvatar('')" title="Сбросить на первую букву имени">🔤</button>
+                </div>
             </div>
 
             <div class="auth-field">
@@ -1380,22 +1485,22 @@
 
     <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ СЕРВИСА (АДМИН-ПАНЕЛЬ) ==================== -->
     <div class="app-modal-backdrop" id="adminPanelModal">
-        <div class="app-modal-card" style="max-width:680px;">
+        <div class="app-modal-card" style="max-width:700px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <h3 style="margin:0; font-size:1.05rem; color:var(--warning);">🛠️ Управление сервисом (Администратор)</h3>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                    <button class="cal-nav-btn" style="border-color:var(--accent); color:var(--accent);" onclick="syncUsersFromCloud(true)">🔄 Синхронизировать с облаком</button>
+                    <button class="cal-nav-btn" style="border-color:var(--accent); color:var(--accent);" onclick="syncUsersFromCloud(true)">🔄 Синхронизировать сейчас</button>
                     <button class="cal-nav-btn" onclick="closeAdminPanelModal()">✕</button>
                 </div>
             </div>
 
             <div style="font-size:0.77rem; color:var(--muted); margin-bottom:10px;" id="adminSyncStatusLine">
-                Облачная синхронизация активна. Здесь отображаются все пользователи онлайн и все зарегистрированные учетные записи.
+                Мгновенная синхронизация активна. Вы можете менять любому пользователю имя, аватарку, описание, пароль или редактировать его разделы.
             </div>
 
             <!-- Область 1: Пользователи онлайн прямо сейчас -->
             <div style="background:var(--card-alt); border:1px solid var(--border); border-radius:10px; padding:10px 12px; margin-bottom:12px;">
-                <div style="font-size:0.78rem; font-weight:800; color:var(--success); text-transform:uppercase; margin-bottom:6px;">🟢 Сейчас онлайн на сайте (ники активных пользователей)</div>
+                <div style="font-size:0.78rem; font-weight:800; color:var(--success); text-transform:uppercase; margin-bottom:6px;">🟢 Сейчас онлайн на сайте (активные участники)</div>
                 <div id="adminOnlineUsersContainer" style="display:flex; flex-wrap:wrap; gap:6px;"></div>
             </div>
 
@@ -1406,8 +1511,8 @@
             <div id="adminUsersListContainer"></div>
         </div>
     </div>
-<!-- ==================== КОНЕЦ ЧАСТИ 1 (ВСТАВЬТЕ ЧАСТЬ 2 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
- <script>
+
+    <script>
         function fmt(num, digits = 2) {
             return Number(num || 0).toLocaleString('ru-RU', {minimumFractionDigits: digits, maximumFractionDigits: digits});
         }
@@ -1449,18 +1554,84 @@
             }
         }
 
-        /* ==================== ЕДИНАЯ БАЗА ДАННЫХ И РЕАЛТАЙМ-СИНХРОНИЗАЦИЯ ==================== */
-        const USERS_DB_KEY = 'phuket_users_database_v5';
-        const LEGACY_DB_KEYS = ['phuket_users_database_v4', 'phuket_users_database_v3', 'phuket_users_database_v2', 'phuket_users_database_v1', 'phuket_users_db'];
-        const ACTIVE_SESSION_KEY = 'phuket_active_session_v5';
-        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v5';
-        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v5';
-        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v5';
-        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v5';
+        /* ==================== 100% НАДЕЖНЫЕ АВАТАРКИ БЕЗ «ЗНАКА ВОПРОСА» ==================== */
+        function createEmojiSvgDataUrl(emoji, bg = '#007aff') {
+            const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="${bg}"/><text x="50" y="68" font-size="56" text-anchor="middle">${emoji}</text></svg>`;
+            return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
+        }
 
-        // Канал облачной синхронизации без ключей и настроек (работает между разными браузерами и устройствами)
-        const CLOUD_CHANNEL_TOPIC = 'phuket_helper_realtime_db_2026_v6_sync';
-        const CLOUD_STREAM_URL = `https://ntfy.sh/${CLOUD_CHANNEL_TOPIC}`;
+        function compressImageFileToDataUrl(file, maxSize = 96, quality = 0.78) {
+            return new Promise((resolve) => {
+                if (!file) { resolve(''); return; }
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        const canvas = document.createElement('canvas');
+                        let w = img.width;
+                        let h = img.height;
+                        if (w > h) {
+                            if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; }
+                        } else {
+                            if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; }
+                        }
+                        canvas.width = w;
+                        canvas.height = h;
+                        const ctx = canvas.getContext('2d');
+                        ctx.fillStyle = '#181b21';
+                        ctx.fillRect(0, 0, w, h);
+                        ctx.drawImage(img, 0, 0, w, h);
+                        resolve(canvas.toDataURL('image/jpeg', quality));
+                    };
+                    img.onerror = () => resolve('');
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => resolve('');
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function renderSafeAvatarIntoElement(el, avatarVal, fallbackName) {
+            if (!el) return;
+            const letter = ((fallbackName || 'U').trim().charAt(0) || 'U').toUpperCase();
+            const val = (avatarVal || '').trim();
+
+            if (!val) {
+                el.innerText = letter;
+                return;
+            }
+            // Если выбран короткий эмодзи
+            if (val.length <= 4 && !val.startsWith('http') && !val.startsWith('data:')) {
+                el.innerText = val;
+                return;
+            }
+            // Безопасная картинка с авто-фоллбэком на первую букву при любой ошибке загрузки
+            el.innerHTML = '';
+            const img = document.createElement('img');
+            img.alt = letter;
+            img.style.cssText = 'width:100%;height:100%;object-fit:cover;display:block;';
+            img.onerror = () => {
+                el.innerHTML = '';
+                el.innerText = letter;
+            };
+            img.src = val;
+            el.appendChild(img);
+        }
+
+        /* ==================== ЕДИНАЯ БАЗА ДАННЫХ И МГНОВЕННАЯ СИНХРОНИЗАЦИЯ (MQTT WSS + LOCAL) ==================== */
+        const USERS_DB_KEY = 'phuket_users_database_v7';
+        const LEGACY_DB_KEYS = ['phuket_users_database_v6', 'phuket_users_database_v5', 'phuket_users_database_v4', 'phuket_users_database_v3', 'phuket_users_database_v2', 'phuket_users_database_v1', 'phuket_users_db'];
+        const ACTIVE_SESSION_KEY = 'phuket_active_session_v7';
+        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v7';
+        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v7';
+        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v7';
+        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v7';
+
+        // Топики мгновенного WebSocket-брокера (работает между любыми браузерами, вкладками и телефонами за 0.1 сек)
+        const MQTT_BASE_TOPIC = 'phuket_helper_app_2026_v7_live_room';
+        const MQTT_STATE_TOPIC = `${MQTT_BASE_TOPIC}/full_state`;
+        const MQTT_PRESENCE_TOPIC = `${MQTT_BASE_TOPIC}/presence`;
+        const REST_BACKUP_URL = 'https://ntfy.sh/phuket_helper_realtime_db_2026_v7_sync';
 
         let authMode = 'login';
         let currentUser = null;
@@ -1469,7 +1640,7 @@
         let activeChecklistFolderUser = null;
         let checklistFilterMode = 'all';
         let uploadedChecklistImgData = '';
-        let cloudEventSource = null;
+        let mqttClient = null;
         let lastCloudPushTs = 0;
 
         let geoState = {
@@ -1486,11 +1657,14 @@
         const HAS_DIGIT_REGEX = /[0-9]/;
         const HAS_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
-        // Локальная синхронизация между вкладками одного браузера
-        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v6') : null;
+        // Локальная мгновенная шина между вкладками одного браузера
+        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v7') : null;
         if (syncChannel) {
             syncChannel.onmessage = (ev) => {
-                if (ev.data && ev.data.type === 'SYNC_UPDATE') {
+                if (!ev.data) return;
+                if (ev.data.type === 'FULL_SNAPSHOT' && ev.data.payload) {
+                    applyIncomingCloudSnapshot(ev.data.payload);
+                } else if (ev.data.type === 'SYNC_UPDATE') {
                     refreshAllSharedViews();
                 }
             };
@@ -1500,15 +1674,22 @@
             refreshAllSharedViews();
         });
 
-        function notifyRealtimePeers() {
+        function notifyRealtimePeers(snapshotPayload = null) {
             if (syncChannel) {
-                try { syncChannel.postMessage({ type: 'SYNC_UPDATE', ts: Date.now() }); } catch (e) {}
+                try {
+                    if (snapshotPayload) {
+                        syncChannel.postMessage({ type: 'FULL_SNAPSHOT', payload: snapshotPayload });
+                    } else {
+                        syncChannel.postMessage({ type: 'SYNC_UPDATE', ts: Date.now() });
+                    }
+                } catch (e) {}
             }
         }
 
         function refreshAllSharedViews() {
             loadSharedEvents();
             renderOnlineUsersUI();
+            renderHeaderProfileUI();
             if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
                 renderAdminUsersList();
             }
@@ -1517,6 +1698,7 @@
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            renderNextEventOnHome();
         }
 
         function getUsersDb() {
@@ -1525,7 +1707,6 @@
                 mainDb = JSON.parse(localStorage.getItem(USERS_DB_KEY) || '{}');
             } catch (e) { mainDb = {}; }
 
-            // Автоматический перенос всех ранее зарегистрированных пользователей из старых версий ключа
             let changed = false;
             LEGACY_DB_KEYS.forEach(k => {
                 try {
@@ -1570,7 +1751,7 @@
                     password: 'Admin!2026',
                     role: 'admin',
                     bio: 'Администратор сервиса Пхукет Помощник',
-                    avatar: '',
+                    avatar: '👑',
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
                     data: {}
@@ -1582,41 +1763,18 @@
             }
         }
 
-        /* ==================== ПРОСТАЯ И НАДЕЖНАЯ ОБЛАЧНАЯ БАЗА ДАННЫХ ==================== */
-        function stripLargeBase64ForCloud(usersObj) {
-            const copy = {};
-            Object.keys(usersObj || {}).forEach(k => {
-                const u = usersObj[k];
-                if (!u) return;
-                const safeAvatar = (u.avatar && u.avatar.length > 1500) ? '' : (u.avatar || '');
-                copy[k] = {
-                    displayName: u.displayName || k,
-                    password: u.password || '',
-                    role: u.role || 'user',
-                    bio: u.bio || '',
-                    avatar: safeAvatar,
-                    createdAt: u.createdAt || Date.now(),
-                    updatedAt: u.updatedAt || Date.now(),
-                    data: u.data || {}
-                };
-            });
-            return copy;
-        }
-
-        function stripLargeImagesFromChecklists(chkObj) {
-            const copy = {};
-            Object.keys(chkObj || {}).forEach(k => {
-                const folder = chkObj[k];
-                if (!folder) return;
-                copy[k] = {
-                    ...folder,
-                    items: (folder.items || []).map(it => ({
-                        ...it,
-                        imageUrl: (it.imageUrl && it.imageUrl.length > 1500) ? '' : (it.imageUrl || '')
-                    }))
-                };
-            });
-            return copy;
+        /* ==================== МГНОВЕННАЯ ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (WEBSOCKET MQTT + FALLBACK) ==================== */
+        function buildFullSyncPayload() {
+            return {
+                type: 'PHUKET_DB_STATE_V7',
+                users: getUsersDb(),
+                presence: getOnlinePresenceDb(),
+                checklists: getChecklistsDb(),
+                sharedEvents: getSharedEventsDb(),
+                eventsUpdatedAt: Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || Date.now()),
+                mainBudget: getMainSharedBudget(),
+                ts: Date.now()
+            };
         }
 
         function applyIncomingCloudSnapshot(snap) {
@@ -1626,11 +1784,14 @@
             if (snap.users && typeof snap.users === 'object') {
                 const localDb = getUsersDb();
                 Object.keys(snap.users).forEach(uKey => {
-                    const incomingU = snap.users[uKey];
-                    const existingU = localDb[uKey];
-                    if (!existingU || (incomingU.updatedAt || 0) >= (existingU.updatedAt || 0)) {
-                        const keepAvatar = (!incomingU.avatar && existingU?.avatar) ? existingU.avatar : (incomingU.avatar || '');
-                        localDb[uKey] = { ...existingU, ...incomingU, avatar: keepAvatar };
+                    const incU = snap.users[uKey];
+                    const locU = localDb[uKey];
+                    if (!locU || (incU.updatedAt || 0) >= (locU.updatedAt || 0)) {
+                        localDb[uKey] = {
+                            ...locU,
+                            ...incU,
+                            avatar: incU.avatar !== undefined ? incU.avatar : (locU?.avatar || '')
+                        };
                         anyUpdated = true;
                     }
                 });
@@ -1640,12 +1801,14 @@
             if (snap.presence && typeof snap.presence === 'object') {
                 const localPres = getOnlinePresenceDb();
                 Object.keys(snap.presence).forEach(uKey => {
-                    const ts = snap.presence[uKey];
-                    if (ts === 0) {
-                        delete localPres[uKey];
-                        anyUpdated = true;
-                    } else if (ts > (localPres[uKey] || 0)) {
-                        localPres[uKey] = ts;
+                    const incTs = snap.presence[uKey];
+                    if (incTs === 0) {
+                        if (localPres[uKey]) {
+                            delete localPres[uKey];
+                            anyUpdated = true;
+                        }
+                    } else if (incTs > (localPres[uKey] || 0)) {
+                        localPres[uKey] = incTs;
                         anyUpdated = true;
                     }
                 });
@@ -1658,13 +1821,6 @@
                     const incF = snap.checklists[uKey];
                     const locF = localChk[uKey];
                     if (!locF || (incF.updatedAt || 0) >= (locF.updatedAt || 0)) {
-                        // Сохраняем локальные тяжелые картинки, если они были
-                        const locMap = {};
-                        (locF?.items || []).forEach(i => { if (i.imageUrl) locMap[i.id] = i.imageUrl; });
-                        incF.items = (incF.items || []).map(i => ({
-                            ...i,
-                            imageUrl: i.imageUrl || locMap[i.id] || ''
-                        }));
                         localChk[uKey] = incF;
                         anyUpdated = true;
                     }
@@ -1673,7 +1829,6 @@
             }
 
             if (snap.sharedEvents && typeof snap.sharedEvents === 'object') {
-                const localEv = getSharedEventsDb();
                 const incomingTs = snap.eventsUpdatedAt || 0;
                 const localEvTs = Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || 0);
                 if (incomingTs >= localEvTs) {
@@ -1697,23 +1852,61 @@
             }
         }
 
-        async function pushStateToCloudSilent() {
+        function initRealtimeMqttSync() {
+            if (typeof mqtt === 'undefined') return;
+            try {
+                mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+                    clientId: 'phuket_usr_' + Math.random().toString(36).slice(2, 10),
+                    clean: true,
+                    connectTimeout: 4000,
+                    reconnectPeriod: 2000
+                });
+
+                mqttClient.on('connect', () => {
+                    mqttClient.subscribe(MQTT_STATE_TOPIC, { qos: 0 });
+                    mqttClient.subscribe(MQTT_PRESENCE_TOPIC, { qos: 0 });
+                    if (currentUser) pingOnlineStatus(true);
+                    pushStateToCloudSilent(true);
+                });
+
+                mqttClient.on('message', (topic, message) => {
+                    try {
+                        const data = JSON.parse(message.toString());
+                        if (topic === MQTT_STATE_TOPIC && data.type === 'PHUKET_DB_STATE_V7') {
+                            applyIncomingCloudSnapshot(data);
+                        } else if (topic === MQTT_PRESENCE_TOPIC && data.user) {
+                            const pres = getOnlinePresenceDb();
+                            if (data.ts === 0) delete pres[data.user];
+                            else pres[data.user] = data.ts;
+                            localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
+                            renderOnlineUsersUI();
+                            if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
+                                renderAdminUsersList();
+                            }
+                        }
+                    } catch (e) {}
+                });
+            } catch (e) {}
+        }
+
+        async function pushStateToCloudSilent(force = false) {
             const now = Date.now();
-            if (now - lastCloudPushTs < 400) return;
+            if (!force && now - lastCloudPushTs < 150) return;
             lastCloudPushTs = now;
 
+            const payload = buildFullSyncPayload();
+            notifyRealtimePeers(payload);
+
+            // 1. Мгновенная отправка через WebSocket с флагом retain=true (новые клиенты получают состояние за 0.1 сек)
+            if (mqttClient && mqttClient.connected) {
+                try {
+                    mqttClient.publish(MQTT_STATE_TOPIC, JSON.stringify(payload), { qos: 0, retain: true });
+                } catch (e) {}
+            }
+
+            // 2. Дублирующий бэкап по HTTPS
             try {
-                const payload = {
-                    type: 'PHUKET_DB_STATE',
-                    users: stripLargeBase64ForCloud(getUsersDb()),
-                    presence: getOnlinePresenceDb(),
-                    checklists: stripLargeImagesFromChecklists(getChecklistsDb()),
-                    sharedEvents: getSharedEventsDb(),
-                    eventsUpdatedAt: Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || now),
-                    mainBudget: getMainSharedBudget(),
-                    ts: now
-                };
-                await fetch(CLOUD_STREAM_URL, {
+                fetch(REST_BACKUP_URL, {
                     method: 'POST',
                     body: JSON.stringify(payload)
                 }).catch(() => {});
@@ -1724,13 +1917,17 @@
             ensureAdminAccountExists();
             const statusLine = document.getElementById('adminSyncStatusLine');
             const gateBtn = document.getElementById('syncCloudGateBtn');
-            if (statusLine) statusLine.innerText = '⏳ Синхронизация базы пользователей, онлайна и чек-листов с облаком...';
+            if (statusLine) statusLine.innerText = '⏳ Мгновенная синхронизация всех профилей, онлайна и разделов...';
             if (showFeedback && gateBtn) gateBtn.innerText = '⏳ Синхронизация...';
+
+            if (mqttClient && mqttClient.connected) {
+                mqttClient.subscribe(MQTT_STATE_TOPIC);
+            }
 
             try {
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 4500);
-                const res = await fetch(`${CLOUD_STREAM_URL}/json?poll=1&since=72h`, { signal: controller.signal });
+                const timer = setTimeout(() => controller.abort(), 3200);
+                const res = await fetch(`${REST_BACKUP_URL}/json?poll=1&since=48h`, { signal: controller.signal });
                 clearTimeout(timer);
                 if (res.ok) {
                     const text = await res.text();
@@ -1740,7 +1937,7 @@
                             const wrapper = JSON.parse(line);
                             if (wrapper && wrapper.message) {
                                 const inner = JSON.parse(wrapper.message);
-                                if (inner && inner.type === 'PHUKET_DB_STATE') {
+                                if (inner && inner.type === 'PHUKET_DB_STATE_V7') {
                                     applyIncomingCloudSnapshot(inner);
                                 }
                             }
@@ -1754,57 +1951,44 @@
             const totalUsers = Object.keys(getUsersDb()).length;
             const nowStr = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
             if (statusLine) {
-                statusLine.innerHTML = `✅ База синхронизирована в <b>${nowStr}</b>. Зарегистрировано учетных записей: <b>${totalUsers}</b>.`;
+                statusLine.innerHTML = `✅ Синхронизировано в <b>${nowStr}</b>. Всего зарегистрированных профилей: <b>${totalUsers}</b>.`;
             }
             if (gateBtn) {
-                gateBtn.innerText = showFeedback ? `✅ База обновлена (учеток: ${totalUsers})` : '🔄 Синхронизировать базу с сервером';
+                gateBtn.innerText = showFeedback ? `✅ Синхронизировано (профилей: ${totalUsers})` : '🔄 Синхронизировать базу с сервером';
                 if (showFeedback) {
-                    setTimeout(() => { gateBtn.innerText = '🔄 Синхронизировать базу с сервером'; }, 2000);
+                    setTimeout(() => { gateBtn.innerText = '🔄 Синхронизировать базу с сервером'; }, 1800);
                 }
             }
         }
 
-        function startRealtimeCloudStream() {
-            if (!('EventSource' in window)) return;
-            try {
-                if (cloudEventSource) cloudEventSource.close();
-                cloudEventSource = new EventSource(`${CLOUD_STREAM_URL}/sse`);
-                cloudEventSource.onmessage = (ev) => {
-                    try {
-                        const wrapper = JSON.parse(ev.data);
-                        if (wrapper && wrapper.message) {
-                            const inner = JSON.parse(wrapper.message);
-                            if (inner && inner.type === 'PHUKET_DB_STATE') {
-                                applyIncomingCloudSnapshot(inner);
-                            }
-                        }
-                    } catch (e) {}
-                };
-            } catch (e) {}
-        }
-
-        /* ==================== ОНЛАЙН-СТАТУС ПОЛЬЗОВАТЕЛЕЙ (ВЫВОД КОНКРЕТНЫХ НИКОВ) ==================== */
+        /* ==================== МГНОВЕННЫЙ ОНЛАЙН (ПОДДЕРЖКА 3+ ПРОФИЛЕЙ ОДНОВРЕМЕННО) ==================== */
         function getOnlinePresenceDb() {
             const merged = {};
-            try {
-                const p5 = JSON.parse(localStorage.getItem(ONLINE_PRESENCE_KEY) || '{}');
-                Object.assign(merged, p5);
-            } catch (e) {}
-            try {
-                const p4 = JSON.parse(localStorage.getItem('phuket_online_presence_v4') || '{}');
-                Object.keys(p4).forEach(k => { merged[k] = Math.max(merged[k] || 0, p4[k] || 0); });
-            } catch (e) {}
+            ['phuket_online_presence_v7', 'phuket_online_presence_v6', 'phuket_online_presence_v5'].forEach(k => {
+                try {
+                    const p = JSON.parse(localStorage.getItem(k) || '{}');
+                    Object.keys(p).forEach(u => {
+                        merged[u] = Math.max(merged[u] || 0, p[u] || 0);
+                    });
+                } catch (e) {}
+            });
             return merged;
         }
 
-        function pingOnlineStatus(pushToCloud = false) {
+        function pingOnlineStatus(pushToNetwork = true) {
             if (!currentUser) return;
+            const now = Date.now();
             const pres = getOnlinePresenceDb();
-            pres[currentUser] = Date.now();
+            pres[currentUser] = now;
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
                 notifyRealtimePeers();
-                if (pushToCloud) pushStateToCloudSilent();
+                if (pushToNetwork) {
+                    if (mqttClient && mqttClient.connected) {
+                        mqttClient.publish(MQTT_PRESENCE_TOPIC, JSON.stringify({ user: currentUser, ts: now }));
+                    }
+                    pushStateToCloudSilent();
+                }
             } catch (e) {}
             renderOnlineUsersUI();
         }
@@ -1812,11 +1996,14 @@
         function removeCurrentUserFromOnline() {
             if (!currentUser) return;
             const pres = getOnlinePresenceDb();
-            pres[currentUser] = 0;
+            delete pres[currentUser];
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
                 notifyRealtimePeers();
-                pushStateToCloudSilent();
+                if (mqttClient && mqttClient.connected) {
+                    mqttClient.publish(MQTT_PRESENCE_TOPIC, JSON.stringify({ user: currentUser, ts: 0 }));
+                }
+                pushStateToCloudSilent(true);
             } catch (e) {}
             renderOnlineUsersUI();
         }
@@ -1827,19 +2014,20 @@
             const now = Date.now();
             const active = [];
 
-            // Гарантируем, что текущий авторизованный пользователь всегда числится онлайн, пока открыт сайт
             if (currentUser) {
                 pres[currentUser] = now;
             }
 
             Object.keys(pres).forEach(uKey => {
                 const lastSeen = pres[uKey] || 0;
-                // Если пользователь активен за последние 90 секунд — выводим его ник и статус «онлайн» (оффлайн не выводится)
-                if (lastSeen > 0 && (now - lastSeen <= 90000)) {
-                    const display = db[uKey]?.displayName || uKey;
+                // Активен в течение последних 45 секунд
+                if (lastSeen > 0 && (now - lastSeen <= 45000)) {
+                    const uObj = db[uKey] || {};
+                    const display = uObj.displayName || uKey;
                     active.push({
                         key: uKey,
                         displayName: display,
+                        avatar: uObj.avatar || '',
                         isMe: currentUser && uKey.toLowerCase() === currentUser.toLowerCase()
                     });
                 }
@@ -1868,19 +2056,20 @@
             if (adminBox) adminBox.innerHTML = html;
         }
 
-        // Регулярный пинг онлайна и фоновая подкачка обновлений
+        // Быстрый пульс онлайна каждые 5 секунд для мгновенного отображения всех активных профилей
         setInterval(() => {
             if (currentUser) {
                 pingOnlineStatus(true);
+            } else {
+                renderOnlineUsersUI();
             }
-        }, 18000);
-
-        setInterval(() => {
-            syncUsersFromCloud(false);
-        }, 12000);
+        }, 5000);
 
         window.addEventListener('beforeunload', () => {
-            saveUserDataState();
+            if (currentUser) {
+                saveUserDataState();
+                removeCurrentUserFromOnline();
+            }
         });
 
         /* ==================== ТУМБЛЕР ГЕОЛОКАЦИИ НА ГЛАВНОЙ ==================== */
@@ -1954,10 +2143,10 @@
             );
         }
 
-        /* ==================== ВХОД И РЕГИСТРАЦИЯ ==================== */
+        /* ==================== ВХОД, РЕГИСТРАЦИЯ И СЕССИИ В РАЗНЫХ ВКЛАДКАХ ==================== */
         function findUserKeyCaseInsensitive(db, nickname) {
             const target = (nickname || '').trim().toLowerCase();
-            return Object.keys(db).find(k => k.toLowerCase() === target) || null;
+            return Object.keys(db).find(k => (k.toLowerCase() === target) || ((db[k]?.displayName || '').toLowerCase() === target)) || null;
         }
 
         function validatePasswordRules(pass) {
@@ -2059,8 +2248,6 @@
                 return;
             }
 
-            // Перед проверкой подтягиваем свежие учетки из облака
-            await syncUsersFromCloud(false);
             const db = getUsersDb();
 
             if (authMode === 'login') {
@@ -2101,6 +2288,7 @@
                 };
                 setUsersDb(db, true);
                 completeLoginSession(login);
+                pushStateToCloudSilent(true);
             }
         }
 
@@ -2168,6 +2356,7 @@
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            renderNextEventOnHome();
             renderChecklistSection();
         }
 
@@ -2176,6 +2365,8 @@
             inspectedUserByAdmin = null;
             activeBudgetSubtab = userKey;
             activeChecklistFolderUser = userKey;
+            // Храним активную сессию в sessionStorage, чтобы можно было сидеть с 3 разных аккаунтов в соседних вкладках!
+            sessionStorage.setItem(ACTIVE_SESSION_KEY, currentUser);
             localStorage.setItem(ACTIVE_SESSION_KEY, currentUser);
 
             document.getElementById('gateLoginInput').value = '';
@@ -2194,6 +2385,7 @@
             removeCurrentUserFromOnline();
             currentUser = null;
             inspectedUserByAdmin = null;
+            sessionStorage.removeItem(ACTIVE_SESSION_KEY);
             localStorage.removeItem(ACTIVE_SESSION_KEY);
 
             document.getElementById('profileDropdown').classList.remove('open');
@@ -2202,28 +2394,24 @@
             setAuthMode('login');
         }
 
-        /* ==================== МЕНЮ ПРОФИЛЯ И АДМИН-ПАНЕЛЬ ==================== */
+        /* ==================== ПРОФИЛЬ И РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЕЙ АДМИНОМ ==================== */
         function renderHeaderProfileUI() {
             if (!currentUser) return;
             const db = getUsersDb();
             const u = db[currentUser] || {};
             const isAdmin = isCurrentUserAdmin();
 
-            const targetLabel = inspectedUserByAdmin && isAdmin
-                ? `${u.displayName || currentUser} (правки: ${inspectedUserByAdmin})`
+            const targetDisplay = inspectedUserByAdmin && isAdmin
+                ? `${u.displayName || currentUser} (правки: ${db[inspectedUserByAdmin]?.displayName || inspectedUserByAdmin})`
                 : (u.displayName || currentUser);
 
-            document.getElementById('headerUsernameLabel').innerText = targetLabel;
+            document.getElementById('headerUsernameLabel').innerText = targetDisplay;
             document.getElementById('pdUsername').innerText = u.displayName || currentUser;
             document.getElementById('pdRoleLabel').innerText = isAdmin ? '🛡️ Администратор сервиса' : (u.bio || 'Путешественник');
             document.getElementById('pdAdminBtn').style.display = isAdmin ? 'flex' : 'none';
 
             const avBox = document.getElementById('headerAvatarBox');
-            if (u.avatar) {
-                avBox.innerHTML = `<img src="${u.avatar}" alt="avatar" style="width:100%;height:100%;object-fit:cover;">`;
-            } else {
-                avBox.innerText = (u.displayName || currentUser).charAt(0).toUpperCase();
-            }
+            renderSafeAvatarIntoElement(avBox, u.avatar, u.displayName || currentUser);
         }
 
         function toggleProfileDropdown(e) {
@@ -2239,19 +2427,26 @@
             }
         });
 
-        function openProfileSettingsModal() {
+        function openProfileSettingsModal(targetUserKey = null) {
             document.getElementById('profileDropdown').classList.remove('open');
+            const editKey = (targetUserKey && isCurrentUserAdmin()) ? targetUserKey : currentUser;
             const db = getUsersDb();
-            const u = db[currentUser] || {};
+            const u = db[editKey] || {};
 
-            document.getElementById('modalProfileName').innerText = u.displayName || currentUser;
+            document.getElementById('profTargetUserKey').value = editKey;
+            document.getElementById('profModalHeaderTitle').innerText = (editKey !== currentUser)
+                ? `🛠️ Редактирование профиля: ${u.displayName || editKey}`
+                : '⚙️ Настройки вашего профиля';
+
+            document.getElementById('modalProfileName').innerText = u.displayName || editKey;
             document.getElementById('modalProfileBioPreview').innerText = u.bio || 'Описание пока не добавлено';
+            document.getElementById('profDisplayNameInput').value = u.displayName || editKey;
             document.getElementById('profAvatarUrlInput').value = u.avatar || '';
             document.getElementById('profBioInput').value = u.bio || '';
             document.getElementById('profNewPassInput').value = '';
             document.getElementById('profModalMsg').style.display = 'none';
 
-            previewProfileAvatar(u.avatar || '');
+            previewProfileAvatar(u.avatar || '', u.displayName || editKey);
             document.getElementById('profileSettingsModal').classList.add('open');
         }
 
@@ -2259,36 +2454,59 @@
             document.getElementById('profileSettingsModal').classList.remove('open');
         }
 
-        function previewProfileAvatar(url) {
+        function previewProfileAvatar(url, fallbackName) {
             const box = document.getElementById('modalAvatarPreview');
-            if (url && url.trim()) {
-                box.innerHTML = `<img src="${url.trim()}" style="width:100%;height:100%;object-fit:cover;">`;
-            } else {
-                box.innerText = (currentUser || 'U').charAt(0).toUpperCase();
+            const name = fallbackName || document.getElementById('profDisplayNameInput')?.value || currentUser || 'U';
+            renderSafeAvatarIntoElement(box, url, name);
+        }
+
+        function selectPresetEmojiAvatar(emoji) {
+            const val = emoji ? createEmojiSvgDataUrl(emoji, '#007aff') : '';
+            document.getElementById('profAvatarUrlInput').value = val;
+            previewProfileAvatar(val);
+        }
+
+        async function uploadProfileAvatarFile(inputEl) {
+            const file = inputEl.files?.[0];
+            if (!file) return;
+            // Автоматическое сжатие фото до легкого JPEG 96x96 — гарантированно отображается без знака вопроса у всех
+            const compressedDataUrl = await compressImageFileToDataUrl(file, 96, 0.82);
+            if (compressedDataUrl) {
+                document.getElementById('profAvatarUrlInput').value = compressedDataUrl;
+                previewProfileAvatar(compressedDataUrl);
             }
         }
 
-        function uploadProfileAvatarFile(inputEl) {
-            const file = inputEl.files?.[0];
-            if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                const dataUrl = ev.target.result;
-                document.getElementById('profAvatarUrlInput').value = dataUrl;
-                previewProfileAvatar(dataUrl);
-            };
-            reader.readAsDataURL(file);
-        }
-
         function saveProfileSettings() {
+            const targetKey = document.getElementById('profTargetUserKey').value || currentUser;
+            if (!targetKey) return;
+            if (targetKey !== currentUser && !isCurrentUserAdmin()) return;
+
             const db = getUsersDb();
-            const u = db[currentUser];
+            const u = db[targetKey];
             if (!u) return;
 
+            const newDisplayName = document.getElementById('profDisplayNameInput').value.trim();
             const newAvatar = document.getElementById('profAvatarUrlInput').value.trim();
             const newBio = document.getElementById('profBioInput').value.trim();
             const newPass = document.getElementById('profNewPassInput').value;
             const msgEl = document.getElementById('profModalMsg');
+
+            if (!newDisplayName || newDisplayName.length < 2) {
+                msgEl.style.display = 'block';
+                msgEl.style.color = 'var(--danger)';
+                msgEl.innerText = '❌ Имя / никнейм должен содержать минимум 2 символа!';
+                return;
+            }
+
+            // Проверка на уникальность нового имени
+            const duplicateKey = Object.keys(db).find(k => k !== targetKey && (db[k]?.displayName || k).toLowerCase() === newDisplayName.toLowerCase());
+            if (duplicateKey) {
+                msgEl.style.display = 'block';
+                msgEl.style.color = 'var(--danger)';
+                msgEl.innerText = `❌ Имя «${newDisplayName}» уже занято другим участником!`;
+                return;
+            }
 
             if (newPass) {
                 const pRules = validatePasswordRules(newPass);
@@ -2301,24 +2519,34 @@
                 u.password = newPass;
             }
 
+            u.displayName = newDisplayName;
             u.avatar = newAvatar;
             u.bio = newBio;
             u.updatedAt = Date.now();
+
+            // Обновляем отображаемое имя в папке чек-листа, если она есть
+            const chkDb = getChecklistsDb();
+            if (chkDb[targetKey]) {
+                chkDb[targetKey].displayName = newDisplayName;
+                chkDb[targetKey].updatedAt = Date.now();
+                saveChecklistsDb(chkDb);
+            }
+
             setUsersDb(db, true);
-            renderHeaderProfileUI();
+            pushStateToCloudSilent(true);
+            refreshAllSharedViews();
 
             msgEl.style.display = 'block';
             msgEl.style.color = 'var(--success)';
-            msgEl.innerText = '✅ Профиль автоматически сохранен!';
-            setTimeout(() => closeProfileSettingsModal(), 700);
+            msgEl.innerText = '✅ Профиль успешно сохранен и синхронизирован у всех!';
+            setTimeout(() => closeProfileSettingsModal(), 650);
         }
 
         function openAdminPanelModal() {
             document.getElementById('profileDropdown').classList.remove('open');
             renderAdminUsersList();
             document.getElementById('adminPanelModal').classList.add('open');
-            // При открытии админ-панели автоматически подтягиваем все учетки с облака
-            syncUsersFromCloud(true);
+            syncUsersFromCloud(false);
         }
 
         function closeAdminPanelModal() {
@@ -2347,26 +2575,35 @@
                 const u = db[uKey];
                 const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '327000';
                 const isBeingEdited = (inspectedUserByAdmin || currentUser) === uKey;
-                const isUserOnline = (uKey === currentUser) || ((pres[uKey] || 0) > 0 && (now - (pres[uKey] || 0)) <= 90000);
+                const isUserOnline = (uKey === currentUser) || ((pres[uKey] || 0) > 0 && (now - (pres[uKey] || 0)) <= 45000);
                 const createdStr = u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—';
                 const userChkItems = chkDb[uKey]?.items || [];
                 const userChkDone = userChkItems.filter(i => i.done).length;
+                const safeId = 'adm_av_' + uKey.replace(/[^a-zA-Z0-9]/g, '_');
+
+                setTimeout(() => {
+                    renderSafeAvatarIntoElement(document.getElementById(safeId), u.avatar, u.displayName || uKey);
+                }, 0);
 
                 return `
                     <div class="admin-user-row" style="${isBeingEdited ? 'border-color:var(--success);' : ''}">
-                        <div>
-                            <div style="font-weight:800; color:var(--heading); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-                                <span>👤 ${u.displayName || uKey}</span>
-                                ${u.role === 'admin' ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
-                                ${isUserOnline ? '<span class="online-badge-pill" style="padding:1px 8px; font-size:0.68rem;"><span class="online-dot-pulse"></span> онлайн</span>' : ''}
+                        <div style="display:flex; align-items:center; gap:10px;">
+                            <div class="profile-avatar-sm" id="${safeId}" style="width:38px; height:38px; font-size:0.95rem;">👤</div>
+                            <div>
+                                <div style="font-weight:800; color:var(--heading); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+                                    <span>${u.displayName || uKey}</span>
+                                    <span style="font-size:0.7rem; color:var(--muted);">(@${uKey})</span>
+                                    ${u.role === 'admin' ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
+                                    ${isUserOnline ? '<span class="online-badge-pill" style="padding:1px 8px; font-size:0.68rem;"><span class="online-dot-pulse"></span> онлайн</span>' : ''}
+                                </div>
+                                <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">
+                                    Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b> • Чек-лист: <b>${userChkDone}/${userChkItems.length}</b> • Создан: ${createdStr}
+                                </div>
+                                ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text); margin-top:2px;">О себе: ${u.bio}</div>` : ''}
                             </div>
-                            <div style="font-size:0.75rem; color:var(--muted); margin-top:3px;">
-                                Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b> • Чек-лист: <b>${userChkDone}/${userChkItems.length}</b> • Создан: ${createdStr}
-                            </div>
-                            ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text); margin-top:2px;">О себе: ${u.bio}</div>` : ''}
                         </div>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
-                            <button class="link-btn" onclick="adminResetUserPassword('${uKey}')">🔑 Сбросить/Заменить пароль</button>
+                            <button class="link-btn" onclick="openProfileSettingsModal('${uKey}')">🎭 Изменить профиль (Имя / Аватар / Пароль)</button>
                             <button class="link-btn" style="color:var(--success); border-color:var(--success);" onclick="adminSwitchToUserContext('${uKey}')">
                                 ${isBeingEdited ? '✓ Активен для правок' : '✏️ Редактировать разделы'}
                             </button>
@@ -2374,24 +2611,6 @@
                     </div>
                 `;
             }).join('');
-        }
-
-        function adminResetUserPassword(targetKey) {
-            const newPass = prompt(`Введите новый пароль для пользователя «${targetKey}» (минимум 5 символов, буквы, цифры и спецсимвол):`, 'Reset!2026');
-            if (!newPass) return;
-            const pRules = validatePasswordRules(newPass);
-            if (!pRules.isValid) {
-                alert('Пароль должен содержать минимум 5 символов, буквы, цифры и спецсимвол!');
-                return;
-            }
-            const db = getUsersDb();
-            if (db[targetKey]) {
-                db[targetKey].password = newPass;
-                db[targetKey].updatedAt = Date.now();
-                setUsersDb(db, true);
-                renderAdminUsersList();
-                alert(`Пароль пользователя «${targetKey}» успешно заменен на: ${newPass}`);
-            }
         }
 
         function adminSwitchToUserContext(targetKey) {
@@ -2403,8 +2622,8 @@
             renderHeaderProfileUI();
             renderAdminUsersList();
         }
-
-        /* ==================== КЭШ И РОУТЕР ВКЛАДОК ==================== */
+<!-- ==================== КОНЕЦ ЧАСТИ 2 (ВСТАВЬТЕ ЧАСТЬ 3 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
+/* ==================== КЭШ И РОУТЕР ВКЛАДОК ==================== */
         const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v2';
         function saveOfflineCache(section, payload) {
             try {
@@ -2465,10 +2684,11 @@
                 updateTripCountdown();
                 renderSeasonalWarnings();
                 renderOnlineUsersUI();
+                renderNextEventOnHome();
             }
         }
 
-        /* ==================== ОБЩИЙ КАЛЕНДАРЬ ПЛАНИРОВАНИЯ (ВИДЕН ВСЕМ, С АВТОРОМ, КАРТОЙ И БЮДЖЕТОМ) ==================== */
+        /* ==================== ОБЩИЙ КАЛЕНДАРЬ И БЛОК «БЛИЖАЙШЕЕ СОБЫТИЕ» НА ГЛАВНОЙ ==================== */
         let calViewYear = 2026;
         let calViewMonth = 11;
         let selectedDateIso = '2026-12-16';
@@ -2480,15 +2700,17 @@
                 shared = JSON.parse(localStorage.getItem(SHARED_EVENTS_KEY) || '{}');
             } catch (e) { shared = {}; }
 
-            try {
-                const v4 = JSON.parse(localStorage.getItem('phuket_shared_calendar_events_v4') || '{}');
-                Object.keys(v4).forEach(dIso => {
-                    if (!shared[dIso]) shared[dIso] = [];
-                    (v4[dIso] || []).forEach(ev => {
-                        if (!shared[dIso].some(x => x.id === ev.id)) shared[dIso].push(ev);
+            ['phuket_shared_calendar_events_v6', 'phuket_shared_calendar_events_v5', 'phuket_shared_calendar_events_v4'].forEach(oldK => {
+                try {
+                    const oldEv = JSON.parse(localStorage.getItem(oldK) || '{}');
+                    Object.keys(oldEv).forEach(dIso => {
+                        if (!shared[dIso]) shared[dIso] = [];
+                        (oldEv[dIso] || []).forEach(ev => {
+                            if (!shared[dIso].some(x => x.id === ev.id)) shared[dIso].push(ev);
+                        });
                     });
-                });
-            } catch (e) {}
+                } catch (e) {}
+            });
 
             const db = getUsersDb();
             let merged = false;
@@ -2516,12 +2738,72 @@
                 localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(sharedObj));
                 localStorage.setItem(SHARED_EVENTS_KEY + '_ts', String(Date.now()));
                 notifyRealtimePeers();
-                pushStateToCloudSilent();
+                pushStateToCloudSilent(true);
             } catch (e) {}
         }
 
         function loadSharedEvents() {
             calendarEvents = getSharedEventsDb();
+        }
+
+        // Вывод ближайшего запланированного события на Главной странице рядом с датами отпуска
+        function renderNextEventOnHome() {
+            const box = document.getElementById('homeNextEventContent');
+            const totalLbl = document.getElementById('homeTotalEventsCountLbl');
+            const heroWrap = document.getElementById('homeNextEventBox');
+            if (!box) return;
+
+            loadSharedEvents();
+            const allList = [];
+            Object.keys(calendarEvents).forEach(dIso => {
+                (calendarEvents[dIso] || []).forEach(ev => {
+                    const timeStr = ev.start && /^\d{2}:\d{2}$/.test(ev.start) ? ev.start : '09:00';
+                    const dtMs = new Date(`${dIso}T${timeStr}:00`).getTime();
+                    allList.push({ dateIso: dIso, dtMs, ev });
+                });
+            });
+
+            allList.sort((a, b) => a.dtMs - b.dtMs);
+            if (totalLbl) totalLbl.innerText = `Всего событий в плане: ${allList.length}`;
+
+            if (allList.length === 0) {
+                if (heroWrap) heroWrap.style.borderLeftColor = 'var(--accent)';
+                box.innerHTML = `
+                    <div style="color:var(--muted); padding:6px 0;">
+                        В календаре пока нет запланированных мероприятий или экскурсий.<br>
+                        Нажмите <b>«➕ Добавить ивент»</b> ниже, чтобы создать первое событие.
+                    </div>
+                `;
+                return;
+            }
+
+            const nowMs = Date.now() - 3600000; // События с текущего часа и далее
+            let nextItem = allList.find(x => x.dtMs >= nowMs) || allList[0];
+            const { dateIso, ev } = nextItem;
+
+            if (heroWrap) heroWrap.style.borderLeftColor = ev.color || 'var(--accent)';
+
+            const mapLinkHtml = ev.mapPin ? `
+                <div style="margin-top:4px;">
+                    <a href="https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(ev.mapCoords || ev.mapPin)}" target="_blank" rel="noopener" class="vp-link">
+                        📍 Карта: ${ev.mapPin} ↗
+                    </a>
+                </div>
+            ` : '';
+
+            box.innerHTML = `
+                <div style="cursor:pointer;" onclick="switchTab('schedule'); selectCalendarDate('${dateIso}');">
+                    <div style="font-size:0.75rem; font-weight:700; color:var(--warning);">
+                        🗓️ ${formatIsoHuman(dateIso)} • ⏰ ${ev.start || '--:--'}${ev.end ? '–' + ev.end : ''}
+                    </div>
+                    <div style="font-size:0.98rem; font-weight:800; color:var(--heading); margin-top:2px;">
+                        ${ev.title}
+                        <span class="ev-author-badge">✍️ ${ev.author || 'Участник'}</span>
+                    </div>
+                    ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
+                    ${mapLinkHtml}
+                </div>
+            `;
         }
 
         function onEventMapPresetChange(val) {
@@ -2813,6 +3095,7 @@
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            renderNextEventOnHome();
         }
 
         function deleteCalendarEvent(dateIso, evId) {
@@ -2824,6 +3107,7 @@
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            renderNextEventOnHome();
         }
 
         function renderAllEventsSummary() {
@@ -2860,21 +3144,25 @@
             box.innerHTML = html;
         }
 
-        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (ПАПКИ, ПРОСМОТР ЧУЖИХ ГАЛОЧЕК И РЕДАКТИРОВАНИЕ ПОЗИЦИЙ) ==================== */
+        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (ВАЛЮТА, РЕДАКТИРОВАНИЕ И ПОЛНАЯ СУММА ВНИЗУ) ==================== */
+        const CURRENCY_SYMBOLS = { RUB: '₽', THB: '฿', USD: '$', EUR: '€' };
+
         function getChecklistsDb() {
             let chk = {};
             try {
                 chk = JSON.parse(localStorage.getItem(SHARED_CHECKLIST_KEY) || '{}');
             } catch (e) { chk = {}; }
 
-            try {
-                const v4 = JSON.parse(localStorage.getItem('phuket_shared_checklists_v4') || '{}');
-                Object.keys(v4).forEach(uKey => {
-                    if (!chk[uKey] || (v4[uKey]?.updatedAt || 0) > (chk[uKey]?.updatedAt || 0)) {
-                        chk[uKey] = v4[uKey];
-                    }
-                });
-            } catch (e) {}
+            ['phuket_shared_checklists_v6', 'phuket_shared_checklists_v5', 'phuket_shared_checklists_v4'].forEach(oldK => {
+                try {
+                    const oldObj = JSON.parse(localStorage.getItem(oldK) || '{}');
+                    Object.keys(oldObj).forEach(uKey => {
+                        if (!chk[uKey] || (oldObj[uKey]?.updatedAt || 0) > (chk[uKey]?.updatedAt || 0)) {
+                            chk[uKey] = oldObj[uKey];
+                        }
+                    });
+                } catch (e) {}
+            });
             return chk;
         }
 
@@ -2882,7 +3170,7 @@
             try {
                 localStorage.setItem(SHARED_CHECKLIST_KEY, JSON.stringify(chkDb));
                 notifyRealtimePeers();
-                pushStateToCloudSilent();
+                pushStateToCloudSilent(true);
             } catch (e) {}
         }
 
@@ -2890,6 +3178,43 @@
             if (!currentUser || !folderOwnerKey) return false;
             if (isCurrentUserAdmin()) return true;
             return folderOwnerKey.toLowerCase() === currentUser.toLowerCase();
+        }
+
+        // Конвертер валют для чек-листа на основе актуальных курсов из приложения
+        function convertChecklistCurrencyAmount(amount, fromCurr, toCurr) {
+            const val = Number(amount || 0);
+            if (!val || fromCurr === toCurr) return val;
+
+            const spbUsd = parseFloat(document.getElementById('usd_spb_1')?.value) || 84.20;
+            const vpThb = parseFloat(document.getElementById('usd_vp')?.value) || 33.58;
+            const eurThb = parseFloat(document.getElementById('eur_vp')?.value) || 37.55;
+            const rubPerThb = spbUsd / vpThb;
+
+            // Переводим сначала в THB как базовую единицу
+            let inThb = val;
+            if (fromCurr === 'RUB') inThb = val / rubPerThb;
+            else if (fromCurr === 'USD') inThb = val * vpThb;
+            else if (fromCurr === 'EUR') inThb = val * eurThb;
+
+            if (toCurr === 'THB') return inThb;
+            if (toCurr === 'RUB') return inThb * rubPerThb;
+            if (toCurr === 'USD') return inThb / vpThb;
+            if (toCurr === 'EUR') return inThb / eurThb;
+            return val;
+        }
+
+        function onChecklistCurrencyChange(newCurr) {
+            if (!activeChecklistFolderUser) return;
+            const chkDb = getChecklistsDb();
+            const folder = chkDb[activeChecklistFolderUser];
+            if (folder && canEditChecklistFolder(activeChecklistFolderUser)) {
+                folder.currency = newCurr;
+                folder.updatedAt = Date.now();
+                saveChecklistsDb(chkDb);
+            }
+            const itemCurrSel = document.getElementById('chkItemCurrency');
+            if (itemCurrSel) itemCurrSel.value = newCurr;
+            renderChecklistItems();
         }
 
         function createUserChecklistFolder() {
@@ -2900,6 +3225,7 @@
                 chkDb[currentUser] = {
                     owner: currentUser,
                     displayName: db[currentUser]?.displayName || currentUser,
+                    currency: 'RUB',
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
                     items: []
@@ -2918,6 +3244,7 @@
 
         function renderChecklistSection() {
             const chkDb = getChecklistsDb();
+            const db = getUsersDb();
             const createBanner = document.getElementById('createMyChecklistBanner');
             const foldersGrid = document.getElementById('checklistFoldersGrid');
             const folderView = document.getElementById('checklistFolderContentView');
@@ -2941,18 +3268,23 @@
 
             foldersGrid.innerHTML = folderKeys.map(uKey => {
                 const f = chkDb[uKey];
+                const ownerDisplay = db[uKey]?.displayName || f.displayName || uKey;
                 const items = f.items || [];
                 const doneCount = items.filter(i => i.done).length;
                 const isSelected = uKey === activeChecklistFolderUser;
                 const canWrite = canEditChecklistFolder(uKey);
+                const folderCurr = f.currency || 'RUB';
+                const sym = CURRENCY_SYMBOLS[folderCurr] || '₽';
+                const folderSum = items.reduce((acc, it) => acc + convertChecklistCurrencyAmount(it.amount || 0, it.currency || folderCurr, folderCurr), 0);
+
                 return `
                     <div class="folder-card ${isSelected ? 'active-folder' : ''}" onclick="selectChecklistFolder('${uKey}')">
                         <div>
                             <div style="font-weight:800; color:var(--heading); font-size:0.95rem;">
-                                📂 Список: ${f.displayName || uKey}
+                                📂 Список: ${ownerDisplay}
                             </div>
                             <div style="font-size:0.75rem; color:var(--muted); margin-top:3px;">
-                                Позиций: <b>${items.length}</b> (отмечено выполненным: <b style="color:var(--success);">${doneCount}</b>)
+                                Позиций: <b>${items.length}</b> (выполнено: <b style="color:var(--success);">${doneCount}</b>) • Сумма: <b>${fmtInt(folderSum)} ${sym}</b>
                             </div>
                         </div>
                         <span class="status-pill ${canWrite ? 'pill-good' : 'pill-warn'}">
@@ -2965,21 +3297,32 @@
             folderView.style.display = 'block';
             const activeFolder = chkDb[activeChecklistFolderUser];
             const editable = canEditChecklistFolder(activeChecklistFolderUser);
+            const activeOwnerName = db[activeChecklistFolderUser]?.displayName || activeFolder.displayName || activeChecklistFolderUser;
+            const folderCurr = activeFolder.currency || 'RUB';
 
-            document.getElementById('chkActiveFolderTitle').innerText = `📂 Чек-лист вещей — автор: ${activeFolder.displayName || activeChecklistFolderUser}`;
+            const currSel = document.getElementById('chkFolderCurrencySelect');
+            if (currSel) {
+                currSel.value = folderCurr;
+                currSel.disabled = !editable;
+            }
+
+            document.getElementById('chkActiveFolderTitle').innerText = `📂 Чек-лист вещей — автор: ${activeOwnerName}`;
             document.getElementById('chkActiveFolderAccessHint').innerHTML = editable
-                ? `<span style="color:var(--success);font-weight:700;">✓ Вы можете создавать, редактировать и отмечать вещи в этой папке</span>`
-                : `<span style="color:var(--warning);font-weight:700;">👁️ Режим чтения: вы видите все вещи и отметки выполнения участника ${activeFolder.displayName || activeChecklistFolderUser}</span>`;
+                ? `<span style="color:var(--success);font-weight:700;">✓ Вы можете добавлять, редактировать и отмечать позиции в этой папке</span>`
+                : `<span style="color:var(--warning);font-weight:700;">👁️ Режим чтения: вы видите все вещи и отметки участника ${activeOwnerName} в реальном времени</span>`;
 
             document.getElementById('chkOpenEditorBtn').style.display = editable ? 'inline-block' : 'none';
             renderChecklistItems();
         }
 
         function resetChecklistEditorFields() {
+            const chkDb = getChecklistsDb();
+            const folderCurr = chkDb[activeChecklistFolderUser]?.currency || 'RUB';
             document.getElementById('chkEditingItemId').value = '';
             document.getElementById('chkItemTitle').value = '';
             document.getElementById('chkItemCategory').value = 'take';
             document.getElementById('chkItemAmount').value = '';
+            document.getElementById('chkItemCurrency').value = folderCurr;
             document.getElementById('chkItemUrgency').value = 'medium';
             document.getElementById('chkItemColor').value = '#007aff';
             document.getElementById('chkItemDesc').value = '';
@@ -3012,6 +3355,7 @@
             document.getElementById('chkItemTitle').value = item.title || '';
             document.getElementById('chkItemCategory').value = item.category || 'take';
             document.getElementById('chkItemAmount').value = item.amount > 0 ? item.amount : '';
+            document.getElementById('chkItemCurrency').value = item.currency || folder.currency || 'RUB';
             document.getElementById('chkItemUrgency').value = item.urgency || 'medium';
             document.getElementById('chkItemColor').value = item.color || '#007aff';
             document.getElementById('chkItemDesc').value = item.desc || '';
@@ -3045,15 +3389,14 @@
             renderChecklistItems();
         }
 
-        function uploadChecklistImageFile(inputEl) {
+        async function uploadChecklistImageFile(inputEl) {
             const file = inputEl.files?.[0];
             if (!file) return;
-            const reader = new FileReader();
-            reader.onload = (ev) => {
-                uploadedChecklistImgData = ev.target.result;
-                document.getElementById('chkItemImageUrl').value = uploadedChecklistImgData;
-            };
-            reader.readAsDataURL(file);
+            const compressed = await compressImageFileToDataUrl(file, 220, 0.78);
+            if (compressed) {
+                uploadedChecklistImgData = compressed;
+                document.getElementById('chkItemImageUrl').value = compressed;
+            }
         }
 
         function saveNewChecklistItem() {
@@ -3069,6 +3412,7 @@
             }
             const category = document.getElementById('chkItemCategory').value;
             const amount = parseFloat(document.getElementById('chkItemAmount').value) || 0;
+            const itemCurrency = document.getElementById('chkItemCurrency').value || 'RUB';
             const urgency = document.getElementById('chkItemUrgency').value;
             const color = document.getElementById('chkItemColor').value || '#007aff';
             const desc = document.getElementById('chkItemDesc').value.trim();
@@ -3083,7 +3427,6 @@
             if (!folder) return;
 
             if (editingId) {
-                // Редактирование существующей позиции
                 const existingItem = (folder.items || []).find(i => i.id === editingId);
                 if (existingItem) {
                     const oldSubMap = {};
@@ -3099,6 +3442,7 @@
                     existingItem.title = title;
                     existingItem.category = category;
                     existingItem.amount = amount;
+                    existingItem.currency = itemCurrency;
                     existingItem.urgency = urgency;
                     existingItem.color = color;
                     existingItem.desc = desc;
@@ -3107,7 +3451,6 @@
                     existingItem.subtasks = updatedSubtasks;
                 }
             } else {
-                // Создание новой позиции
                 const subtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
                     id: 'sub_' + Date.now() + '_' + idx,
                     title: st,
@@ -3119,6 +3462,7 @@
                     title,
                     category,
                     amount,
+                    currency: itemCurrency,
                     urgency,
                     color,
                     desc,
@@ -3145,7 +3489,6 @@
             if (!item) return;
 
             item.done = !item.done;
-            // При закрытии задачи все ее подзадачи автоматически закрываются
             if (item.done && Array.isArray(item.subtasks)) {
                 item.subtasks.forEach(st => { st.done = true; });
             }
@@ -3199,8 +3542,35 @@
 
             const editable = canEditChecklistFolder(activeChecklistFolderUser);
             const catFilter = document.getElementById('chkCatFilterSelect')?.value || 'all';
+            const folderCurr = folder.currency || document.getElementById('chkFolderCurrencySelect')?.value || 'RUB';
+            const folderSym = CURRENCY_SYMBOLS[folderCurr] || '₽';
+            const altCurr = folderCurr === 'THB' ? 'RUB' : 'THB';
+            const altSym = CURRENCY_SYMBOLS[altCurr];
 
-            let items = (folder.items || []).slice();
+            const allFolderItems = folder.items || [];
+
+            // Расчет полной суммы всех позиций в папке (а также отдельно выполненных и не выполненных)
+            let sumAll = 0, sumOpen = 0, sumDone = 0;
+            allFolderItems.forEach(it => {
+                const conv = convertChecklistCurrencyAmount(it.amount || 0, it.currency || folderCurr, folderCurr);
+                sumAll += conv;
+                if (it.done) sumDone += conv;
+                else sumOpen += conv;
+            });
+
+            const sumAllAlt = convertChecklistCurrencyAmount(sumAll, folderCurr, altCurr);
+            const sumOpenAlt = convertChecklistCurrencyAmount(sumOpen, folderCurr, altCurr);
+            const sumDoneAlt = convertChecklistCurrencyAmount(sumDone, folderCurr, altCurr);
+
+            document.getElementById('chkFooterPositionsCount').innerText = `Всего позиций: ${allFolderItems.length} (Валюта итогов: ${folderCurr})`;
+            document.getElementById('chkTotalAllVal').innerText = `${fmtInt(sumAll)} ${folderSym}`;
+            document.getElementById('chkTotalAllEq').innerText = `≈ ${fmtInt(sumAllAlt)} ${altSym}`;
+            document.getElementById('chkTotalOpenVal').innerText = `${fmtInt(sumOpen)} ${folderSym}`;
+            document.getElementById('chkTotalOpenEq').innerText = `≈ ${fmtInt(sumOpenAlt)} ${altSym}`;
+            document.getElementById('chkTotalDoneVal').innerText = `${fmtInt(sumDone)} ${folderSym}`;
+            document.getElementById('chkTotalDoneEq').innerText = `≈ ${fmtInt(sumDoneAlt)} ${altSym}`;
+
+            let items = allFolderItems.slice();
             if (checklistFilterMode === 'open') items = items.filter(i => !i.done);
             if (checklistFilterMode === 'done') items = items.filter(i => i.done);
             if (catFilter !== 'all') items = items.filter(i => i.category === catFilter);
@@ -3223,6 +3593,9 @@
 
             container.innerHTML = items.map(item => {
                 const u = urgMeta[item.urgency] || urgMeta.medium;
+                const itCurr = item.currency || folderCurr;
+                const itSym = CURRENCY_SYMBOLS[itCurr] || '₽';
+
                 const linksHtml = (item.links || []).map((lnk, idx) => {
                     const href = lnk.startsWith('http') ? lnk : 'https://' + lnk;
                     return `<a href="${href}" target="_blank" rel="noopener" class="vp-link" style="background:rgba(0,122,255,0.14); padding:3px 8px; border-radius:6px; border:1px solid rgba(0,122,255,0.3);">🔗 Ссылка #${idx + 1} ↗</a>`;
@@ -3247,11 +3620,11 @@
                                         <span style="font-size:0.96rem; font-weight:800; color:var(--heading); ${item.done ? 'text-decoration:line-through;' : ''}">${item.title}</span>
                                         <span class="urgency-badge ${u.cls}">${u.text}</span>
                                         <span style="font-size:0.72rem; color:var(--accent); font-weight:700;">${catNames[item.category] || '🎒 Вещь'}</span>
-                                        ${item.amount > 0 ? `<span style="font-size:0.76rem; font-weight:800; color:var(--success);">💰 ${fmtInt(item.amount)} ₽/฿</span>` : ''}
+                                        ${item.amount > 0 ? `<span style="font-size:0.76rem; font-weight:800; color:var(--success);">💰 ${fmtInt(item.amount)} ${itSym}</span>` : ''}
                                         ${item.done ? `<span style="font-size:0.7rem; color:var(--success); font-weight:700;">[✓ Выполнено]</span>` : ''}
                                     </div>
                                     ${item.desc ? `<div style="font-size:0.8rem; color:var(--desc-text); margin-top:4px;">${item.desc}</div>` : ''}
-                                    ${item.imageUrl ? `<div style="margin-top:8px;"><img src="${item.imageUrl}" alt="img" style="max-width:180px; max-height:130px; border-radius:8px; border:1px solid var(--border); object-fit:cover;"></div>` : ''}
+                                    ${item.imageUrl ? `<div style="margin-top:8px;"><img src="${item.imageUrl}" alt="img" onerror="this.style.display='none'" style="max-width:180px; max-height:130px; border-radius:8px; border:1px solid var(--border); object-fit:cover;"></div>` : ''}
                                     ${linksHtml ? `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-top:7px;">${linksHtml}</div>` : ''}
                                     ${subtasksHtml ? `<div style="margin-top:8px;">${subtasksHtml}</div>` : ''}
                                 </div>
@@ -3392,7 +3765,7 @@
             const snap = extractBudgetSnapshotFromDOM();
             if (activeBudgetSubtab === '__main__') {
                 saveMainSharedBudget(snap);
-                pushStateToCloudSilent();
+                pushStateToCloudSilent(true);
             } else {
                 const db = getUsersDb();
                 if (db[activeBudgetSubtab]) {
@@ -3442,19 +3815,19 @@
                 const daysLeft = Math.floor(diffMs / 86400000);
                 const hoursLeft = Math.floor((diffMs % 86400000) / 3600000);
                 mainHtml = `✈️ До вылета на Пхукет: <span style="color:var(--success)">${daysLeft} дн. ${hoursLeft} ч.</span>`;
-                subText = `Даты отпуска: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
+                subText = `Отпуск: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
             } else if (now >= startDate && now <= endDate) {
                 const dayNumber = Math.floor((now - startDate) / 86400000) + 1;
                 const diffEndMs = endDate - now;
                 const daysRemaining = Math.floor(diffEndMs / 86400000);
                 const hoursRemaining = Math.floor((diffEndMs % 86400000) / 3600000);
                 mainHtml = `🌴 Вы на Пхукете! День ${dayNumber} из ${totalTripDays}`;
-                subText = `До окончания отпуска осталось: ${daysRemaining} дн. ${hoursRemaining} ч. (вылет ${endDate.toLocaleDateString('ru-RU')})`;
+                subText = `До конца отпуска: ${daysRemaining} дн. ${hoursRemaining} ч.`;
                 borderCol = 'rgba(52, 199, 89, 0.5)';
             } else {
                 const daysPassed = Math.floor((now - endDate) / 86400000);
                 mainHtml = `🏁 Поездка завершена (${daysPassed} дн. назад)`;
-                subText = `Выберите новые даты поездки, чтобы запустить таймер отсчета`;
+                subText = `Выберите новые даты поездки для запуска таймера`;
                 borderCol = 'var(--border)';
             }
 
@@ -3563,12 +3936,12 @@
                 if (m >= 5 && m <= 10) {
                     return {
                         title: '🌊 Сезон юго-западного муссона (Май — Октябрь)',
-                        notes: '⚠️ <b>Повышенная опасность на воде:</b> сильный накат и коварные <b>обратные течения (Rip Currents)</b> на пляжах Карон, Сурин и Ката Ной. Строго запрещено заходить в воду при красных флагах! Для безопасного купания выбирайте закрытые бухты (Три Транг, Най Янг за рифом, Ао Йон). Также в сезон дождей возможен прибой жалящих медуз.'
+                        notes: '⚠️ <b>Повышенная опасность на воде:</b> сильный накат и коварные <b>обратные течения (Rip Currents)</b> на пляжах Карон, Сурин и Ката Ной. Строго запрещено заходить в воду при красных флагах! Для безопасного купания выбирайте закрытые бухты (Три Транг, Най Янг за рифом, Ао Йон).'
                     };
                 }
                 return {
                     title: '🌤️ Переходный бархатный сезон (Ноябрь)',
-                    notes: 'Муссон стихает, устанавливается солнечная погода. На открытых пляжах (Карон, Сурин) в отдельные дни еще возможна остаточная волна до 0.8–1.1 м и локальные тягуны — ориентируйтесь на красно-желтые флаги спасателей.'
+                    notes: 'Муссон стихает, устанавливается солнечная погода. На открытых пляжах (Карон, Сурин) в отдельные дни еще возможна остаточная волна до 0.8–1.1 м — ориентируйтесь на флаги спасателей.'
                 };
             };
 
@@ -3587,136 +3960,16 @@
 
         /* ==================== ПРИЛИВЫ, ОТЛИВЫ, ВОЛНЫ И ПЛЯЖИ ==================== */
         const westBeaches = [
-            {
-                id: 'kata',
-                name: 'Пляж Ката (Kata Beach)',
-                sub: 'Юго-запад • Главный пляж (по умолчанию)',
-                lat: 7.8206, lon: 98.2981,
-                waveExposure: 0.92,
-                tideSensitivity: 'medium',
-                bottomType: 'Пологий песчаный вход, мягкое дно без кораллов',
-                lowTideImpact: 'Среднее влияние: в сильный отлив вода уходит на 35–50 метров, обнажая плотный песок, но купаться комфортно на любой фазе воды.',
-                highTideImpact: 'Идеально для купания: глубокая вода начинается в 15 метрах от берега, мягкий прибой.',
-                snorkeling: 'У северного и южного мысов (возле камней и острова Пу)',
-                infra: 'Отличная: лежаки (~200 ฿ за пару), массаж, шейки, рестораны, серф-школы'
-            },
-            {
-                id: 'katanoy',
-                name: 'Пляж Ката Ной (Kata Noi Beach)',
-                sub: 'Южнее Ката • Уютная бухта с бирюзовой водой',
-                lat: 7.8058, lon: 98.2992,
-                waveExposure: 1.0,
-                tideSensitivity: 'low',
-                bottomType: 'Быстрый набор глубины, чистейший мелкий песок',
-                lowTideImpact: 'Минимальное влияние: даже в пик отлива сохраняется отличная глубина для плавания, дно чистое.',
-                highTideImpact: 'Глубокое и прозрачное море сразу у входа, при свежем ветре — красивые волны.',
-                snorkeling: 'Отличный снорклинг у южных камней (слева при взгляде на море)',
-                infra: 'Спокойная: лежаки в центральной части, видовые рестораны на скалах'
-            },
-            {
-                id: 'karon',
-                name: 'Пляж Карон (Karon Beach)',
-                sub: 'Центральный запад • 3.5 км «поющего» кварцевым песка',
-                lat: 7.8439, lon: 98.2936,
-                waveExposure: 1.15,
-                tideSensitivity: 'low',
-                bottomType: 'Довольно крутой уклон дна, глубоко уже у берега',
-                lowTideImpact: 'Слабое влияние: благодаря быстрому набору глубины на Кароне удобно плавать даже в самую малую воду.',
-                highTideImpact: 'Полноводное глубокое море; при волнении свыше 1 м возможны отбойные течения (следите за флагами).',
-                snorkeling: 'В южной части пляжа на границе с мысом Ката',
-                infra: 'Широкая набережная, лежаки, парк, множество кафе через дорогу'
-            },
-            {
-                id: 'naiharn',
-                name: 'Пляж Най Харн (Nai Harn Beach)',
-                sub: 'Юг Пхукета • Живописная лагуна между зеленых холмов',
-                lat: 7.7768, lon: 98.3059,
-                waveExposure: 0.85,
-                tideSensitivity: 'low',
-                bottomType: 'Ровное песчаное дно, плавный и комфортный заход',
-                lowTideImpact: 'Слабое-среднее: в южной части у озера в отлив становится мелко для детей, в центре глубина сохраняется всегда.',
-                highTideImpact: 'Одно из лучших мест для долгого заплыва на острове, чистейшая вода.',
-                snorkeling: 'Потрясающий снорклинг на соседнем мини-пляже Януи (Yanui) и у скал Ao Sane',
-                infra: 'Фруктовые ряды, недорогие массажные павильоны, тень от казуариновых деревьев'
-            },
-            {
-                id: 'patong',
-                name: 'Пляж Патонг (Patong Beach)',
-                sub: 'Центр активной жизни • Большая 3-км бухта',
-                lat: 7.8965, lon: 98.2954,
-                waveExposure: 0.88,
-                tideSensitivity: 'high',
-                bottomType: 'Пологое песчаное дно',
-                lowTideImpact: 'Заметное в краях бухты: в отлив полоса мокрого песка расширяется на 40–60 м, в центре купание без проблем.',
-                highTideImpact: 'Комфортная глубина по всей длине бухты, работают водные мотоциклы и парасейлинг.',
-                snorkeling: 'Слабый (песчаное дно и водный транспорт)',
-                infra: 'Максимальная: лежаки, бич-клабы, кафе, водные развлечения, рядом ТЦ и Бангла'
-            },
-            {
-                id: 'freedom',
-                name: 'Пляж Фридом (Freedom Beach)',
-                sub: 'Между Патонгом и Кароном • Закрытая бухта с белым песком',
-                lat: 7.8758, lon: 98.2755,
-                waveExposure: 0.78,
-                tideSensitivity: 'medium',
-                bottomType: 'Белоснежный коралловый песок, кристальная вода',
-                lowTideImpact: 'В крайний отлив по краям бухты подходят ближе кораллы, но центральный сектор остается идеальным.',
-                highTideImpact: 'Картинка «Баунти»: лазурная вода подходит прямо к пальмам.',
-                snorkeling: 'Превосходный прямо у берега (множество тропических рыб у камней)',
-                infra: 'Приватная: можно доплыть на лонгтейле или спуститься по тропе'
-            },
-            {
-                id: 'kamala',
-                name: 'Пляж Камала (Kamala Beach)',
-                sub: 'Севернее Патонга • Спокойная семейная бухта',
-                lat: 7.9556, lon: 98.2817,
-                waveExposure: 0.75,
-                tideSensitivity: 'high',
-                bottomType: 'Очень пологий вход, на севере есть каменистые участки',
-                lowTideImpact: 'Сильное в южной части (у стоянки лодок): в отлив очень мелко, для плавания лучше идти в центральный и северный сектор.',
-                highTideImpact: 'Спокойное ласковое море без больших волн — идеально для отдыха с детьми.',
-                snorkeling: 'У северных скал возле Surin / Laem Sing',
-                infra: 'Кафе прямо на песке, бич-клабы Cafe del Mar и Shimmer'
-            },
-            {
-                id: 'surin',
-                name: 'Пляж Сурин (Surin Beach)',
-                sub: 'Запад • Бухта с самой яркой бирюзовой водой',
-                lat: 7.9756, lon: 98.2781,
-                waveExposure: 1.05,
-                tideSensitivity: 'low',
-                bottomType: 'Средне-крутой уклон, плотный золотистый песок',
-                lowTideImpact: 'Минимальное: глубина сохраняется на любой фазе отлива.',
-                highTideImpact: 'Глубокая прозрачная вода насыщенного изумрудного оттенка.',
-                snorkeling: 'Хороший у гранитных валунов по обоим краям бухты',
-                infra: 'Тень от деревьев, макашницы с фруктами и морепродуктами на гриле'
-            },
-            {
-                id: 'bangtao',
-                name: 'Пляж Банг Тао (Bang Tao / Laguna)',
-                sub: 'Северо-запад • Протяженный 6-км элитный пляж',
-                lat: 7.9961, lon: 98.2914,
-                waveExposure: 0.90,
-                tideSensitivity: 'medium',
-                bottomType: 'Ровное песчаное дно на всем протяжении',
-                lowTideImpact: 'Слабое в центральной и северной части (Laguna / Layan), на самом юге в отлив мелко.',
-                highTideImpact: 'Огромное пространство для плавания, сап-бордов и прогулок вдоль кромки воды.',
-                snorkeling: 'В самой северной точке (островок Кала на пляже Лаян)',
-                infra: 'Топовые бич-клабы (Catch, Maya, Carpe Diem), рестораны, отели Лагуны'
-            },
-            {
-                id: 'naithon',
-                name: 'Пляжи Най Тон и Май Као (Nai Thon & Mai Khao)',
-                sub: 'Север Пхукета • Просторные природные пляжи и самолеты',
-                lat: 8.0583, lon: 98.2775,
-                waveExposure: 0.95,
-                tideSensitivity: 'low',
-                bottomType: 'Чистый крупный песок, хорошая глубина',
-                lowTideImpact: 'Слабое: оба пляжа глубоководные, отлив почти не мешает плаванию.',
-                highTideImpact: 'Живописный прибой и полное отсутствие толп туристов.',
-                snorkeling: 'У скалистых мысов пляжа Най Тон и в бухте Банана-Бич',
-                infra: 'Уютная набережная с кафе на Най Тон, смотровая с посадкой самолетов на Май Као'
-            }
+            { id: 'kata', name: 'Пляж Ката (Kata Beach)', sub: 'Юго-запад • Главный пляж (по умолчанию)', lat: 7.8206, lon: 98.2981, waveExposure: 0.92, tideSensitivity: 'medium', bottomType: 'Пологий песчаный вход, мягкое дно без кораллов', lowTideImpact: 'Среднее влияние: в сильный отлив вода уходит на 35–50 метров, обнажая плотный песок, но купаться комфортно на любой фазе воды.', highTideImpact: 'Идеально для купания: глубокая вода начинается в 15 метрах от берега, мягкий прибой.', snorkeling: 'У северного и южного мысов (возле камней и острова Пу)', infra: 'Отличная: лежаки (~200 ฿ за пару), массаж, шейки, рестораны, серф-школы' },
+            { id: 'katanoy', name: 'Пляж Ката Ной (Kata Noi Beach)', sub: 'Южнее Ката • Уютная бухта с бирюзовой водой', lat: 7.8058, lon: 98.2992, waveExposure: 1.0, tideSensitivity: 'low', bottomType: 'Быстрый набор глубины, чистейший мелкий песок', lowTideImpact: 'Минимальное влияние: даже в пик отлива сохраняется отличная глубина для плавания, дно чистое.', highTideImpact: 'Глубокое и прозрачное море сразу у входа, при свежем ветре — красивые волны.', snorkeling: 'Отличный снорклинг у южных камней (слева при взгляде на море)', infra: 'Спокойная: лежаки в центральной части, видовые рестораны на скалах' },
+            { id: 'karon', name: 'Пляж Карон (Karon Beach)', sub: 'Центральный запад • 3.5 км «поющего» кварцевым песка', lat: 7.8439, lon: 98.2936, waveExposure: 1.15, tideSensitivity: 'low', bottomType: 'Довольно крутой уклон дна, глубоко уже у берега', lowTideImpact: 'Слабое влияние: благодаря быстрому набору глубины на Кароне удобно плавать даже в самую малую воду.', highTideImpact: 'Полноводное глубокое море; при волнении свыше 1 м возможны отбойные течения (следите за флагами).', snorkeling: 'В южной части пляжа на границе с мысом Ката', infra: 'Широкая набережная, лежаки, парк, множество кафе через дорогу' },
+            { id: 'naiharn', name: 'Пляж Най Харн (Nai Harn Beach)', sub: 'Юг Пхукета • Живописная лагуна между зеленых холмов', lat: 7.7768, lon: 98.3059, waveExposure: 0.85, tideSensitivity: 'low', bottomType: 'Ровное песчаное дно, плавный и комфортный заход', lowTideImpact: 'Слабое-среднее: в южной части у озера в отлив становится мелко для детей, в центре глубина сохраняется всегда.', highTideImpact: 'Одно из лучших мест для долгого заплыва на острове, чистейшая вода.', snorkeling: 'Потрясающий снорклинг на соседнем мини-пляже Януи (Yanui) и у скал Ao Sane', infra: 'Фруктовые ряды, недорогие массажные павильоны, тень от казуариновых деревьев' },
+            { id: 'patong', name: 'Пляж Патонг (Patong Beach)', sub: 'Центр активной жизни • Большая 3-км бухта', lat: 7.8965, lon: 98.2954, waveExposure: 0.88, tideSensitivity: 'high', bottomType: 'Пологое песчаное дно', lowTideImpact: 'Заметное в краях бухты: в отлив полоса мокрого песка расширяется на 40–60 м, в центре купание без проблем.', highTideImpact: 'Комфортная глубина по всей длине бухты, работают водные мотоциклы и парасейлинг.', snorkeling: 'Слабый (песчаное дно и водный транспорт)', infra: 'Максимальная: лежаки, бич-клабы, кафе, водные развлечения, рядом ТЦ и Бангла' },
+            { id: 'freedom', name: 'Пляж Фридом (Freedom Beach)', sub: 'Между Патонгом и Кароном • Закрытая бухта с белым песком', lat: 7.8758, lon: 98.2755, waveExposure: 0.78, tideSensitivity: 'medium', bottomType: 'Белоснежный коралловый песок, кристальная вода', lowTideImpact: 'В крайний отлив по краям бухты подходят ближе кораллы, но центральный сектор остается идеальным.', highTideImpact: 'Картинка «Баунти»: лазурная вода подходит прямо к пальмам.', snorkeling: 'Превосходный прямо у берега (множество тропических рыб у камней)', infra: 'Приватная: можно доплыть на лонгтейле или спуститься по тропе' },
+            { id: 'kamala', name: 'Пляж Камала (Kamala Beach)', sub: 'Севернее Патонга • Спокойная семейная бухта', lat: 7.9556, lon: 98.2817, waveExposure: 0.75, tideSensitivity: 'high', bottomType: 'Очень пологий вход, на севере есть каменистые участки', lowTideImpact: 'Сильное в южной части (у стоянки лодок): в отлив очень мелко, для плавания лучше идти в центральный и северный сектор.', highTideImpact: 'Спокойное ласковое море без больших волн — идеально для отдыха с детьми.', snorkeling: 'У северных скал возле Surin / Laem Sing', infra: 'Кафе прямо на песке, бич-клабы Cafe del Mar и Shimmer' },
+            { id: 'surin', name: 'Пляж Сурин (Surin Beach)', sub: 'Запад • Бухта с самой яркой бирюзовой водой', lat: 7.9756, lon: 98.2781, waveExposure: 1.05, tideSensitivity: 'low', bottomType: 'Средне-крутой уклон, плотный золотистый песок', lowTideImpact: 'Минимальное: глубина сохраняется на любой фазе отлива.', highTideImpact: 'Глубокая прозрачная вода насыщенного изумрудного оттенка.', snorkeling: 'Хороший у гранитных валунов по обоим краям бухты', infra: 'Тень от деревьев, макашницы с фруктами и морепродуктами на гриле' },
+            { id: 'bangtao', name: 'Пляж Банг Тао (Bang Tao / Laguna)', sub: 'Северо-запад • Протяженный 6-км элитный пляж', lat: 7.9961, lon: 98.2914, waveExposure: 0.90, tideSensitivity: 'medium', bottomType: 'Ровное песчаное дно на всем протяжении', lowTideImpact: 'Слабое в центральной и северной части (Laguna / Layan), на самом юге в отлив мелко.', highTideImpact: 'Огромное пространство для плавания, сап-бордов и прогулок вдоль кромки воды.', snorkeling: 'В самой северной точке (островок Кала на пляже Лаян)', infra: 'Топовые бич-клабы (Catch, Maya, Carpe Diem), рестораны, отели Лагуны' },
+            { id: 'naithon', name: 'Пляжи Най Тон и Май Као (Nai Thon & Mai Khao)', sub: 'Север Пхукета • Просторные природные пляжи и самолеты', lat: 8.0583, lon: 98.2775, waveExposure: 0.95, tideSensitivity: 'low', bottomType: 'Чистый крупный песок, хорошая глубина', lowTideImpact: 'Слабое: оба пляжа глубоководные, отлив почти не мешает плаванию.', highTideImpact: 'Живописный прибой и полное отсутствие толп туристов.', snorkeling: 'У скалистых мысов пляжа Най Тон и в бухте Банана-Бич', infra: 'Уютная набережная с кафе на Най Тон, смотровая с посадкой самолетов на Май Као' }
         ];
 
         function calcPhuketTideMeters(dateUtcMs) {
@@ -4096,61 +4349,17 @@
 
         /* ==================== ПОГОДА, УФ-АЛЕРТ, ЗАКАТ И РАДАР WINDY ==================== */
         const phuketDistricts = {
-            kata: {
-                name: 'Ката (Kata Beach)',
-                lat: 7.8206, lon: 98.2981, isCoastal: true,
-                desc: 'Самый сбалансированный курортный район на юго-западе Пхукета: уютная бухта с мягким песком, отличные кафе, фруктовые рынки и удобная логистика.'
-            },
-            karon: {
-                name: 'Карон (Karon Beach)',
-                lat: 7.8439, lon: 98.2936, isCoastal: true,
-                desc: 'Открытый и просторный пляж к северу от Ката. Здесь всегда чуть свежее морской бриз, а песок приятно поскрипывает под ногами.'
-            },
-            patong: {
-                name: 'Патонг (Patong Beach)',
-                lat: 7.8965, lon: 98.2954, isCoastal: true,
-                desc: 'Главный туристический хаб острова: знаменитая улица Бангла Роуд, крупные торговые центры Jungceylon и Central Patong, активная ночная жизнь.'
-            },
-            naiharn: {
-                name: 'Най Харн (Nai Harn)',
-                lat: 7.7768, lon: 98.3059, isCoastal: true,
-                desc: 'Южная жемчужина острова: чистейшая лагуна, пресное озеро для пробежек, смотровая площадка с ветряком и мыс Промтхеп для лучших закатов.'
-            },
-            rawai: {
-                name: 'Раваи (Rawai)',
-                lat: 7.7797, lon: 98.3253, isCoastal: true,
-                desc: 'Юго-восточное побережье: знаменитый рыбный рынок сифуда, набережная с ресторанами и лодки (лонгтейлы) на ближайшие острова Корал и Бон.'
-            },
-            kamala: {
-                name: 'Камала (Kamala)',
-                lat: 7.9556, lon: 98.2817, isCoastal: true,
-                desc: 'Спокойный семейный район к северу от Патонга с закрытой бухтой, пляжным клубом Cafe del Mar и вечерним парком Carnival Magic.'
-            },
-            surin: {
-                name: 'Сурин (Surin)',
-                lat: 7.9756, lon: 98.2781, isCoastal: true,
-                desc: 'Небольшая живописная бухта с кристально-бирюзовой водой, соснами на берегу и престижными апартаментами на холмах.'
-            },
-            bangtao: {
-                name: 'Банг Тао / Лагуна (Bang Tao)',
-                lat: 7.9961, lon: 98.2914, isCoastal: true,
-                desc: 'Премиальный район с 6-километровым пляжем, отельным комплексом Laguna Phuket, гольф-полями, Boat Avenue и лучшими бич-клабами.'
-            },
-            maikhao: {
-                name: 'Май Као / Аэропорт (Mai Khao)',
-                lat: 8.1264, lon: 98.3017, isCoastal: true,
-                desc: 'Самый северный и уединенный пляж острова (11 км) рядом с национальным парком Сиринат и легендарной точкой споттинга низколетящих самолетов.'
-            },
-            town: {
-                name: 'Пхукет-Таун (Phuket Town)',
-                lat: 7.8840, lon: 98.3892, isCoastal: false,
-                desc: 'Историческая и деловая столица острова: колоритная китайско-португальская архитектура, воскресный рынок Walking Street и огромные ТЦ Central Phuket.'
-            },
-            chalong: {
-                name: 'Чалонг и Большой Будда (Chalong)',
-                lat: 7.8286, lon: 98.3381, isCoastal: false,
-                desc: 'Главный морской порт для всех экскурсий на Пхи-Пхи и Рача, храм Ват Чалонг и гора Накакед со статуей Большого Будды.'
-            }
+            kata: { name: 'Ката (Kata Beach)', lat: 7.8206, lon: 98.2981, isCoastal: true, desc: 'Самый сбалансированный курортный район на юго-западе Пхукета: уютная бухта с мягким песком, отличные кафе, фруктовые рынки и удобная логистика.' },
+            karon: { name: 'Карон (Karon Beach)', lat: 7.8439, lon: 98.2936, isCoastal: true, desc: 'Открытый и просторный пляж к северу от Ката. Здесь всегда чуть свежее морской бриз, а песок приятно поскрипывает под ногами.' },
+            patong: { name: 'Патонг (Patong Beach)', lat: 7.8965, lon: 98.2954, isCoastal: true, desc: 'Главный туристический хаб острова: знаменитая улица Бангла Роуд, крупные торговые центры Jungceylon и Central Patong, активная ночная жизнь.' },
+            naiharn: { name: 'Най Харн (Nai Harn)', lat: 7.7768, lon: 98.3059, isCoastal: true, desc: 'Южная жемчужина острова: чистейшая лагуна, пресное озеро для пробежек, смотровая площадка с ветряком и мыс Промтхеп для лучших закатов.' },
+            rawai: { name: 'Раваи (Rawai)', lat: 7.7797, lon: 98.3253, isCoastal: true, desc: 'Юго-восточное побережье: знаменитый рыбный рынок сифуда, набережная с ресторанами и лодки (лонгтейлы) на ближайшие острова Корал и Бон.' },
+            kamala: { name: 'Камала (Kamala)', lat: 7.9556, lon: 98.2817, isCoastal: true, desc: 'Спокойный семейный район к северу от Патонга с закрытой бухтой, пляжным клубом Cafe del Mar и вечерним парком Carnival Magic.' },
+            surin: { name: 'Сурин (Surin)', lat: 7.9756, lon: 98.2781, isCoastal: true, desc: 'Небольшая живописная бухта с кристально-бирюзовой водой, соснами на берегу и престижными апартаментами на холмах.' },
+            bangtao: { name: 'Банг Тао / Лагуна (Bang Tao)', lat: 7.9961, lon: 98.2914, isCoastal: true, desc: 'Премиальный район с 6-километровым пляжем, отельным комплексом Laguna Phuket, гольф-полями, Boat Avenue и лучшими бич-клабами.' },
+            maikhao: { name: 'Май Као / Аэропорт (Mai Khao)', lat: 8.1264, lon: 98.3017, isCoastal: true, desc: 'Самый северный и уединенный пляж острова (11 км) рядом с национальным парком Сиринат и легендарной точкой споттинга низколетящих самолетов.' },
+            town: { name: 'Пхукет-Таун (Phuket Town)', lat: 7.8840, lon: 98.3892, isCoastal: false, desc: 'Историческая и деловая столица острова: колоритная китайско-португальская архитектура, воскресный рынок Walking Street и огромные ТЦ Central Phuket.' },
+            chalong: { name: 'Чалонг и Большой Будда (Chalong)', lat: 7.8286, lon: 98.3381, isCoastal: false, desc: 'Главный морской порт для всех экскурсий на Пхи-Пхи и Рача, храм Ват Чалонг и гора Накакед со статуей Большого Будды.' }
         };
 
         let currentWindyLayer = 'wind';
@@ -4554,6 +4763,7 @@
                 if (btn) btn.innerText = "✅ Синхронизировано!";
                 render(true);
                 updatePlanner();
+                renderChecklistItems();
                 saveUserDataState();
             } catch (e) {
                 if (st) st.innerText = "⚠️ Оффлайн-режим: используются сохраненные курсы из кэша.";
@@ -5044,13 +5254,14 @@
                 syncUsersFromCloud(false)
             ]);
             updateTripCountdown();
+            renderNextEventOnHome();
             btn.innerText = '✅ Все сводки обновлены!';
             setTimeout(() => { btn.innerText = '🔄 Обновить все сводки (Погода, Море, Курсы)'; }, 1400);
         }
 
         /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v6';
+const CACHE_NAME = 'phuket-pwa-cache-v7';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -5117,14 +5328,14 @@ self.addEventListener('fetch', (event) => {
                 });
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v6').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v7').then(cache => cache.add(location.href)).catch(() => {});
             }
 
             const updateNetStatus = () => {
                 const badge = document.getElementById('networkBadge');
                 if (navigator.onLine) {
                     badge.className = 'pwa-badge online';
-                    badge.innerText = '● Онлайн';
+                    badge.innerText = '● Live Синхр.';
                 } else {
                     badge.className = 'pwa-badge offline';
                     badge.innerText = '📴 Оффлайн (Кэш)';
@@ -5135,13 +5346,13 @@ self.addEventListener('fetch', (event) => {
             updateNetStatus();
         }
 
-        // Инициализация приложения и запуск живой облачной синхронизации
+        // Инициализация приложения и запуск живой WebSocket + облачной синхронизации
         (function initApp() {
             initPlannerUI();
             initPwaAndOfflineSupport();
             ensureAdminAccountExists();
             loadSharedEvents();
-            startRealtimeCloudStream();
+            initRealtimeMqttSync();
 
             if (window.Telegram && window.Telegram.WebApp) {
                 const tg = window.Telegram.WebApp;
@@ -5162,7 +5373,11 @@ self.addEventListener('fetch', (event) => {
                 }
             });
 
-            const savedSessionUser = localStorage.getItem(ACTIVE_SESSION_KEY) || localStorage.getItem('phuket_active_session_v4');
+            // Приоритет sessionStorage позволяет тестировать 3+ разных профиля одновременно в соседних вкладках
+            const savedSessionUser = sessionStorage.getItem(ACTIVE_SESSION_KEY)
+                || localStorage.getItem(ACTIVE_SESSION_KEY)
+                || localStorage.getItem('phuket_active_session_v5')
+                || localStorage.getItem('phuket_active_session_v4');
             const db = getUsersDb();
             if (savedSessionUser && db[savedSessionUser]) {
                 completeLoginSession(savedSessionUser);
@@ -5171,7 +5386,6 @@ self.addEventListener('fetch', (event) => {
                 document.getElementById('authGateOverlay').classList.remove('hidden');
             }
 
-            // При старте сразу подтягиваем свежие данные из облака
             syncUsersFromCloud(false);
 
             document.addEventListener('input', (e) => {
@@ -5190,6 +5404,7 @@ self.addEventListener('fetch', (event) => {
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
+            renderNextEventOnHome();
             updateScheduleBudgetSnapshot();
             renderChecklistSection();
             scanRealTimeTides();
