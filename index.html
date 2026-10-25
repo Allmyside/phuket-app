@@ -8,7 +8,7 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="Phuket Helper">
     <link id="pwaManifestLink" rel="manifest" href="">
-    <title>Пхукет: Дашборд, Планировщик, Чек-лист, Курсы и Погода</title>
+    <title>Пхукет: Дашборд, Планировщик, Чек-лист, Чат, Курсы и Погода</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <!-- Подключение официального SDK Firebase (Realtime Database) для проекта phuket-app-af3e6 -->
     <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -57,14 +57,24 @@
         }
 
         * { box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; transition: background 0.25s, color 0.25s; }
-        .container { max-width: 820px; margin: 0 auto; padding-bottom: 45px; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); padding: 12px; margin: 0; transition: background 0.25s, color 0.25s; overscroll-behavior-y: contain; }
+        .container { max-width: 840px; margin: 0 auto; padding-bottom: 45px; }
+
+        /* Индикатор обновления смахиванием вниз (Pull-to-Refresh) */
+        .ptr-indicator {
+            position: fixed; top: 0; left: 0; right: 0; height: 0; overflow: hidden;
+            background: var(--card-alt); border-bottom: 1px solid transparent;
+            display: flex; align-items: center; justify-content: center; gap: 8px;
+            font-size: 0.82rem; font-weight: 700; color: var(--accent); z-index: 9800;
+            transition: height 0.18s ease, border-color 0.18s ease;
+        }
+        .ptr-indicator.active { border-bottom-color: var(--border); }
 
         /* Скрытие основного приложения до авторизации */
         #mainAppContainer { display: none; }
         #mainAppContainer.authenticated { display: block; animation: fadeIn 0.3s ease; }
 
-        /* Мини-аватарки пользователей для онлайна, бейджей автора, чек-листа и событий */
+        /* Мини-аватарки пользователей */
         .inline-user-av {
             display: inline-flex; align-items: center; justify-content: center;
             width: 20px; height: 20px; border-radius: 50%;
@@ -73,6 +83,62 @@
             vertical-align: middle; flex-shrink: 0; border: 1px solid rgba(255,255,255,0.25);
         }
         .inline-user-av img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+        /* Красный счетчик непрочитанных сообщений */
+        .unread-badge {
+            display: inline-flex; align-items: center; justify-content: center;
+            min-width: 19px; height: 19px; padding: 0 6px; border-radius: 10px;
+            background: var(--danger); color: #fff; font-size: 0.68rem; font-weight: 800;
+            line-height: 1; box-shadow: 0 2px 6px rgba(255, 59, 48, 0.45);
+            vertical-align: middle; margin-left: 4px;
+        }
+
+        /* Карточки пользователей и Окно Чата в реальном времени */
+        .users-list-grid {
+            display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px;
+        }
+        @media (max-width: 620px) { .users-list-grid { grid-template-columns: 1fr; } }
+        .user-directory-card {
+            background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+            padding: 13px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
+            transition: border-color 0.2s;
+        }
+        .user-directory-card:hover { border-color: var(--accent); }
+        .user-directory-card.has-unread { border-color: var(--danger); background: linear-gradient(145deg, rgba(255,59,48,0.08), var(--card)); }
+
+        .chat-box-wrap {
+            background: var(--card); border: 1.5px solid var(--accent); border-radius: 14px;
+            overflow: hidden; margin-top: 10px; display: none; flex-direction: column;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+        }
+        .chat-box-wrap.open { display: flex; animation: fadeIn 0.2s ease; }
+        .chat-header {
+            background: var(--card-alt); padding: 11px 14px; border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; gap: 10px;
+        }
+        .chat-messages-area {
+            height: 320px; overflow-y: auto; padding: 12px; display: flex; flex-direction: column; gap: 8px;
+            background: var(--bg);
+        }
+        .chat-msg-bubble {
+            max-width: 80%; padding: 8px 12px; border-radius: 12px; font-size: 0.83rem; line-height: 1.38;
+            position: relative; word-wrap: break-word;
+        }
+        .chat-msg-bubble.me {
+            align-self: flex-end; background: var(--accent); color: #fff;
+            border-bottom-right-radius: 3px;
+        }
+        .chat-msg-bubble.peer {
+            align-self: flex-start; background: var(--card); color: var(--text);
+            border: 1px solid var(--border); border-bottom-left-radius: 3px;
+        }
+        .chat-msg-meta {
+            display: flex; align-items: center; justify-content: flex-end; gap: 5px;
+            font-size: 0.66rem; margin-top: 3px; opacity: 0.85;
+        }
+        .chat-input-bar {
+            display: flex; gap: 8px; padding: 10px; background: var(--card-alt); border-top: 1px solid var(--border);
+        }
 
         /* Алерт за 5 дней до даты покупки из Чек-листа на Главной */
         .chk-deadline-alert-banner {
@@ -211,7 +277,7 @@
             display: inline-flex; align-items: center; gap: 6px; padding: 3px 9px 3px 5px;
             border-radius: 20px; font-size: 0.75rem; font-weight: 700;
             background: rgba(52, 199, 89, 0.14); color: var(--success);
-            border: 1px solid rgba(52, 199, 89, 0.38);
+            border: 1px solid rgba(52, 199, 89, 0.38); cursor: pointer;
         }
         .online-dot-pulse {
             width: 8px; height: 8px; border-radius: 50%; background: var(--success);
@@ -290,10 +356,10 @@
             align-items: center; flex-wrap: wrap; gap: 10px;
         }
 
-        /* Навигация на 7 вкладок */
+        /* Навигация на 8 вкладок (включая Пользователи и Чат) */
         .tabs { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; background: var(--card-alt); padding: 6px; border-radius: 12px; border: 1px solid var(--border); margin-bottom: 14px; }
-        @media (min-width: 660px) { .tabs { grid-template-columns: repeat(7, 1fr); } }
-        .tab-btn { padding: 9px 5px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.77rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; }
+        @media (min-width: 680px) { .tabs { grid-template-columns: repeat(8, 1fr); } }
+        .tab-btn { padding: 9px 4px; background: transparent; color: var(--muted); border: none; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer; transition: all 0.2s; text-align: center; line-height: 1.2; display: flex; align-items: center; justify-content: center; gap: 3px; }
         .tab-btn:hover { color: var(--text); }
         .tab-btn.active { background: var(--accent); color: #fff; box-shadow: 0 2px 8px rgba(0, 122, 255, 0.35); }
 
@@ -348,7 +414,7 @@
         .cal-cell { min-height: 68px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; justify-content: flex-start; cursor: pointer; position: relative; transition: all 0.15s; overflow: hidden; }
         .cal-cell:hover { border-color: var(--accent); }
         .cal-cell.empty { background: transparent; border-color: transparent; cursor: default; min-height: 20px; }
-        .cal-cell.in-vacation { background: rgba(0, 122, 255, 0.13); border-color: rgba(0, 122, 255, 0.38); }
+        .cal-cell.in-vacation { background: rgba(0, 122, 255, 0.13); border: 1px solid rgba(0, 122, 255, 0.38); }
         .cal-cell.is-today { box-shadow: inset 0 0 0 1.5px var(--warning); }
         .cal-cell.selected { border: 2px solid var(--success); box-shadow: 0 0 10px rgba(52, 199, 89, 0.25); }
         .cal-day-num { font-size: 0.78rem; font-weight: 700; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
@@ -367,7 +433,7 @@
         .ev-edit-btn { background: rgba(0, 122, 255, 0.15); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
         .ev-author-badge { display: inline-flex; align-items: center; gap: 5px; background: rgba(0, 122, 255, 0.14); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 14px; padding: 2px 8px 2px 3px; font-size: 0.69rem; font-weight: 700; margin-left: 4px; }
 
-        /* Стили Чек-листа вещей (Вкладка 6) */
+        /* Стили Чек-листа вещей */
         .folder-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
         @media (max-width: 540px) { .folder-grid { grid-template-columns: 1fr; } }
         .folder-card {
@@ -553,7 +619,10 @@
 </head>
 <body>
 
-    <!-- Всплывающее уведомление о действиях других участников -->
+    <!-- Индикатор смахивания вниз (Pull-to-Refresh) -->
+    <div class="ptr-indicator" id="ptrIndicator">🔄 Потяните вниз для полного обновления экрана...</div>
+
+    <!-- Всплывающее уведомление о действиях и сообщениях участников -->
     <div class="live-toast-popup" id="liveActivityToast">
         <div id="liveActivityToastText" style="display:flex; align-items:center; gap:8px;">🔔 Новое действие участника</div>
         <button class="link-btn" onclick="document.getElementById('liveActivityToast').classList.remove('show')">ОК</button>
@@ -625,6 +694,9 @@
                             <div style="font-size:0.68rem; color:var(--success); margin-top:2px;" id="autoSaveStatus">✓ Firebase синхронизация активна</div>
                         </div>
                         <button class="pd-item" onclick="openProfileSettingsModal()">⚙️ Настроить профиль</button>
+                        <button class="pd-item" onclick="switchTab('users'); document.getElementById('profileDropdown').classList.remove('open');">
+                            👥 Пользователи и Чат <span id="pdUnreadBadge" class="unread-badge" style="display:none;">0</span>
+                        </button>
                         <button class="pd-item" id="pdAdminBtn" style="display:none; color:var(--warning);" onclick="openAdminPanelModal()">🛠️ Настройки сервиса (Админ)</button>
                         <button class="pd-item danger" onclick="logoutCurrentUser()">🚪 Выйти</button>
                     </div>
@@ -632,27 +704,36 @@
             </div>
         </div>
 
-        <!-- Навигация по 7 вкладкам -->
+        <!-- Навигация по 8 вкладкам -->
         <div class="tabs">
             <button class="tab-btn active" onclick="switchTab('home')" id="tabBtnHome">🏠 Главная</button>
             <button class="tab-btn" onclick="switchTab('schedule')" id="tabBtnSchedule">📅 Планирование</button>
-            <button class="tab-btn" onclick="switchTab('checklist')" id="tabBtnChecklist">🧳 Чек-лист вещей</button>
+            <button class="tab-btn" onclick="switchTab('checklist')" id="tabBtnChecklist">🧳 Чек-лист</button>
+            <button class="tab-btn" onclick="switchTab('users')" id="tabBtnUsers">
+                <span>👥 Пользователи</span>
+                <span id="navUnreadBadge" class="unread-badge" style="display:none;">0</span>
+            </button>
             <button class="tab-btn" onclick="switchTab('planner')" id="tabBtnPlanner">🏖️ Бюджет</button>
-            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы валют</button>
+            <button class="tab-btn" onclick="switchTab('exchange')" id="tabBtnExchange">📊 Курсы</button>
             <button class="tab-btn" onclick="switchTab('tides')" id="tabBtnTides">🌊 Приливы</button>
             <button class="tab-btn" onclick="switchTab('weather')" id="tabBtnWeather">🌤️ Погода</button>
         </div>
 
         <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
         <div id="tab-home" class="tab-content active">
-            <!-- Блок: Кто сейчас онлайн (с аватарками и разделом) + Тумблер Геолокации -->
+            <!-- Блок: Кто сейчас онлайн + Переход в Пользователи и Чат + Тумблер Геолокации -->
             <div class="top-status-strip">
                 <div class="online-users-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:6px; flex-wrap:wrap;">
                         <span style="font-size:0.76rem; font-weight:800; color:var(--success); text-transform:uppercase;">
                             🟢 Сейчас на сайте (<span id="onlineCountBadge">1</span>)
                         </span>
-                        <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхр. Firebase</button>
+                        <div style="display:flex; gap:5px; align-items:center;">
+                            <button class="link-btn" onclick="switchTab('users')">
+                                👥 Пользователи и Чат <span id="homeUsersUnreadBadge" class="unread-badge" style="display:none;">0</span>
+                            </button>
+                            <button class="link-btn" onclick="refreshAllDashboard()" title="Обновить все данные">🔄</button>
+                        </div>
                     </div>
                     <div id="onlineUsersListBox" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"></div>
                 </div>
@@ -705,31 +786,31 @@
                 <button class="dash-goto" onclick="switchTab('weather')">Радар УФ ➔</button>
             </div>
 
-            <!-- 1. Сетка: Даты поездки + Ближайшее запланированное событие -->
+            <!-- 1. Сетка: Индивидуальные даты поездки пользователя + Ближайшее запланированное событие -->
             <div class="trip-and-event-grid">
                 <div class="trip-calendar-box">
                     <div>
                         <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                            <span style="font-size:0.84rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Даты вашего отпуска</span>
+                            <span style="font-size:0.84rem; font-weight:700; color:var(--accent); text-transform:uppercase;">📅 Ваши личные даты отпуска</span>
                             <button class="link-btn" onclick="syncTripDaysToPlanner()">🔄 Дни в Бюджет</button>
                         </div>
                         <div class="grid-2">
                             <div class="field">
                                 <label>Дата прилета на Пхукет</label>
-                                <input type="date" id="trip_start" value="2026-12-16" onchange="onTripDatesChanged('home')">
+                                <input type="date" id="trip_start" value="" onchange="onTripDatesChanged('home')">
                             </div>
                             <div class="field">
                                 <label>Дата вылета домой</label>
-                                <input type="date" id="trip_end" value="2027-01-08" onchange="onTripDatesChanged('home')">
+                                <input type="date" id="trip_end" value="" onchange="onTripDatesChanged('home')">
                             </div>
                         </div>
                     </div>
                     <div class="trip-countdown-badge" id="tripCountdownBanner">
                         <div>
-                            <div style="font-size:0.94rem; font-weight:700; color:var(--heading);" id="tripStatusMain">Расчет дат поездки...</div>
-                            <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="tripStatusSub">--</div>
+                            <div style="font-size:0.94rem; font-weight:700; color:var(--heading);" id="tripStatusMain">Укажите даты вашего отпуска</div>
+                            <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;" id="tripStatusSub">Выберите дату прилета и вылета выше</div>
                         </div>
-                        <span class="status-pill pill-good" id="tripDaysBadge">23 дня</span>
+                        <span class="status-pill pill-warn" id="tripDaysBadge">0 дн.</span>
                     </div>
                 </div>
 
@@ -822,7 +903,7 @@
                             <div>🌐 <b>Биржа Форекс:</b> <b style="color:var(--accent)" id="homeForexRate">1 ฿ = 2.49 ₽</b></div>
                             <div>💵 <b>Через нал USD:</b> <b style="color:var(--success)" id="homeBestCashRate">2.51 ₽/฿</b> <span id="homeCashSpread" class="spread-tag good">+0.8%</span></div>
                             <div>📲 <b>Онлайн СБП:</b> <b id="homeSbpRate">2.68 ₽/฿</b> <span id="homeSbpSpread" class="spread-tag">+7.5%</span></div>
-                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeBestSumPreview">На 327 000 ₽ ➔ ~130 332 ฿</div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;" id="homeBestSumPreview">Из 0 ₽ ➔ 0 ฿</div>
                         </div>
                     </div>
                 </div>
@@ -834,10 +915,10 @@
                             <button class="dash-goto" onclick="switchTab('planner')">Планировщик ➔</button>
                         </div>
                         <div style="font-size:0.8rem; color:var(--desc-text); line-height:1.5;">
-                            <div>💰 <b>Общий бюджет:</b> <b id="homePlanTotal">0 ฿</b> (<span style="color:var(--success);font-weight:700;" id="homePlanTotalUsd">0 $</span>)</div>
+                            <div>💰 <b>Бюджет вкладки:</b> <b id="homePlanTotal">0 ฿</b> (<span style="color:var(--success);font-weight:700;" id="homePlanTotalUsd">0 $</span>)</div>
                             <div>📊 <b>Расход в день:</b> <span id="homePlanDaily">0 ฿/день</span></div>
                             <div>🛡️ <b>Свободный резерв:</b> <b id="homePlanReserve" style="color:var(--success);">0 ฿</b></div>
-                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;">Личные вкладки бюджета для каждого участника</div>
+                            <div style="font-size:0.74rem; color:var(--muted); margin-top:3px;">Совокупный бюджет всех участников + личные вкладки</div>
                         </div>
                     </div>
                 </div>
@@ -857,34 +938,34 @@
             <div class="seasonal-box" id="homeSeasonalBox"></div>
 
             <div class="actions">
-                <button class="action-btn" id="refreshAllHomeBtn" onclick="refreshAllDashboard()">🔄 Обновить все сводки (Погода, Море, Курсы)</button>
-                <button class="action-btn sync" onclick="downloadServiceWorkerFile()" title="Скачать файл sw.js для размещения в папке с сайтом">📥 Скачать sw.js (PWA Offline)</button>
+                <button class="action-btn" id="refreshAllHomeBtn" onclick="refreshAllDashboard()">🔄 Обновить вообще все данные сайта (Облако, Чаты, Погода, Курсы)</button>
+                <button class="action-btn sync" id="iosOfflineModeBtn" onclick="activateIosOfflineMode()" title="Сохранить приложение и все данные в память iPhone / браузера для работы без интернета">📲 Оффлайн-режим (iPhone / Автономный кэш)</button>
             </div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 1: КАЛЕНДАРЬ И ПЛАНИРОВАНИЕ ИВЕНТОВ ==================== -->
+        <!-- ==================== ВКЛАДКА 1: КАЛЕНДАРЬ И ПЛАНИРОВАНИЕ ИВЕНТОВ (С РЕДАКТИРОВАНИЕМ) ==================== -->
         <div id="tab-schedule" class="tab-content">
             <div class="trip-calendar-box" style="margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:6px; margin-bottom:8px;">
-                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Даты отпуска и общее расписание всех участников</span>
-                    <button class="link-btn" onclick="jumpCalendarToTripStart()">🎯 Перейти к месяцу отпуска</button>
+                    <span style="font-size:0.86rem; font-weight:700; color:var(--accent); text-transform:uppercase;">🌴 Ваши личные даты отпуска и общее расписание событий</span>
+                    <button class="link-btn" onclick="jumpCalendarToTripStart()">🎯 Перейти к месяцу вашего отпуска</button>
                 </div>
                 <div class="grid-2">
                     <div class="field">
-                        <label>Начало отпуска</label>
-                        <input type="date" id="cal_trip_start" value="2026-12-16" onchange="onTripDatesChanged('schedule')">
+                        <label>Начало вашего отпуска</label>
+                        <input type="date" id="cal_trip_start" value="" onchange="onTripDatesChanged('schedule')">
                     </div>
                     <div class="field">
-                        <label>Окончание отпуска</label>
-                        <input type="date" id="cal_trip_end" value="2027-01-08" onchange="onTripDatesChanged('schedule')">
+                        <label>Окончание вашего отпуска</label>
+                        <input type="date" id="cal_trip_end" value="" onchange="onTripDatesChanged('schedule')">
                     </div>
                 </div>
                 <div class="trip-countdown-badge" id="calCountdownBanner">
                     <div>
-                        <div style="font-size:0.95rem; font-weight:700; color:var(--heading);" id="calTripStatusMain">Расчет...</div>
+                        <div style="font-size:0.95rem; font-weight:700; color:var(--heading);" id="calTripStatusMain">Укажите даты вашего отпуска</div>
                         <div style="font-size:0.76rem; color:var(--muted); margin-top:2px;" id="calTripStatusSub">--</div>
                     </div>
-                    <span class="status-pill pill-good" id="calTripDaysBadge">23 дня</span>
+                    <span class="status-pill pill-warn" id="calTripDaysBadge">0 дн.</span>
                 </div>
             </div>
 
@@ -921,7 +1002,7 @@
                         <button class="cal-nav-btn" onclick="changeCalendarMonth(1)">След. ▶</button>
                     </div>
                     <div style="font-size:0.74rem; color:var(--muted);">
-                        <span style="display:inline-block; width:10px; height:10px; background:rgba(0,122,255,0.28); border:1px solid var(--accent); border-radius:3px; margin-right:4px;"></span>— дни отпуска (видны записи всех пользователей)
+                        <span style="display:inline-block; width:10px; height:10px; background:rgba(0,122,255,0.28); border:1px solid var(--accent); border-radius:3px; margin-right:4px;"></span>— ваши дни отпуска (события видны всем участникам)
                     </div>
                 </div>
 
@@ -947,6 +1028,9 @@
                     <h3 style="margin:0; font-size:0.98rem; color:var(--accent);" id="editorModalTitle">Настройка дня</h3>
                     <button class="cal-nav-btn" onclick="closeDayEditorModal()">✕ Закрыть карточку</button>
                 </div>
+
+                <input type="hidden" id="evEditingIdInput" value="">
+                <input type="hidden" id="evEditingDateIsoInput" value="">
 
                 <div class="grid-2" style="margin-bottom:8px;">
                     <div class="field">
@@ -1005,11 +1089,11 @@
                     <textarea id="evDescInput" rows="2" placeholder="Трансфер из отеля в 07:30, взять паспорта, купальники и крем SPF 50..."></textarea>
                 </div>
 
-                <button class="action-btn" style="width:100%;" onclick="addCalendarEvent()">➕ Сохранить событие в расписание дня</button>
+                <button class="action-btn" style="width:100%;" id="evSaveSubmitBtn" onclick="addCalendarEvent()">➕ Сохранить событие в расписание дня</button>
             </div>
 
             <div class="box" style="margin-top:12px;">
-                <h2><span>📋 Все запланированные события участников (с автором и картой)</span></h2>
+                <h2><span>📋 Все запланированные события участников (с автором, редактированием и картой)</span></h2>
                 <div id="allEventsSummaryList" style="font-size:0.82rem; color:var(--desc-text);"></div>
             </div>
         </div>
@@ -1182,6 +1266,45 @@
             </div>
         </div>
 
+        <!-- ==================== ВКЛАДКА 7: ПОЛЬЗОВАТЕЛИ И ЛИЧНЫЕ СООБЩЕНИЯ (ЧАТ REALTIME) ==================== -->
+        <div id="tab-users" class="tab-content">
+            <div class="box">
+                <h2>
+                    <span>👥 Участники поездки (Профили, Статус в сети и Личные сообщения)</span>
+                    <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Обновить статусы</button>
+                </h2>
+                <div style="font-size:0.78rem; color:var(--muted); margin-bottom:10px;">
+                    Нажмите <b>«💬 Сообщение»</b> рядом с любым участником, чтобы открыть личный чат в реальном времени. Красный индикатор показывает количество непрочитанных сообщений.
+                </div>
+                <div class="users-list-grid" id="usersDirectoryGrid"></div>
+            </div>
+
+            <!-- Окно живого чата с выбранным пользователем -->
+            <div class="chat-box-wrap" id="directChatWrap">
+                <div class="chat-header">
+                    <div style="display:flex; align-items:center; gap:10px;">
+                        <div id="chatPeerAvatarBox"></div>
+                        <div>
+                            <div style="font-weight:800; font-size:0.95rem; color:var(--heading);" id="chatPeerNameLbl">Собеседник</div>
+                            <div style="font-size:0.73rem; color:var(--muted);" id="chatPeerStatusLbl">Статус в сети</div>
+                        </div>
+                    </div>
+                    <button class="cal-nav-btn" onclick="closeDirectChat()">✕ Закрыть чат</button>
+                </div>
+
+                <div class="chat-messages-area" id="directChatMessagesArea"></div>
+
+                <div id="chatTypingIndicatorLine" style="display:none; padding:4px 14px; font-size:0.74rem; color:var(--accent); font-weight:700; background:var(--card-alt);">
+                    ✍️ Собеседник печатает...
+                </div>
+
+                <div class="chat-input-bar">
+                    <input type="text" id="directChatInput" placeholder="Напишите сообщение..." autocomplete="off" oninput="onDirectChatInputTyping()" onkeydown="if(event.key==='Enter') sendDirectChatMessage()">
+                    <button class="action-btn" style="min-width:110px; flex:0; padding:9px 14px;" onclick="sendDirectChatMessage()">Отправить ➤</button>
+                </div>
+            </div>
+        </div>
+
         <!-- ==================== ВКЛАДКА 2: КУРСЫ И ОБМЕН ==================== -->
         <div id="tab-exchange" class="tab-content">
             <div class="status-bar" id="status">Курсы синхронизированы с таблицами СКВ Лиговский, Value Plus и Money Shop.</div>
@@ -1199,7 +1322,7 @@
                 <div class="field">
                     <label>Сумма для обмена</label>
                     <div style="display: flex; gap: 10px;">
-                        <input type="number" id="budget" value="327000" step="500" style="flex: 1;" oninput="render(false)">
+                        <input type="number" id="budget" value="0" step="500" style="flex: 1;" oninput="render(false)">
                         <select id="currency" style="width: 140px;" onchange="render(true)">
                             <option value="RUB">₽ Рубли</option>
                             <option value="USD">$ Доллары</option>
@@ -1286,13 +1409,13 @@
             <div id="output"></div>
         </div>
 
-        <!-- ==================== ВКЛАДКА 3: ПЛАНИРОВЩИК БЮДЖЕТА (ПОДВКЛАДКИ УЧАСТНИКОВ С АВАТАРКАМИ) ==================== -->
+        <!-- ==================== ВКЛАДКА 3: ПЛАНИРОВЩИК БЮДЖЕТА (СОВОКУПНЫЙ ОБЩИЙ + ЛИЧНЫЕ ВКЛАДКИ) ==================== -->
         <div id="tab-planner" class="tab-content">
-            <!-- Подвкладки: Основная (Общая) + вкладка каждого пользователя -->
+            <!-- Подвкладки: Основная (Совокупный бюджет всех участников) + вкладка каждого пользователя -->
             <div class="box" style="padding:10px 12px; margin-bottom:12px;">
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; flex-wrap:wrap; gap:6px;">
-                    <span style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase;">👥 Вкладки бюджета (Общая и личные бюджеты участников)</span>
-                    <span id="budgetReadonlyNotice" style="font-size:0.74rem; color:var(--warning); font-weight:700; display:none;">👁️ Только чтение (чужой бюджет)</span>
+                    <span style="font-size:0.78rem; font-weight:800; color:var(--accent); text-transform:uppercase;">👥 Вкладки бюджета (Совокупный бюджет всех пользователей + Личные бюджеты)</span>
+                    <span id="budgetReadonlyNotice" style="font-size:0.74rem; color:var(--warning); font-weight:700; display:none;">👁️ Режим просмотра</span>
                 </div>
                 <div class="subtabs-bar" id="budgetUserSubtabs"></div>
                 <div id="budgetLastAuthorLine" style="font-size:0.73rem; color:var(--muted); margin-top:2px; display:flex; align-items:center; gap:6px;"></div>
@@ -1301,7 +1424,7 @@
             <div class="summary-static">
                 <div class="sum-grid">
                     <div class="sum-box">
-                        <div class="sum-label">Общий бюджет</div>
+                        <div class="sum-label" id="sumTotalLabelTitle">Общий бюджет</div>
                         <div class="sum-val" id="planTotalThb">0 ฿</div>
                         <div class="sum-sub"><span class="usd-eq" id="planTotalUsd" style="margin:0;">0 $</span></div>
                     </div>
@@ -1342,7 +1465,7 @@
                 <div class="grid-2" style="margin-bottom: 8px;">
                     <div class="field">
                         <label>Ваш бюджет на поездку</label>
-                        <input type="number" id="plan_budget" value="327000" step="1000" oninput="onBudgetControlEdited()">
+                        <input type="number" id="plan_budget" value="0" step="1000" oninput="onBudgetControlEdited()">
                     </div>
                     <div class="field">
                         <label>Валюта бюджета</label>
@@ -1358,11 +1481,11 @@
                 <div class="grid-2">
                     <div class="field">
                         <label>Количество человек</label>
-                        <input type="number" id="plan_people" value="2" min="1" max="10" step="1" oninput="onBudgetControlEdited()">
+                        <input type="number" id="plan_people" value="1" min="1" max="20" step="1" oninput="onBudgetControlEdited()">
                     </div>
                     <div class="field">
                         <label>Количество дней на Пхукете</label>
-                        <input type="number" id="plan_days" value="23" min="1" max="90" step="1" oninput="onBudgetControlEdited()">
+                        <input type="number" id="plan_days" value="1" min="1" max="90" step="1" oninput="onBudgetControlEdited()">
                     </div>
                 </div>
             </div>
@@ -1581,9 +1704,9 @@
         </div>
     </div>
 
-    <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ СЕРВИСА (АДМИН-ПАНЕЛЬ С УДАЛЕНИЕМ ПРОФИЛЕЙ) ==================== -->
+    <!-- ==================== МОДАЛЬНОЕ ОКНО: НАСТРОЙКИ СЕРВИСА (АДМИН-ПАНЕЛЬ С РОЛЯМИ И УДАЛЕНИЕМ) ==================== -->
     <div class="app-modal-backdrop" id="adminPanelModal">
-        <div class="app-modal-card" style="max-width:720px;">
+        <div class="app-modal-card" style="max-width:740px;">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:8px;">
                 <h3 style="margin:0; font-size:1.05rem; color:var(--warning);">🛠️ Управление сервисом (Администратор)</h3>
                 <div style="display:flex; gap:6px; flex-wrap:wrap;">
@@ -1593,7 +1716,7 @@
             </div>
 
             <div style="font-size:0.77rem; color:var(--muted); margin-bottom:10px;" id="adminSyncStatusLine">
-                Firebase + WebSocket синхронизация активна. Вы можете менять любому пользователю имя, аватарку, описание, пароль, редактировать его разделы или удалить профиль.
+                Firebase + WebSocket синхронизация активна. Вы можете назначать роль Админа, менять профиль, пароль, редактировать разделы или удалять пользователей.
             </div>
 
             <!-- Область 1: Пользователи онлайн прямо сейчас -->
@@ -1637,6 +1760,55 @@
             const next = cur === 'dark' ? 'light' : 'dark';
             applyTheme(next);
             saveUserDataState();
+        }
+
+        /* ==================== ОБНОВЛЕНИЕ ЭКРАНА СМАХИВАНИЕМ ВНИЗ (PULL-TO-REFRESH) ==================== */
+        function initPullToRefresh() {
+            let startY = 0;
+            let pulling = false;
+            const ptrEl = document.getElementById('ptrIndicator');
+            if (!ptrEl) return;
+
+            window.addEventListener('touchstart', (e) => {
+                if (window.scrollY <= 2 && e.touches.length === 1) {
+                    startY = e.touches[0].clientY;
+                    pulling = true;
+                } else {
+                    pulling = false;
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchmove', (e) => {
+                if (!pulling) return;
+                const dy = e.touches[0].clientY - startY;
+                if (dy > 18 && window.scrollY <= 2) {
+                    const h = Math.min(58, Math.round((dy - 18) * 0.45));
+                    ptrEl.style.height = h + 'px';
+                    ptrEl.classList.add('active');
+                    ptrEl.innerText = h >= 48
+                        ? '⬆️ Отпустите для полного обновления данных сайта...'
+                        : '⬇️ Потяните вниз для обновления...';
+                }
+            }, { passive: true });
+
+            window.addEventListener('touchend', async () => {
+                if (!pulling) return;
+                pulling = false;
+                const curH = parseInt(ptrEl.style.height || '0', 10);
+                if (curH >= 48) {
+                    ptrEl.style.height = '46px';
+                    ptrEl.innerText = '⏳ Синхронизация всех данных сайта...';
+                    await refreshAllDashboard();
+                    ptrEl.innerText = '✅ Все данные обновлены!';
+                    setTimeout(() => {
+                        ptrEl.style.height = '0px';
+                        ptrEl.classList.remove('active');
+                    }, 550);
+                } else {
+                    ptrEl.style.height = '0px';
+                    ptrEl.classList.remove('active');
+                }
+            }, { passive: true });
         }
 
         /* ==================== КНОПКА ПРОСМОТРА ПАРОЛЯ («ГЛАЗОК») ==================== */
@@ -1714,7 +1886,6 @@
             el.appendChild(img);
         }
 
-        // Генератор круглой мини-аватарки пользователя для вставки рядом с ником во всех разделах
         function getUserInlineAvatarHtml(userKeyOrName, sizePx = 20) {
             const db = getUsersDb();
             const target = (userKeyOrName || '').trim().toLowerCase();
@@ -1757,37 +1928,42 @@
         let fbDb = null;
         let fbConnected = false;
 
-        const USERS_DB_KEY = 'phuket_users_database_v8';
-        const DELETED_USERS_KEY = 'phuket_deleted_users_tombstones_v8';
-        const LEGACY_DB_KEYS = ['phuket_users_database_v7', 'phuket_users_database_v6', 'phuket_users_database_v5', 'phuket_users_database_v4', 'phuket_users_database_v3'];
-        const ACTIVE_SESSION_KEY = 'phuket_active_session_v8';
-        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v8';
-        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v8';
-        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v8';
-        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v8';
-        const SHARED_ACTIVITY_KEY = 'phuket_shared_activity_feed_v8';
+        const USERS_DB_KEY = 'phuket_users_database_v9';
+        const DELETED_USERS_KEY = 'phuket_deleted_users_tombstones_v9';
+        const LEGACY_DB_KEYS = ['phuket_users_database_v8', 'phuket_users_database_v7', 'phuket_users_database_v6'];
+        const ACTIVE_SESSION_KEY = 'phuket_active_session_v9';
+        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v9';
+        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v9';
+        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v9';
+        const SHARED_ACTIVITY_KEY = 'phuket_shared_activity_feed_v9';
+        const DIRECT_CHATS_KEY = 'phuket_direct_chats_v9';
+        const CHAT_TYPING_KEY = 'phuket_chat_typing_v9';
 
-        const MQTT_BASE_TOPIC = 'phuket_helper_af3e6_v8_live_room';
+        const MQTT_BASE_TOPIC = 'phuket_helper_af3e6_v9_live_room';
         const MQTT_STATE_TOPIC = `${MQTT_BASE_TOPIC}/full_state`;
         const MQTT_PRESENCE_TOPIC = `${MQTT_BASE_TOPIC}/presence`;
-        const REST_BACKUP_URL = 'https://ntfy.sh/phuket_helper_af3e6_realtime_v8';
+        const MQTT_TYPING_TOPIC = `${MQTT_BASE_TOPIC}/typing`;
+        const REST_BACKUP_URL = 'https://ntfy.sh/phuket_helper_af3e6_realtime_v9';
 
         let authMode = 'login';
         let currentUser = null;
         let currentActiveTab = 'home';
         let inspectedUserByAdmin = null;
         let activeBudgetSubtab = '__main__';
-        let activeChecklistFolderUser = '__all__'; // По умолчанию открыта папка «Общее»
+        let activeChecklistFolderUser = '__all__';
         let checklistFilterMode = 'all';
         let uploadedChecklistImgData = '';
         let mqttClient = null;
         let lastCloudPushTs = 0;
         let lastSeenActivityId = '';
+        let activeChatPeerKey = null;
+        let lastTypingSentTs = 0;
 
         const TAB_TITLES_RU = {
             home: '🏠 Главная',
             schedule: '📅 Планирование',
             checklist: '🧳 Чек-лист',
+            users: '👥 Пользователи',
             planner: '🏖️ Бюджет',
             exchange: '📊 Курсы',
             tides: '🌊 Приливы',
@@ -1808,7 +1984,7 @@
         const HAS_DIGIT_REGEX = /[0-9]/;
         const HAS_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
-        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v8') : null;
+        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v9') : null;
         if (syncChannel) {
             syncChannel.onmessage = (ev) => {
                 if (!ev.data) return;
@@ -1837,7 +2013,6 @@
         }
 
         function refreshAllSharedViews() {
-            // Если текущего пользователя удалил админ — разлогиниваем его сессию
             const deletedMap = getDeletedUsersMap();
             if (currentUser && deletedMap[currentUser]) {
                 logoutCurrentUser();
@@ -1851,15 +2026,18 @@
                 renderAdminUsersList();
             }
             renderBudgetSubtabs();
+            if (currentActiveTab === 'planner' && activeBudgetSubtab === '__main__') {
+                loadBudgetSubtabData('__main__');
+            }
             renderChecklistSection();
             renderChecklistDeadlineAlertsOnHome();
+            renderUsersDirectoryAndChat();
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
             renderNextEventOnHome();
         }
 
-        /* ==================== РЕЕСТР УДАЛЕННЫХ ПОЛЬЗОВАТЕЛЕЙ (ЧТОБЫ НЕ ВОССТАНАВЛИВАЛИСЬ ИЗ КЭША) ==================== */
         function getDeletedUsersMap() {
             try {
                 return JSON.parse(localStorage.getItem(DELETED_USERS_KEY) || '{}');
@@ -1998,6 +2176,31 @@
             return Boolean((u && u.role === 'admin') || currentUser.toLowerCase() === 'admin');
         }
 
+        // Нулевое начальное состояние для каждого нового пользователя (все суммы 0, даты пустые)
+        function createZeroInitialUserData() {
+            const inputs = {
+                budget: '0',
+                currency: 'RUB',
+                plan_budget: '0',
+                plan_currency: 'RUB',
+                plan_people: '1',
+                plan_days: '1',
+                trip_start: '',
+                trip_end: '',
+                cal_trip_start: '',
+                cal_trip_end: ''
+            };
+            ['food_daily', 'restaurants', 'taxi', 'excursions', 'spa', 'drinks', 'shopping', 'souvenirs', 'misc'].forEach(cId => {
+                inputs['num_' + cId] = '0';
+                inputs['rng_' + cId] = '0';
+            });
+            return {
+                inputs,
+                geoEnabled: false,
+                theme: document.documentElement.getAttribute('data-theme') || 'dark'
+            };
+        }
+
         function ensureAdminAccountExists() {
             const db = getUsersDb();
             if (!db['admin']) {
@@ -2009,7 +2212,8 @@
                     avatar: '👑',
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
-                    data: {}
+                    lastSeen: Date.now(),
+                    data: createZeroInitialUserData()
                 };
                 setUsersDb(db, false);
             } else if (db['admin'].role !== 'admin') {
@@ -2018,17 +2222,49 @@
             }
         }
 
+        /* ==================== БАЗА ДАННЫХ ПРЯМЫХ СООБЩЕНИЙ (ЧАТ МЕЖДУ ПОЛЬЗОВАТЕЛЯМИ) ==================== */
+        function getDirectChatsDb() {
+            try {
+                return JSON.parse(localStorage.getItem(DIRECT_CHATS_KEY) || '{}');
+            } catch (e) { return {}; }
+        }
+
+        function saveDirectChatsDb(chatsObj, pushCloud = true) {
+            try {
+                localStorage.setItem(DIRECT_CHATS_KEY, JSON.stringify(chatsObj));
+                notifyRealtimePeers();
+                if (pushCloud) pushStateToCloudSilent(true);
+            } catch (e) {}
+        }
+
+        function getChatRoomId(u1, u2) {
+            return [String(u1 || '').toLowerCase(), String(u2 || '').toLowerCase()].sort().join('__');
+        }
+
+        function getChatTypingDb() {
+            try {
+                return JSON.parse(localStorage.getItem(CHAT_TYPING_KEY) || '{}');
+            } catch (e) { return {}; }
+        }
+
+        function saveChatTypingDb(tObj) {
+            try {
+                localStorage.setItem(CHAT_TYPING_KEY, JSON.stringify(tObj));
+            } catch (e) {}
+        }
+
         /* ==================== ДВИЖОК СИНХРОНИЗАЦИИ FIREBASE (phuket-app-af3e6) + WSS ==================== */
         function buildFullSyncPayload() {
             return {
-                type: 'PHUKET_DB_STATE_V8',
+                type: 'PHUKET_DB_STATE_V9',
                 users: getUsersDb(),
                 deletedUsers: getDeletedUsersMap(),
                 presence: getOnlinePresenceDb(),
                 checklists: getChecklistsDb(),
                 sharedEvents: getSharedEventsDb(),
                 eventsUpdatedAt: Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || Date.now()),
-                mainBudget: getMainSharedBudget(),
+                directChats: getDirectChatsDb(),
+                typingState: getChatTypingDb(),
                 activityLog: getActivityLog(),
                 ts: Date.now()
             };
@@ -2064,8 +2300,12 @@
                         localDb[uKey] = {
                             ...locU,
                             ...incU,
+                            lastSeen: Math.max(locU?.lastSeen || 0, incU?.lastSeen || 0),
                             avatar: incU.avatar !== undefined ? incU.avatar : (locU?.avatar || '')
                         };
+                        anyUpdated = true;
+                    } else if ((incU?.lastSeen || 0) > (locU?.lastSeen || 0)) {
+                        localDb[uKey].lastSeen = incU.lastSeen;
                         anyUpdated = true;
                     }
                 });
@@ -2080,6 +2320,7 @@
 
             if (snap.presence && typeof snap.presence === 'object') {
                 const localPres = getOnlinePresenceDb();
+                const localDb = getUsersDb();
                 Object.keys(snap.presence).forEach(uKey => {
                     if (deletedMap[uKey]) {
                         delete localPres[uKey];
@@ -2097,10 +2338,14 @@
                         }
                     } else if (incTs >= locTs) {
                         localPres[uKey] = typeof incItem === 'object' ? incItem : { ts: incTs, tab: 'home' };
+                        if (localDb[uKey]) {
+                            localDb[uKey].lastSeen = Math.max(localDb[uKey].lastSeen || 0, incTs);
+                        }
                         anyUpdated = true;
                     }
                 });
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(localPres));
+                localStorage.setItem(USERS_DB_KEY, JSON.stringify(localDb));
             }
 
             if (snap.checklists && typeof snap.checklists === 'object') {
@@ -2136,13 +2381,53 @@
                 }
             }
 
-            if (snap.mainBudget && typeof snap.mainBudget === 'object') {
-                const incBTs = snap.mainBudget.updatedAt || 0;
-                const curB = getMainSharedBudget();
-                if (!curB || incBTs >= (curB.updatedAt || 0)) {
-                    localStorage.setItem(SHARED_MAIN_BUDGET_KEY, JSON.stringify(snap.mainBudget));
-                    anyUpdated = true;
+            // Синхронизация личных чатов и статусов прочтения (галочки ✓✓)
+            if (snap.directChats && typeof snap.directChats === 'object') {
+                const localChats = getDirectChatsDb();
+                let newIncomingMsgForMe = null;
+
+                Object.keys(snap.directChats).forEach(roomId => {
+                    const incMsgs = Array.isArray(snap.directChats[roomId]) ? snap.directChats[roomId] : [];
+                    const locMsgs = Array.isArray(localChats[roomId]) ? localChats[roomId] : [];
+                    const mapById = {};
+
+                    locMsgs.forEach(m => { if (m && m.id) mapById[m.id] = m; });
+                    incMsgs.forEach(m => {
+                        if (!m || !m.id) return;
+                        const existing = mapById[m.id];
+                        if (!existing) {
+                            mapById[m.id] = m;
+                            anyUpdated = true;
+                            if (currentUser && m.to && m.to.toLowerCase() === currentUser.toLowerCase() && !m.read) {
+                                newIncomingMsgForMe = m;
+                            }
+                        } else if (m.read && !existing.read) {
+                            existing.read = true;
+                            existing.readAt = m.readAt || Date.now();
+                            anyUpdated = true;
+                        }
+                    });
+
+                    localChats[roomId] = Object.values(mapById).sort((a, b) => (a.ts || 0) - (b.ts || 0)).slice(-150);
+                });
+
+                localStorage.setItem(DIRECT_CHATS_KEY, JSON.stringify(localChats));
+
+                if (newIncomingMsgForMe && (currentActiveTab !== 'users' || !activeChatPeerKey || activeChatPeerKey.toLowerCase() !== (newIncomingMsgForMe.from || '').toLowerCase())) {
+                    const avHtml = getUserInlineAvatarHtml(newIncomingMsgForMe.from, 22);
+                    showLiveToast(`${avHtml} <span>💬 Новое сообщение от <b>${newIncomingMsgForMe.fromName || newIncomingMsgForMe.from}</b>: «${newIncomingMsgForMe.text.slice(0, 45)}»</span>`);
                 }
+            }
+
+            if (snap.typingState && typeof snap.typingState === 'object') {
+                const locTyp = getChatTypingDb();
+                Object.keys(snap.typingState).forEach(k => {
+                    if ((snap.typingState[k] || 0) > (locTyp[k] || 0)) {
+                        locTyp[k] = snap.typingState[k];
+                        anyUpdated = true;
+                    }
+                });
+                saveChatTypingDb(locTyp);
             }
 
             if (Array.isArray(snap.activityLog) && snap.activityLog.length > 0) {
@@ -2198,20 +2483,20 @@
                                 : '<span style="color:var(--accent);font-weight:700;">● WebSocket Live канал активен</span>';
                         }
                         if (fbConnected && currentUser) {
-                            const userPresRef = fbDb.ref(`phuket_app_v8/presence/${currentUser}`);
+                            const userPresRef = fbDb.ref(`phuket_app_v9/presence/${currentUser}`);
                             userPresRef.onDisconnect().remove();
                             pingOnlineStatus(true);
                         }
                     });
 
-                    fbDb.ref('phuket_app_v8/state').on('value', (snap) => {
+                    fbDb.ref('phuket_app_v9/state').on('value', (snap) => {
                         const val = snap.val();
-                        if (val && val.type === 'PHUKET_DB_STATE_V8') {
+                        if (val && val.type === 'PHUKET_DB_STATE_V9') {
                             applyIncomingCloudSnapshot(val);
                         }
                     });
 
-                    fbDb.ref('phuket_app_v8/presence').on('value', (snap) => {
+                    fbDb.ref('phuket_app_v9/presence').on('value', (snap) => {
                         const presObj = snap.val() || {};
                         const localPres = getOnlinePresenceDb();
                         const deletedMap = getDeletedUsersMap();
@@ -2228,6 +2513,7 @@
                         });
                         localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(localPres));
                         renderOnlineUsersUI();
+                        renderUsersDirectoryAndChat();
                     });
                 } catch (e) {}
             }
@@ -2247,6 +2533,7 @@
                         }
                         mqttClient.subscribe(MQTT_STATE_TOPIC, { qos: 0 });
                         mqttClient.subscribe(MQTT_PRESENCE_TOPIC, { qos: 0 });
+                        mqttClient.subscribe(MQTT_TYPING_TOPIC, { qos: 0 });
                         if (currentUser) pingOnlineStatus(true);
                         pushStateToCloudSilent(true);
                     });
@@ -2254,7 +2541,7 @@
                     mqttClient.on('message', (topic, message) => {
                         try {
                             const data = JSON.parse(message.toString());
-                            if (topic === MQTT_STATE_TOPIC && data.type === 'PHUKET_DB_STATE_V8') {
+                            if (topic === MQTT_STATE_TOPIC && data.type === 'PHUKET_DB_STATE_V9') {
                                 applyIncomingCloudSnapshot(data);
                             } else if (topic === MQTT_PRESENCE_TOPIC && data.user) {
                                 const pres = getOnlinePresenceDb();
@@ -2262,9 +2549,12 @@
                                 else pres[data.user] = { ts: data.ts, tab: data.tab || 'home', displayName: data.displayName || data.user };
                                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
                                 renderOnlineUsersUI();
-                                if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
-                                    renderAdminUsersList();
-                                }
+                                renderUsersDirectoryAndChat();
+                            } else if (topic === MQTT_TYPING_TOPIC && data.from && data.to) {
+                                const typ = getChatTypingDb();
+                                typ[`${data.from.toLowerCase()}__${data.to.toLowerCase()}`] = data.ts;
+                                saveChatTypingDb(typ);
+                                updateDirectChatTypingUI();
                             }
                         } catch (e) {}
                     });
@@ -2282,10 +2572,10 @@
 
             if (fbDb && fbConnected) {
                 try {
-                    fbDb.ref('phuket_app_v8/state').set(payload).catch(() => {});
+                    fbDb.ref('phuket_app_v9/state').set(payload).catch(() => {});
                 } catch (e) {}
             } else {
-                fetch(`${activeFirebaseRestUrl}/phuket_app_v8/state.json`, {
+                fetch(`${activeFirebaseRestUrl}/phuket_app_v9/state.json`, {
                     method: 'PUT',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
@@ -2315,10 +2605,10 @@
 
             for (const baseUrl of FIREBASE_DB_CANDIDATES) {
                 try {
-                    const r = await fetch(`${baseUrl}/phuket_app_v8/state.json`);
+                    const r = await fetch(`${baseUrl}/phuket_app_v9/state.json`);
                     if (r.ok) {
                         const snap = await r.json();
-                        if (snap && snap.type === 'PHUKET_DB_STATE_V8') {
+                        if (snap && snap.type === 'PHUKET_DB_STATE_V9') {
                             activeFirebaseRestUrl = baseUrl;
                             applyIncomingCloudSnapshot(snap);
                             break;
@@ -2340,7 +2630,7 @@
                             const wrapper = JSON.parse(line);
                             if (wrapper && wrapper.message) {
                                 const inner = JSON.parse(wrapper.message);
-                                if (inner && inner.type === 'PHUKET_DB_STATE_V8') {
+                                if (inner && inner.type === 'PHUKET_DB_STATE_V9') {
                                     applyIncomingCloudSnapshot(inner);
                                 }
                             }
@@ -2364,11 +2654,11 @@
             }
         }
 
-        /* ==================== ОНЛАЙН УЧАСТНИКОВ (С АВАТАРКАМИ) И ИНДИКАТОР «Firebase Live (+N)» ==================== */
+        /* ==================== ОНЛАЙН УЧАСТНИКОВ, ВРЕМЯ ПОСЛЕДНЕГО ВИЗИТА И «Firebase Live (+N)» ==================== */
         function getOnlinePresenceDb() {
             const merged = {};
             const deletedMap = getDeletedUsersMap();
-            [ONLINE_PRESENCE_KEY, 'phuket_online_presence_v7', 'phuket_online_presence_v6'].forEach(k => {
+            [ONLINE_PRESENCE_KEY, 'phuket_online_presence_v8', 'phuket_online_presence_v7'].forEach(k => {
                 try {
                     const p = JSON.parse(localStorage.getItem(k) || '{}');
                     Object.keys(p).forEach(u => {
@@ -2385,10 +2675,44 @@
             return merged;
         }
 
+        function formatLastSeenStatus(uKey) {
+            const pres = getOnlinePresenceDb();
+            const db = getUsersDb();
+            const now = Date.now();
+            const entry = pres[uKey];
+            const presTs = (typeof entry === 'object' && entry !== null) ? (entry.ts || 0) : Number(entry || 0);
+            const isOnline = (currentUser && uKey.toLowerCase() === currentUser.toLowerCase()) || (presTs > 0 && (now - presTs <= 35000));
+
+            if (isOnline) {
+                const tabKey = (typeof entry === 'object' && entry !== null) ? (entry.tab || 'home') : 'home';
+                return {
+                    isOnline: true,
+                    html: `<span style="color:var(--success); font-weight:700;">🟢 Сейчас онлайн (${TAB_TITLES_RU[tabKey] || 'На сайте'})</span>`
+                };
+            }
+
+            const lastTs = Math.max(presTs, db[uKey]?.lastSeen || db[uKey]?.updatedAt || db[uKey]?.createdAt || 0);
+            if (!lastTs) {
+                return { isOnline: false, html: `<span style="color:var(--muted);">⚪ Был(а) в сети недавно</span>` };
+            }
+            const dt = new Date(lastTs);
+            const isToday = dt.toDateString() === new Date().toDateString();
+            const timePart = dt.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+            const datePart = isToday ? 'сегодня' : dt.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit' });
+            return {
+                isOnline: false,
+                html: `<span style="color:var(--muted);">🕒 Был(а) в сети: ${datePart} в ${timePart}</span>`
+            };
+        }
+
         function pingOnlineStatus(pushToNetwork = true) {
             if (!currentUser) return;
             const now = Date.now();
             const db = getUsersDb();
+            if (db[currentUser]) {
+                db[currentUser].lastSeen = now;
+                localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
+            }
             const displayName = db[currentUser]?.displayName || currentUser;
             const pres = getOnlinePresenceDb();
             const presEntry = {
@@ -2403,7 +2727,7 @@
                 notifyRealtimePeers();
                 if (pushToNetwork) {
                     if (fbDb && fbConnected) {
-                        const ref = fbDb.ref(`phuket_app_v8/presence/${currentUser}`);
+                        const ref = fbDb.ref(`phuket_app_v9/presence/${currentUser}`);
                         ref.onDisconnect().remove();
                         ref.set(presEntry).catch(() => {});
                     }
@@ -2418,13 +2742,18 @@
 
         function removeCurrentUserFromOnline() {
             if (!currentUser) return;
+            const db = getUsersDb();
+            if (db[currentUser]) {
+                db[currentUser].lastSeen = Date.now();
+                localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
+            }
             const pres = getOnlinePresenceDb();
             delete pres[currentUser];
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
                 notifyRealtimePeers();
                 if (fbDb && fbConnected) {
-                    fbDb.ref(`phuket_app_v8/presence/${currentUser}`).remove().catch(() => {});
+                    fbDb.ref(`phuket_app_v9/presence/${currentUser}`).remove().catch(() => {});
                 }
                 if (mqttClient && mqttClient.connected) {
                     mqttClient.publish(MQTT_PRESENCE_TOPIC, JSON.stringify({ user: currentUser, ts: 0 }));
@@ -2503,7 +2832,7 @@
                 ? activeList.map(u => {
                     const avHtml = getUserInlineAvatarHtml(u.key, 20);
                     return `
-                        <span class="online-badge-pill" title="Сейчас открыт раздел: ${u.tabTitle}">
+                        <span class="online-badge-pill" onclick="switchTab('users'); ${!u.isMe ? `openDirectChat('${u.key}')` : ''}" title="Нажмите, чтобы открыть профиль / чат (${u.tabTitle})">
                             ${avHtml}
                             <span class="online-dot-pulse"></span>
                             <span><b>${u.displayName}</b>${u.isMe ? ' (Вы)' : ''} • онлайн <span style="opacity:0.85; font-weight:600;">[${u.tabTitle}]</span></span>
@@ -2519,10 +2848,11 @@
         setInterval(() => {
             if (currentUser) {
                 pingOnlineStatus(true);
+                updateDirectChatTypingUI();
             } else {
                 renderOnlineUsersUI();
             }
-        }, 4000);
+        }, 3500);
 
         window.addEventListener('beforeunload', () => {
             if (currentUser) {
@@ -2531,7 +2861,268 @@
             }
         });
 
-        /* ==================== ТУМБЛЕР ГЕОЛОКАЦИИ НА ГЛАВНОЙ ==================== */
+        /* ==================== РАЗДЕЛ «👥 ПОЛЬЗОВАТЕЛИ» И ЛИЧНЫЕ СООБЩЕНИЯ (ЧАТ REALTIME) ==================== */
+        function getUnreadMessagesCountFromUser(peerKey) {
+            if (!currentUser || !peerKey) return 0;
+            const roomId = getChatRoomId(currentUser, peerKey);
+            const chats = getDirectChatsDb();
+            const msgs = chats[roomId] || [];
+            return msgs.filter(m => m.to && m.to.toLowerCase() === currentUser.toLowerCase() && !m.read).length;
+        }
+
+        function getTotalUnreadMessagesCount() {
+            if (!currentUser) return 0;
+            const db = getUsersDb();
+            let total = 0;
+            Object.keys(db).forEach(uKey => {
+                if (uKey.toLowerCase() !== currentUser.toLowerCase()) {
+                    total += getUnreadMessagesCountFromUser(uKey);
+                }
+            });
+            return total;
+        }
+
+        function updateGlobalUnreadBadges() {
+            const total = getTotalUnreadMessagesCount();
+            ['navUnreadBadge', 'homeUsersUnreadBadge', 'pdUnreadBadge'].forEach(id => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                if (total > 0) {
+                    el.style.display = 'inline-flex';
+                    el.innerText = total;
+                } else {
+                    el.style.display = 'none';
+                }
+            });
+        }
+
+        function renderUsersDirectoryAndChat() {
+            updateGlobalUnreadBadges();
+            const grid = document.getElementById('usersDirectoryGrid');
+            if (!grid) return;
+
+            const db = getUsersDb();
+            const keys = Object.keys(db);
+
+            // Сортируем: сначала те, от кого есть непрочитанные сообщения, затем кто онлайн
+            keys.sort((a, b) => {
+                const unA = getUnreadMessagesCountFromUser(a);
+                const unB = getUnreadMessagesCountFromUser(b);
+                if (unA !== unB) return unB - unA;
+                const stA = formatLastSeenStatus(a).isOnline ? 1 : 0;
+                const stB = formatLastSeenStatus(b).isOnline ? 1 : 0;
+                return stB - stA;
+            });
+
+            grid.innerHTML = keys.map(uKey => {
+                const u = db[uKey] || {};
+                const isMe = currentUser && uKey.toLowerCase() === currentUser.toLowerCase();
+                const isAdminRole = u.role === 'admin' || uKey.toLowerCase() === 'admin';
+                const unreadCount = isMe ? 0 : getUnreadMessagesCountFromUser(uKey);
+                const seenInfo = formatLastSeenStatus(uKey);
+                const avHtml = getUserInlineAvatarHtml(uKey, 40);
+                const userDates = (u.data?.inputs?.trip_start && u.data?.inputs?.trip_end)
+                    ? `🌴 Отпуск: ${u.data.inputs.trip_start} — ${u.data.inputs.trip_end}`
+                    : '📅 Даты отпуска еще не выбраны';
+
+                return `
+                    <div class="user-directory-card ${unreadCount > 0 ? 'has-unread' : ''}">
+                        <div style="display:flex; align-items:flex-start; gap:10px; flex:1;">
+                            ${avHtml}
+                            <div style="flex:1;">
+                                <div style="font-weight:800; color:var(--heading); font-size:0.94rem; display:flex; align-items:center; gap:5px; flex-wrap:wrap;">
+                                    <span>${u.displayName || uKey}</span>
+                                    ${isMe ? '<span style="font-size:0.7rem; color:var(--accent);">(Вы)</span>' : ''}
+                                    ${isAdminRole ? '<span style="font-size:0.68rem; color:var(--warning);">[🛡️ Админ]</span>' : ''}
+                                    ${unreadCount > 0 ? `<span class="unread-badge" title="Пропущенных сообщений: ${unreadCount}">${unreadCount} новых</span>` : ''}
+                                </div>
+                                <div style="font-size:0.73rem; margin-top:2px;">${seenInfo.html}</div>
+                                <div style="font-size:0.76rem; color:var(--desc-text); margin-top:4px;">
+                                    ${u.bio ? `💬 «${u.bio}»` : '<span style="color:var(--muted);">Описание профиля не указано</span>'}
+                                </div>
+                                <div style="font-size:0.71rem; color:var(--muted); margin-top:3px;">${userDates}</div>
+                            </div>
+                        </div>
+                        <div style="display:flex; flex-direction:column; gap:6px; align-items:flex-end;">
+                            ${!isMe ? `
+                                <button class="cal-nav-btn" style="background:${unreadCount > 0 ? 'var(--danger)' : 'var(--accent)'}; color:#fff; border:none; display:flex; align-items:center; gap:5px;" onclick="openDirectChat('${uKey}')">
+                                    <span>💬 Сообщение</span>
+                                    ${unreadCount > 0 ? `<span class="unread-badge" style="background:#fff; color:var(--danger); margin:0;">${unreadCount}</span>` : ''}
+                                </button>
+                            ` : `
+                                <button class="link-btn" onclick="openProfileSettingsModal()">⚙️ Настроить</button>
+                            `}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            if (activeChatPeerKey && document.getElementById('directChatWrap')?.classList.contains('open')) {
+                if (currentActiveTab === 'users') {
+                    markChatMessagesRead(activeChatPeerKey);
+                }
+                renderDirectChatMessages();
+            }
+        }
+
+        function openDirectChat(peerKey) {
+            if (!currentUser || !peerKey) return;
+            activeChatPeerKey = peerKey;
+            const wrap = document.getElementById('directChatWrap');
+            if (wrap) wrap.classList.add('open');
+
+            markChatMessagesRead(peerKey);
+            renderUsersDirectoryAndChat();
+            renderDirectChatMessages();
+
+            setTimeout(() => {
+                document.getElementById('directChatInput')?.focus();
+                wrap?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            }, 80);
+        }
+
+        function closeDirectChat() {
+            activeChatPeerKey = null;
+            document.getElementById('directChatWrap')?.classList.remove('open');
+        }
+
+        function markChatMessagesRead(peerKey) {
+            if (!currentUser || !peerKey) return;
+            const roomId = getChatRoomId(currentUser, peerKey);
+            const chats = getDirectChatsDb();
+            const msgs = chats[roomId] || [];
+            let changed = false;
+
+            msgs.forEach(m => {
+                if (m.to && m.to.toLowerCase() === currentUser.toLowerCase() && !m.read) {
+                    m.read = true;
+                    m.readAt = Date.now();
+                    changed = true;
+                }
+            });
+
+            if (changed) {
+                saveDirectChatsDb(chats, true);
+                updateGlobalUnreadBadges();
+            }
+        }
+
+        function onDirectChatInputTyping() {
+            if (!currentUser || !activeChatPeerKey) return;
+            const now = Date.now();
+            if (now - lastTypingSentTs < 1200) return;
+            lastTypingSentTs = now;
+
+            const typ = getChatTypingDb();
+            typ[`${currentUser.toLowerCase()}__${activeChatPeerKey.toLowerCase()}`] = now;
+            saveChatTypingDb(typ);
+
+            if (mqttClient && mqttClient.connected) {
+                try {
+                    mqttClient.publish(MQTT_TYPING_TOPIC, JSON.stringify({ from: currentUser, to: activeChatPeerKey, ts: now }));
+                } catch (e) {}
+            }
+            pushStateToCloudSilent();
+        }
+
+        function updateDirectChatTypingUI() {
+            const line = document.getElementById('chatTypingIndicatorLine');
+            if (!line || !currentUser || !activeChatPeerKey) return;
+            const typ = getChatTypingDb();
+            const peerTypingTs = typ[`${activeChatPeerKey.toLowerCase()}__${currentUser.toLowerCase()}`] || 0;
+            const isPeerTyping = (Date.now() - peerTypingTs) <= 4200;
+            const db = getUsersDb();
+            const peerName = db[activeChatPeerKey]?.displayName || activeChatPeerKey;
+            if (isPeerTyping) {
+                line.style.display = 'block';
+                line.innerText = `✍️ ${peerName} печатает сообщение...`;
+            } else {
+                line.style.display = 'none';
+            }
+        }
+
+        function sendDirectChatMessage() {
+            if (!currentUser || !activeChatPeerKey) return;
+            const inp = document.getElementById('directChatInput');
+            const text = (inp?.value || '').trim();
+            if (!text) return;
+
+            const db = getUsersDb();
+            const senderName = db[currentUser]?.displayName || currentUser;
+            const roomId = getChatRoomId(currentUser, activeChatPeerKey);
+            const chats = getDirectChatsDb();
+            if (!chats[roomId]) chats[roomId] = [];
+
+            chats[roomId].push({
+                id: 'msg_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                from: currentUser,
+                fromName: senderName,
+                to: activeChatPeerKey,
+                text,
+                ts: Date.now(),
+                sent: true,
+                read: false
+            });
+
+            inp.value = '';
+            // Сбрасываем индикатор печати после отправки
+            const typ = getChatTypingDb();
+            typ[`${currentUser.toLowerCase()}__${activeChatPeerKey.toLowerCase()}`] = 0;
+            saveChatTypingDb(typ);
+
+            saveDirectChatsDb(chats, true);
+            renderDirectChatMessages();
+        }
+
+        function renderDirectChatMessages() {
+            if (!currentUser || !activeChatPeerKey) return;
+            const db = getUsersDb();
+            const peerObj = db[activeChatPeerKey] || {};
+            const peerName = peerObj.displayName || activeChatPeerKey;
+            const seenInfo = formatLastSeenStatus(activeChatPeerKey);
+
+            document.getElementById('chatPeerAvatarBox').innerHTML = getUserInlineAvatarHtml(activeChatPeerKey, 36);
+            document.getElementById('chatPeerNameLbl').innerText = peerName;
+            document.getElementById('chatPeerStatusLbl').innerHTML = seenInfo.html;
+
+            updateDirectChatTypingUI();
+
+            const area = document.getElementById('directChatMessagesArea');
+            if (!area) return;
+
+            const roomId = getChatRoomId(currentUser, activeChatPeerKey);
+            const chats = getDirectChatsDb();
+            const msgs = chats[roomId] || [];
+
+            if (msgs.length === 0) {
+                area.innerHTML = `<div style="margin:auto; text-align:center; color:var(--muted); font-size:0.8rem;">Диалог с <b>${peerName}</b> пока пуст. Напишите первое сообщение ниже!</div>`;
+                return;
+            }
+
+            area.innerHTML = msgs.map(m => {
+                const isMine = m.from && m.from.toLowerCase() === currentUser.toLowerCase();
+                const tStr = new Date(m.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                const checkTicks = isMine
+                    ? (m.read
+                        ? `<span style="color:#a7f3d0; font-weight:800;" title="Прочитано собеседником">✓✓ Прочитано</span>`
+                        : `<span style="opacity:0.85;" title="Отправлено">✓ Отправлено</span>`)
+                    : '';
+
+                return `
+                    <div class="chat-msg-bubble ${isMine ? 'me' : 'peer'}">
+                        <div>${m.text}</div>
+                        <div class="chat-msg-meta">
+                            <span>${tStr}</span>
+                            ${checkTicks}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+
+            area.scrollTop = area.scrollHeight;
+        }
+<!-- ==================== КОНЕЦ ЧАСТИ 2 (ВСТАВЬТЕ ЧАСТЬ 3 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
+/* ==================== ТУМБЛЕР ГЕОЛОКАЦИИ НА ГЛАВНОЙ ==================== */
         function calcDistanceKm(lat1, lon1, lat2, lon2) {
             const R = 6371;
             const dLat = (lat2 - lat1) * Math.PI / 180;
@@ -2602,7 +3193,7 @@
             );
         }
 
-        /* ==================== ВХОД, РЕГИСТРАЦИЯ И ПРОФИЛЬ ==================== */
+        /* ==================== ВХОД, РЕГИСТРАЦИЯ (С НУЛЯМИ ПО УМОЛЧАНИЮ) И ПРОФИЛЬ ==================== */
         function findUserKeyCaseInsensitive(db, nickname) {
             const target = (nickname || '').trim().toLowerCase();
             return Object.keys(db).find(k => (k.toLowerCase() === target) || ((db[k]?.displayName || '').toLowerCase() === target)) || null;
@@ -2735,13 +3326,13 @@
                     return;
                 }
 
-                // Если ник ранее удалялся админом — снимаем метку удаления при новой регистрации
                 const deletedMap = getDeletedUsersMap();
                 if (deletedMap[login]) {
                     delete deletedMap[login];
                     saveDeletedUsersMap(deletedMap);
                 }
 
+                // У нового пользователя все суммы по умолчанию 0, а даты отпуска пустые
                 db[login] = {
                     displayName: login,
                     password: pass,
@@ -2750,7 +3341,8 @@
                     avatar: '',
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
-                    data: collectCurrentInputsState()
+                    lastSeen: Date.now(),
+                    data: createZeroInitialUserData()
                 };
                 setUsersDb(db, true);
                 completeLoginSession(login);
@@ -2759,14 +3351,21 @@
         }
 
         function collectCurrentInputsState() {
-            const inputs = {};
+            const db = getUsersDb();
+            const targetKey = inspectedUserByAdmin || currentUser;
+            const prevInputs = (targetKey && db[targetKey]?.data?.inputs) ? { ...db[targetKey].data.inputs } : {};
+
             document.querySelectorAll('#mainAppContainer input, #mainAppContainer select').forEach(el => {
-                if (el.id && !el.id.startsWith('ev') && !el.id.startsWith('chk')) {
-                    inputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
+                if (!el.id || el.id.startsWith('ev') || el.id.startsWith('chk') || el.id.startsWith('directChat')) return;
+                // Если открыта вкладка чужого или совокупного бюджета, не перезаписываем личный бюджет пользователя
+                if (el.id.startsWith('plan_') || el.id.startsWith('num_') || el.id.startsWith('rng_')) {
+                    if (activeBudgetSubtab !== targetKey) return;
                 }
+                prevInputs[el.id] = el.type === 'checkbox' ? el.checked : el.value;
             });
+
             return {
-                inputs,
+                inputs: prevInputs,
                 geoEnabled: geoState.enabled,
                 theme: document.documentElement.getAttribute('data-theme') || 'dark'
             };
@@ -2778,15 +3377,10 @@
             const db = getUsersDb();
             if (!db[targetKey]) return;
 
-            const curState = collectCurrentInputsState();
-            if (activeBudgetSubtab === targetKey || activeBudgetSubtab === '__main__') {
-                db[targetKey].data = curState;
-                db[targetKey].updatedAt = Date.now();
-                if (activeBudgetSubtab === '__main__') {
-                    saveMainSharedBudget(extractBudgetSnapshotFromDOM());
-                }
-                setUsersDb(db, true);
-            }
+            db[targetKey].data = collectCurrentInputsState();
+            db[targetKey].updatedAt = Date.now();
+            db[targetKey].lastSeen = Date.now();
+            setUsersDb(db, true);
 
             const statusEl = document.getElementById('autoSaveStatus');
             if (statusEl) {
@@ -2798,22 +3392,35 @@
         function loadUserDataState(username) {
             const db = getUsersDb();
             const userRecord = db[username];
-            if (userRecord && userRecord.data) {
-                const { inputs, theme, geoEnabled } = userRecord.data;
-                if (theme) applyTheme(theme);
-                if (inputs) {
-                    Object.keys(inputs).forEach(id => {
-                        const el = document.getElementById(id);
-                        if (el && inputs[id] !== undefined && inputs[id] !== '') {
-                            if (el.type === 'checkbox') el.checked = Boolean(inputs[id]);
-                            else el.value = inputs[id];
-                        }
-                    });
-                }
-                const geoToggle = document.getElementById('geoMasterToggle');
-                if (geoToggle) geoToggle.checked = Boolean(geoEnabled);
-                geoState.enabled = Boolean(geoEnabled);
+            const zeroDefaults = createZeroInitialUserData().inputs;
+            const inputs = { ...zeroDefaults, ...(userRecord?.data?.inputs || {}) };
+
+            if (userRecord?.data?.theme) {
+                applyTheme(userRecord.data.theme);
             }
+
+            // Загружаем индивидуальные поля пользователя (включая личные даты отпуска и нули для нового аккаунта)
+            Object.keys(inputs).forEach(id => {
+                const el = document.getElementById(id);
+                if (el) {
+                    if (el.type === 'checkbox') el.checked = Boolean(inputs[id]);
+                    else el.value = inputs[id] !== undefined ? inputs[id] : '';
+                }
+            });
+
+            // Гарантируем синхронность личных дат между Главной и Планированием
+            const tStart = inputs.trip_start || '';
+            const tEnd = inputs.trip_end || '';
+            if (document.getElementById('trip_start')) document.getElementById('trip_start').value = tStart;
+            if (document.getElementById('trip_end')) document.getElementById('trip_end').value = tEnd;
+            if (document.getElementById('cal_trip_start')) document.getElementById('cal_trip_start').value = tStart;
+            if (document.getElementById('cal_trip_end')) document.getElementById('cal_trip_end').value = tEnd;
+
+            const geoToggle = document.getElementById('geoMasterToggle');
+            const geoEnabled = Boolean(userRecord?.data?.geoEnabled);
+            if (geoToggle) geoToggle.checked = geoEnabled;
+            geoState.enabled = geoEnabled;
+
             loadSharedEvents();
             render(false);
             renderBudgetSubtabs();
@@ -2825,6 +3432,7 @@
             renderNextEventOnHome();
             renderChecklistSection();
             renderChecklistDeadlineAlertsOnHome();
+            renderUsersDirectoryAndChat();
             renderActivityFeedUI();
         }
 
@@ -2855,6 +3463,7 @@
             }
             currentUser = null;
             inspectedUserByAdmin = null;
+            activeChatPeerKey = null;
             sessionStorage.removeItem(ACTIVE_SESSION_KEY);
             localStorage.removeItem(ACTIVE_SESSION_KEY);
 
@@ -2864,7 +3473,7 @@
             setAuthMode('login');
         }
 
-        /* ==================== МЕНЮ ПРОФИЛЯ И АДМИН-ПАНЕЛЬ (С УДАЛЕНИЕМ ПОЛЬЗОВАТЕЛЕЙ) ==================== */
+        /* ==================== МЕНЮ ПРОФИЛЯ И АДМИН-ПАНЕЛЬ (РОЛИ АДМИНА + УДАЛЕНИЕ) ==================== */
         function renderHeaderProfileUI() {
             if (!currentUser) return;
             const db = getUsersDb();
@@ -2882,6 +3491,7 @@
 
             const avBox = document.getElementById('headerAvatarBox');
             renderSafeAvatarIntoElement(avBox, u.avatar, u.displayName || currentUser);
+            updateGlobalUnreadBadges();
         }
 
         function toggleProfileDropdown(e) {
@@ -3020,7 +3630,27 @@
             document.getElementById('adminPanelModal').classList.remove('open');
         }
 
-        // Удаление пользователя администратором
+        // Выдача или снятие прав Администратора любому пользователю
+        function adminToggleUserRole(targetKey) {
+            if (!isCurrentUserAdmin()) return;
+            if (!targetKey || targetKey.toLowerCase() === 'admin') {
+                alert('Системный аккаунт admin всегда имеет права администратора.');
+                return;
+            }
+            const db = getUsersDb();
+            const u = db[targetKey];
+            if (!u) return;
+
+            const makeAdmin = u.role !== 'admin';
+            u.role = makeAdmin ? 'admin' : 'user';
+            u.updatedAt = Date.now();
+            setUsersDb(db, true);
+            logUserActivity(`${makeAdmin ? 'Назначил(а) администратором 🛡️' : 'Снял(а) права администратора у'} «${u.displayName || targetKey}»`, 'users');
+            pushStateToCloudSilent(true);
+            renderAdminUsersList();
+            refreshAllSharedViews();
+        }
+
         function adminDeleteUser(targetKey) {
             if (!isCurrentUserAdmin()) return;
             if (!targetKey || targetKey.toLowerCase() === 'admin') {
@@ -3033,12 +3663,10 @@
                 return;
             }
 
-            // 1. Записываем метку удаления (tombstone), чтобы старый кэш других браузеров не восстановил профиль
             const deletedMap = getDeletedUsersMap();
             deletedMap[targetKey] = Date.now() + 5000;
             saveDeletedUsersMap(deletedMap);
 
-            // 2. Удаляем из локальной БД пользователей, присутствия и чек-листов
             delete db[targetKey];
             localStorage.setItem(USERS_DB_KEY, JSON.stringify(db));
 
@@ -3054,11 +3682,10 @@
             if (activeBudgetSubtab === targetKey) activeBudgetSubtab = '__main__';
             if (activeChecklistFolderUser === targetKey) activeChecklistFolderUser = '__all__';
 
-            // 3. Удаляем из Firebase напрямую и рассылаем новое состояние
             if (fbDb && fbConnected) {
-                fbDb.ref(`phuket_app_v8/presence/${targetKey}`).remove().catch(() => {});
-                fbDb.ref(`phuket_app_v8/state/users/${targetKey}`).remove().catch(() => {});
-                fbDb.ref(`phuket_app_v8/state/checklists/${targetKey}`).remove().catch(() => {});
+                fbDb.ref(`phuket_app_v9/presence/${targetKey}`).remove().catch(() => {});
+                fbDb.ref(`phuket_app_v9/state/users/${targetKey}`).remove().catch(() => {});
+                fbDb.ref(`phuket_app_v9/state/checklists/${targetKey}`).remove().catch(() => {});
             }
 
             logUserActivity(`Администратор удалил профиль «${dispName}»`, 'home');
@@ -3071,9 +3698,7 @@
             ensureAdminAccountExists();
             renderOnlineUsersUI();
             const db = getUsersDb();
-            const pres = getOnlinePresenceDb();
             const chkDb = getChecklistsDb();
-            const now = Date.now();
             const container = document.getElementById('adminUsersListContainer');
             const keys = Object.keys(db);
 
@@ -3087,16 +3712,14 @@
 
             container.innerHTML = keys.map(uKey => {
                 const u = db[uKey];
-                const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '327000';
+                const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '0';
                 const isBeingEdited = (inspectedUserByAdmin || currentUser) === uKey;
-                const presEntry = pres[uKey];
-                const lastSeen = (typeof presEntry === 'object' && presEntry !== null) ? (presEntry.ts || 0) : Number(presEntry || 0);
-                const isUserOnline = (uKey === currentUser) || (lastSeen > 0 && (now - lastSeen) <= 35000);
-                const createdStr = u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—';
+                const seenInfo = formatLastSeenStatus(uKey);
                 const userChkItems = chkDb[uKey]?.items || [];
                 const userChkDone = userChkItems.filter(i => i.done).length;
                 const safeId = 'adm_av_' + uKey.replace(/[^a-zA-Z0-9]/g, '_');
-                const isProtectedAdmin = uKey.toLowerCase() === 'admin' || u.role === 'admin';
+                const isRootAdmin = uKey.toLowerCase() === 'admin';
+                const hasAdminRole = isRootAdmin || u.role === 'admin';
 
                 setTimeout(() => {
                     renderSafeAvatarIntoElement(document.getElementById(safeId), u.avatar, u.displayName || uKey);
@@ -3110,21 +3733,26 @@
                                 <div style="font-weight:800; color:var(--heading); display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
                                     <span>${u.displayName || uKey}</span>
                                     <span style="font-size:0.7rem; color:var(--muted);">(@${uKey})</span>
-                                    ${isProtectedAdmin ? '<span style="color:var(--warning);font-size:0.72rem;">[АДМИН]</span>' : ''}
-                                    ${isUserOnline ? '<span class="online-badge-pill" style="padding:1px 8px; font-size:0.68rem;"><span class="online-dot-pulse"></span> онлайн</span>' : ''}
+                                    ${hasAdminRole ? '<span style="color:var(--warning);font-size:0.72rem;">[🛡️ АДМИН]</span>' : '<span style="color:var(--muted);font-size:0.7rem;">[Участник]</span>'}
                                 </div>
+                                <div style="font-size:0.73rem; margin-top:2px;">${seenInfo.html}</div>
                                 <div style="font-size:0.75rem; color:var(--muted); margin-top:2px;">
-                                    Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b> • Чек-лист: <b>${userChkDone}/${userChkItems.length}</b> • Создан: ${createdStr}
+                                    Пароль: <b style="color:var(--text);">${u.password}</b> • Бюджет: <b>${budgetVal}</b> • Чек-лист: <b>${userChkDone}/${userChkItems.length}</b>
                                 </div>
                                 ${u.bio ? `<div style="font-size:0.74rem; color:var(--desc-text); margin-top:2px;">О себе: ${u.bio}</div>` : ''}
                             </div>
                         </div>
                         <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                            ${!isRootAdmin ? `
+                                <button class="link-btn" style="color:var(--warning); border-color:var(--warning);" onclick="adminToggleUserRole('${uKey}')">
+                                    ${hasAdminRole ? '⬇️ Снять роль Админа' : '🛡️ Сделать Админом'}
+                                </button>
+                            ` : ''}
                             <button class="link-btn" onclick="openProfileSettingsModal('${uKey}')">🎭 Профиль / Пароль</button>
                             <button class="link-btn" style="color:var(--success); border-color:var(--success);" onclick="adminSwitchToUserContext('${uKey}')">
                                 ${isBeingEdited ? '✓ Активен для правок' : '✏️ Править разделы'}
                             </button>
-                            ${!isProtectedAdmin ? `<button class="ev-del-btn" onclick="adminDeleteUser('${uKey}')" title="Удалить учетную запись пользователя">🗑️ Удалить профиль</button>` : ''}
+                            ${!isRootAdmin ? `<button class="ev-del-btn" onclick="adminDeleteUser('${uKey}')">🗑️ Удалить</button>` : ''}
                         </div>
                     </div>
                 `;
@@ -3140,9 +3768,9 @@
             renderHeaderProfileUI();
             renderAdminUsersList();
         }
-<!-- ==================== КОНЕЦ ЧАСТИ 2 (ВСТАВЬТЕ ЧАСТЬ 3 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
-/* ==================== КЭШ И РОУТЕР ВКЛАДОК (С ПЕРЕДАЧЕЙ АКТИВНОГО РАЗДЕЛА В ОНЛАЙН) ==================== */
-        const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v8';
+
+        /* ==================== РОУТЕР ВКЛАДОК И КЭШ ==================== */
+        const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v9';
         function saveOfflineCache(section, payload) {
             try {
                 const cur = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
@@ -3167,13 +3795,14 @@
             currentActiveTab = tab;
             pingOnlineStatus(true);
 
-            ['home', 'schedule', 'checklist', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
+            ['home', 'schedule', 'checklist', 'users', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
                 const el = document.getElementById('tab-' + t);
                 if (el) el.classList.toggle('active', t === tab);
             });
             document.getElementById('tabBtnHome')?.classList.toggle('active', tab === 'home');
             document.getElementById('tabBtnSchedule')?.classList.toggle('active', tab === 'schedule');
             document.getElementById('tabBtnChecklist')?.classList.toggle('active', tab === 'checklist');
+            document.getElementById('tabBtnUsers')?.classList.toggle('active', tab === 'users');
             document.getElementById('tabBtnExchange')?.classList.toggle('active', tab === 'exchange');
             document.getElementById('tabBtnPlanner')?.classList.toggle('active', tab === 'planner');
             document.getElementById('tabBtnTides')?.classList.toggle('active', tab === 'tides');
@@ -3193,6 +3822,9 @@
             if (tab === 'checklist') {
                 renderChecklistSection();
             }
+            if (tab === 'users') {
+                renderUsersDirectoryAndChat();
+            }
             if (tab === 'tides' && !window._tidesLoaded) {
                 window._tidesLoaded = true;
                 scanRealTimeTides();
@@ -3208,13 +3840,14 @@
                 renderActivityFeedUI();
                 renderNextEventOnHome();
                 renderChecklistDeadlineAlertsOnHome();
+                updateGlobalUnreadBadges();
             }
         }
 
-        /* ==================== ОБЩИЙ КАЛЕНДАРЬ И БЛОК «БЛИЖАЙШЕЕ СОБЫТИЕ» НА ГЛАВНОЙ (С АВАТАРКАМИ) ==================== */
-        let calViewYear = 2026;
-        let calViewMonth = 11;
-        let selectedDateIso = '2026-12-16';
+        /* ==================== КАЛЕНДАРЬ И СОБЫТИЯ (С РЕДАКТИРОВАНИЕМ СВОИХ СОБЫТИЙ) ==================== */
+        let calViewYear = new Date().getFullYear();
+        let calViewMonth = new Date().getMonth();
+        let selectedDateIso = new Date().toISOString().slice(0, 10);
         let selectedEventColor = '#007aff';
 
         function getSharedEventsDb() {
@@ -3223,7 +3856,7 @@
                 shared = JSON.parse(localStorage.getItem(SHARED_EVENTS_KEY) || '{}');
             } catch (e) { shared = {}; }
 
-            ['phuket_shared_calendar_events_v7', 'phuket_shared_calendar_events_v6', 'phuket_shared_calendar_events_v5', 'phuket_shared_calendar_events_v4'].forEach(oldK => {
+            ['phuket_shared_calendar_events_v8', 'phuket_shared_calendar_events_v7'].forEach(oldK => {
                 try {
                     const oldEv = JSON.parse(localStorage.getItem(oldK) || '{}');
                     Object.keys(oldEv).forEach(dIso => {
@@ -3234,24 +3867,6 @@
                     });
                 } catch (e) {}
             });
-
-            const db = getUsersDb();
-            let merged = false;
-            Object.keys(db).forEach(uKey => {
-                const uEvs = db[uKey]?.data?.events || {};
-                Object.keys(uEvs).forEach(dateIso => {
-                    if (!shared[dateIso]) shared[dateIso] = [];
-                    (uEvs[dateIso] || []).forEach(ev => {
-                        if (!shared[dateIso].some(x => x.id === ev.id)) {
-                            shared[dateIso].push({ ...ev, authorKey: uKey, author: ev.author || db[uKey]?.displayName || uKey });
-                            merged = true;
-                        }
-                    });
-                });
-            });
-            if (merged) {
-                try { localStorage.setItem(SHARED_EVENTS_KEY, JSON.stringify(shared)); } catch (e) {}
-            }
             return shared;
         }
 
@@ -3267,6 +3882,16 @@
 
         function loadSharedEvents() {
             calendarEvents = getSharedEventsDb();
+        }
+
+        function canUserEditOrDeleteEvent(ev) {
+            if (!currentUser || !ev) return false;
+            if (isCurrentUserAdmin()) return true;
+            const db = getUsersDb();
+            const myDisp = (db[currentUser]?.displayName || '').toLowerCase();
+            const curLow = currentUser.toLowerCase();
+            return (ev.authorKey && ev.authorKey.toLowerCase() === curLow) ||
+                   (ev.author && (ev.author.toLowerCase() === curLow || ev.author.toLowerCase() === myDisp));
         }
 
         function renderNextEventOnHome() {
@@ -3358,8 +3983,18 @@
 
             const startStr = document.getElementById('trip_start').value;
             const endStr = document.getElementById('trip_end').value;
-            const startDate = startStr ? new Date(startStr + 'T00:00:00') : new Date('2026-12-16T00:00:00');
-            const endDate = endStr ? new Date(endStr + 'T23:59:59') : new Date('2027-01-08T23:59:59');
+            if (!startStr || !endStr) {
+                document.getElementById('schedNeededByDateThb').innerText = `0 ฿`;
+                document.getElementById('schedNeededByDateSub').innerText = `Даты отпуска не выбраны`;
+                document.getElementById('schedRemainingByDateThb').innerText = `${fmtInt(totalBudgetThb)} ฿`;
+                document.getElementById('schedRemainingByDateSub').innerText = `Укажите даты отпуска выше`;
+                document.getElementById('schedDailyAllowanceThb').innerText = `${fmtInt(totalPlannedThb)} ฿`;
+                document.getElementById('schedDailyAllowanceSub').innerText = `Общий план расходов`;
+                return;
+            }
+
+            const startDate = new Date(startStr + 'T00:00:00');
+            const endDate = new Date(endStr + 'T23:59:59');
             const selDate = new Date(selectedDateIso + 'T12:00:00');
 
             const totalDays = Math.max(1, Math.round((endDate - startDate) / 86400000));
@@ -3423,6 +4058,8 @@
                 renderCalendarGrid();
                 renderSelectedDayPreview();
                 updateScheduleBudgetSnapshot();
+            } else {
+                alert('Сначала выберите дату начала вашего отпуска в поле выше!');
             }
         }
 
@@ -3457,7 +4094,7 @@
 
             for (let day = 1; day <= daysInMonth; day++) {
                 const iso = `${calViewYear}-${String(calViewMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                const isVacation = startStr && endStr && iso >= startStr && iso <= endStr;
+                const isVacation = Boolean(startStr && endStr && iso >= startStr && iso <= endStr);
                 const isToday = iso === todayIso;
                 const isSelected = iso === selectedDateIso;
 
@@ -3527,16 +4164,15 @@
                 const dayNum = Math.round((new Date(selectedDateIso) - new Date(startStr)) / 86400000) + 1;
                 vacBadge.innerText = `🌴 День ${dayNum} вашего отпуска на Пхукете`;
             } else {
-                vacBadge.innerText = 'День вне дат отпуска';
+                vacBadge.innerText = startStr && endStr ? 'День вне ваших дат отпуска' : 'Ваши даты отпуска еще не указаны';
             }
 
             const evs = (calendarEvents[selectedDateIso] || []).slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
             if (evs.length === 0) {
                 listEl.innerHTML = `<div style="color:var(--muted); padding:6px 0;">На этот день пока нет записанных событий. Нажмите <b>«➕ Добавить событие в этот день»</b>, чтобы запланировать мероприятие.</div>`;
             } else {
-                const isAdmin = isCurrentUserAdmin();
                 listEl.innerHTML = evs.map(ev => {
-                    const canDelete = isAdmin || !ev.author || ev.author.toLowerCase() === (currentUser || '').toLowerCase() || (ev.authorKey && ev.authorKey.toLowerCase() === (currentUser || '').toLowerCase());
+                    const canManage = canUserEditOrDeleteEvent(ev);
                     const avHtml = getUserInlineAvatarHtml(ev.authorKey || ev.author, 18);
                     return `
                         <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'};">
@@ -3548,7 +4184,12 @@
                                 ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
                                 ${buildEventMapHtml(ev)}
                             </div>
-                            ${canDelete ? `<button class="ev-del-btn" onclick="deleteCalendarEvent('${selectedDateIso}', '${ev.id}')">Удалить</button>` : ''}
+                            ${canManage ? `
+                                <div style="display:flex; gap:5px; flex-shrink:0;">
+                                    <button class="ev-edit-btn" onclick="openEditCalendarEventModal('${selectedDateIso}', '${ev.id}')">✏️ Изменить</button>
+                                    <button class="ev-del-btn" onclick="deleteCalendarEvent('${selectedDateIso}', '${ev.id}')">✕</button>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 }).join('');
@@ -3556,15 +4197,56 @@
         }
 
         function openDayEditorModal() {
+            document.getElementById('evEditingIdInput').value = '';
+            document.getElementById('evEditingDateIsoInput').value = '';
+            document.getElementById('evTitleInput').value = '';
+            document.getElementById('evStartInput').value = '09:00';
+            document.getElementById('evEndInput').value = '16:00';
+            document.getElementById('evDescInput').value = '';
+            document.getElementById('evMapPresetSelect').value = '';
+            document.getElementById('evMapCustomInput').value = '';
+            selectEventColor('#007aff');
+
             const modal = document.getElementById('dayEditorModal');
-            document.getElementById('editorModalTitle').innerText = `⚙️ Настройка дня: ${formatIsoHuman(selectedDateIso)}`;
+            document.getElementById('editorModalTitle').innerText = `➕ Новое событие на ${formatIsoHuman(selectedDateIso)}`;
+            document.getElementById('evSaveSubmitBtn').innerText = '➕ Сохранить событие в расписание дня';
             modal.classList.add('open');
             document.getElementById('evTitleInput').focus();
+        }
+
+        // Открытие режима редактирования существующего события
+        function openEditCalendarEventModal(dateIso, evId) {
+            loadSharedEvents();
+            const ev = (calendarEvents[dateIso] || []).find(e => e.id === evId);
+            if (!ev || !canUserEditOrDeleteEvent(ev)) return;
+
+            selectedDateIso = dateIso;
+            renderCalendarGrid();
+            renderSelectedDayPreview();
+
+            document.getElementById('evEditingIdInput').value = ev.id;
+            document.getElementById('evEditingDateIsoInput').value = dateIso;
+            document.getElementById('evTitleInput').value = ev.title || '';
+            document.getElementById('evStartInput').value = ev.start || '09:00';
+            document.getElementById('evEndInput').value = ev.end || '16:00';
+            document.getElementById('evDescInput').value = ev.desc || '';
+            document.getElementById('evMapPresetSelect').value = ev.mapPin ? 'custom' : '';
+            document.getElementById('evMapCustomInput').value = ev.mapPin || '';
+            selectEventColor(ev.color || '#007aff');
+
+            const modal = document.getElementById('dayEditorModal');
+            document.getElementById('editorModalTitle').innerText = `✏️ Редактирование события: ${ev.title}`;
+            document.getElementById('evSaveSubmitBtn').innerText = '💾 Сохранить изменения события';
+            modal.classList.add('open');
+            document.getElementById('evTitleInput').focus();
+            modal.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         }
 
         function closeDayEditorModal() {
             const modal = document.getElementById('dayEditorModal');
             if (modal) modal.classList.remove('open');
+            document.getElementById('evEditingIdInput').value = '';
+            document.getElementById('evEditingDateIsoInput').value = '';
         }
 
         function selectEventColor(col) {
@@ -3575,6 +4257,8 @@
         }
 
         function addCalendarEvent() {
+            const editingId = document.getElementById('evEditingIdInput').value.trim();
+            const editingDateIso = document.getElementById('evEditingDateIsoInput').value.trim() || selectedDateIso;
             const title = document.getElementById('evTitleInput').value.trim();
             const start = document.getElementById('evStartInput').value;
             const end = document.getElementById('evEndInput').value;
@@ -3600,28 +4284,40 @@
             const createdAtStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
             loadSharedEvents();
-            if (!calendarEvents[selectedDateIso]) calendarEvents[selectedDateIso] = [];
-            calendarEvents[selectedDateIso].push({
-                id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
-                title,
-                start,
-                end,
-                color: selectedEventColor,
-                desc,
-                mapPin,
-                mapCoords,
-                authorKey: currentUser,
-                author: authorName,
-                createdAtStr
-            });
 
-            document.getElementById('evTitleInput').value = '';
-            document.getElementById('evDescInput').value = '';
-            document.getElementById('evMapPresetSelect').value = '';
-            document.getElementById('evMapCustomInput').value = '';
+            if (editingId && calendarEvents[editingDateIso]) {
+                const targetEv = calendarEvents[editingDateIso].find(e => e.id === editingId);
+                if (targetEv && canUserEditOrDeleteEvent(targetEv)) {
+                    targetEv.title = title;
+                    targetEv.start = start;
+                    targetEv.end = end;
+                    targetEv.color = selectedEventColor;
+                    targetEv.desc = desc;
+                    targetEv.mapPin = mapPin;
+                    targetEv.mapCoords = mapCoords;
+                    saveSharedEventsDb(calendarEvents);
+                    logUserActivity(`Изменил(а) событие «${title}» (${formatIsoHuman(editingDateIso)})`, 'schedule');
+                }
+            } else {
+                if (!calendarEvents[selectedDateIso]) calendarEvents[selectedDateIso] = [];
+                calendarEvents[selectedDateIso].push({
+                    id: 'ev_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                    title,
+                    start,
+                    end,
+                    color: selectedEventColor,
+                    desc,
+                    mapPin,
+                    mapCoords,
+                    authorKey: currentUser,
+                    author: authorName,
+                    createdAtStr
+                });
+                saveSharedEventsDb(calendarEvents);
+                logUserActivity(`Добавил(а) событие «${title}» на ${formatIsoHuman(selectedDateIso)}`, 'schedule');
+            }
 
-            saveSharedEventsDb(calendarEvents);
-            logUserActivity(`Добавил(а) событие «${title}» на ${formatIsoHuman(selectedDateIso)}`, 'schedule');
+            closeDayEditorModal();
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
@@ -3632,12 +4328,12 @@
             loadSharedEvents();
             if (!calendarEvents[dateIso]) return;
             const removed = calendarEvents[dateIso].find(e => e.id === evId);
+            if (!removed || !canUserEditOrDeleteEvent(removed)) return;
+
             calendarEvents[dateIso] = calendarEvents[dateIso].filter(e => e.id !== evId);
             if (calendarEvents[dateIso].length === 0) delete calendarEvents[dateIso];
             saveSharedEventsDb(calendarEvents);
-            if (removed) {
-                logUserActivity(`Удалил(а) событие «${removed.title}» (${formatIsoHuman(dateIso)})`, 'schedule');
-            }
+            logUserActivity(`Удалил(а) событие «${removed.title}» (${formatIsoHuman(dateIso)})`, 'schedule');
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
@@ -3652,12 +4348,11 @@
                 box.innerHTML = `<div style="color:var(--muted);">Пока не добавлено ни одного события. Выберите любую дату в календаре выше.</div>`;
                 return;
             }
-            const isAdmin = isCurrentUserAdmin();
             let html = '';
             allDates.forEach(dIso => {
                 const evs = calendarEvents[dIso].slice().sort((a, b) => (a.start || '').localeCompare(b.start || ''));
                 evs.forEach(ev => {
-                    const canDelete = isAdmin || !ev.author || ev.author.toLowerCase() === (currentUser || '').toLowerCase() || (ev.authorKey && ev.authorKey.toLowerCase() === (currentUser || '').toLowerCase());
+                    const canManage = canUserEditOrDeleteEvent(ev);
                     const avHtml = getUserInlineAvatarHtml(ev.authorKey || ev.author, 18);
                     html += `
                         <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'}; cursor:pointer;" onclick="selectCalendarDate('${dIso}')">
@@ -3672,7 +4367,12 @@
                                 ${ev.desc ? `<div style="font-size:0.77rem; color:var(--muted); margin-top:2px;">${ev.desc}</div>` : ''}
                                 ${buildEventMapHtml(ev)}
                             </div>
-                            ${canDelete ? `<button class="ev-del-btn" onclick="event.stopPropagation(); deleteCalendarEvent('${dIso}', '${ev.id}')">✕</button>` : ''}
+                            ${canManage ? `
+                                <div style="display:flex; gap:5px; flex-shrink:0;" onclick="event.stopPropagation();">
+                                    <button class="ev-edit-btn" onclick="openEditCalendarEventModal('${dIso}', '${ev.id}')">✏️ Изменить</button>
+                                    <button class="ev-del-btn" onclick="deleteCalendarEvent('${dIso}', '${ev.id}')">✕</button>
+                                </div>
+                            ` : ''}
                         </div>
                     `;
                 });
@@ -3680,7 +4380,7 @@
             box.innerHTML = html;
         }
 
-        /* ==================== ЧЕК-ЛИСТ ВЕЩЕЙ: ПАПКА «ОБЩЕЕ», ДАТА ПОКУПКИ И 5-ДНЕВНЫЙ АЛЕРТ НА ГЛАВНОЙ ==================== */
+        /* ==================== ЧЕК-ЛИСТ ВЕЩЕЙ: ПАПКА «ОБЩЕЕ», ДАТА ПОКУПКИ И 5-ДНЕВНЫЙ АЛЕРТ ==================== */
         const CURRENCY_SYMBOLS = { RUB: '₽', THB: '฿', USD: '$', EUR: '€' };
         let sharedAllViewCurrency = 'RUB';
 
@@ -3692,7 +4392,7 @@
 
             const deletedMap = getDeletedUsersMap();
 
-            ['phuket_shared_checklists_v7', 'phuket_shared_checklists_v6', 'phuket_shared_checklists_v5', 'phuket_shared_checklists_v4'].forEach(oldK => {
+            ['phuket_shared_checklists_v8', 'phuket_shared_checklists_v7'].forEach(oldK => {
                 try {
                     const oldObj = JSON.parse(localStorage.getItem(oldK) || '{}');
                     Object.keys(oldObj).forEach(uKey => {
@@ -3721,7 +4421,7 @@
         function canEditChecklistFolder(folderOwnerKey) {
             if (!currentUser || !folderOwnerKey) return false;
             if (isCurrentUserAdmin()) return true;
-            if (folderOwnerKey === '__all__') return true; // В папке «Общее» каждый может добавить в свою папку или править свои позиции
+            if (folderOwnerKey === '__all__') return true;
             return folderOwnerKey.toLowerCase() === currentUser.toLowerCase();
         }
 
@@ -3746,7 +4446,6 @@
             return val;
         }
 
-        // Расчет дней до указанной даты покупки/сбора (targetDate: YYYY-MM-DD)
         function calcDaysUntilTargetDate(targetDateIso) {
             if (!targetDateIso) return null;
             const now = new Date();
@@ -3757,7 +4456,6 @@
             return Math.round((targetMidnight - todayMidnight) / 86400000);
         }
 
-        // Отрисовка алерта на Главной странице за 5 дней (и менее) до даты покупки (видно всем пользователям)
         function renderChecklistDeadlineAlertsOnHome() {
             const alertBox = document.getElementById('homeChecklistDeadlineAlertBox');
             const listBox = document.getElementById('homeChecklistDeadlineList');
@@ -3887,7 +4585,6 @@
                 activeChecklistFolderUser = '__all__';
             }
 
-            // Подсчет сводной статистики для папки «🌐 Общее (Все списки)»
             let totalAllItems = 0;
             let totalAllDone = 0;
             let totalAllSumRub = 0;
@@ -4101,7 +4798,6 @@
             const db = getUsersDb();
             const authorDisplay = db[currentUser]?.displayName || currentUser;
 
-            // Если пользователь добавляет позицию из папки «Общее», а личной папки у него еще нет — создаем автоматически
             if (!chkDb[targetFolderKey]) {
                 chkDb[targetFolderKey] = {
                     owner: targetFolderKey,
@@ -4419,27 +5115,73 @@
             }).join('');
         }
 
-        /* ==================== БЮДЖЕТ С ПОДВКЛАДКАМИ И АВАТАРКАМИ УЧАСТНИКОВ ==================== */
-        function getMainSharedBudget() {
-            try {
-                return JSON.parse(localStorage.getItem(SHARED_MAIN_BUDGET_KEY) || 'null');
-            } catch (e) { return null; }
+        /* ==================== БЮДЖЕТ: СОВОКУПНЫЙ ОБЩИЙ БЮДЖЕТ ВСЕХ ПОЛЬЗОВАТЕЛЕЙ + ЛИЧНЫЕ ВКЛАДКИ ==================== */
+        function convertAnyBudgetToThb(amount, curr) {
+            const b = parseFloat(amount) || 0;
+            if (b <= 0) return 0;
+            const spb1 = parseFloat(document.getElementById('usd_spb_1')?.value) || 84.20;
+            const fee1 = parseFloat(document.getElementById('fee_spb_1')?.value) || 20;
+            const usdVp = parseFloat(document.getElementById('usd_vp')?.value) || 33.58;
+            const eurVp = parseFloat(document.getElementById('eur_vp')?.value) || 37.55;
+            const cnyVp = parseFloat(document.getElementById('cny_vp')?.value) || 4.72;
+
+            if (curr === 'THB') return b;
+            if (curr === 'USD') return b * usdVp;
+            if (curr === 'EUR') return b * eurVp;
+            if (curr === 'CNY') return b * cnyVp;
+            if (curr === 'RUB') {
+                const exactUsd = Math.round((Math.max(0, b - fee1) / spb1) * 100) / 100;
+                return exactUsd * usdVp;
+            }
+            return b;
         }
 
-        function saveMainSharedBudget(bObj) {
-            try {
-                localStorage.setItem(SHARED_MAIN_BUDGET_KEY, JSON.stringify({ ...bObj, updatedAt: Date.now() }));
-            } catch (e) {}
+        // Автоматический расчет совокупного бюджета всех зарегистрированных пользователей для вкладки «Основная»
+        function computeAggregateAllUsersBudget() {
+            const db = getUsersDb();
+            let totalThbAll = 0;
+            let totalPeople = 0;
+            let maxDays = 1;
+            const sumCats = {};
+            categoriesData.forEach(c => { sumCats[c.id] = 0; });
+
+            Object.keys(db).forEach(uKey => {
+                const inp = db[uKey]?.data?.inputs || {};
+                const uBudget = parseFloat(inp.plan_budget) || 0;
+                const uCurr = inp.plan_currency || 'RUB';
+                const uThb = convertAnyBudgetToThb(uBudget, uCurr);
+                totalThbAll += uThb;
+
+                let userSpent = 0;
+                categoriesData.forEach(c => {
+                    const v = parseFloat(inp['num_' + c.id]) || 0;
+                    sumCats[c.id] += v;
+                    userSpent += v;
+                });
+
+                if (uThb > 0 || userSpent > 0) {
+                    totalPeople += Math.max(1, parseInt(inp.plan_people) || 1);
+                    maxDays = Math.max(maxDays, parseInt(inp.plan_days) || 1);
+                }
+            });
+
+            return {
+                plan_budget: String(Math.round(totalThbAll)),
+                plan_currency: 'THB',
+                plan_people: String(Math.max(1, totalPeople)),
+                plan_days: String(Math.max(1, maxDays)),
+                cats: sumCats
+            };
         }
 
         function extractBudgetSnapshotFromDOM() {
             const db = getUsersDb();
             const actor = db[currentUser]?.displayName || currentUser || 'Участник';
             const snap = {
-                plan_budget: document.getElementById('plan_budget')?.value || '327000',
+                plan_budget: document.getElementById('plan_budget')?.value || '0',
                 plan_currency: document.getElementById('plan_currency')?.value || 'RUB',
-                plan_people: document.getElementById('plan_people')?.value || '2',
-                plan_days: document.getElementById('plan_days')?.value || '23',
+                plan_people: document.getElementById('plan_people')?.value || '1',
+                plan_days: document.getElementById('plan_days')?.value || '1',
                 cats: {},
                 updatedByKey: currentUser,
                 updatedBy: actor,
@@ -4447,15 +5189,16 @@
                 updatedAt: Date.now()
             };
             categoriesData.forEach(cat => {
-                snap.cats[cat.id] = document.getElementById('num_' + cat.id)?.value || cat.val;
+                snap.cats[cat.id] = document.getElementById('num_' + cat.id)?.value || 0;
             });
             return snap;
         }
 
         function canEditBudgetSubtab(subtabKey) {
             if (!currentUser) return false;
+            // Вкладка «Основная (__main__)» автоматически суммирует бюджеты всех пользователей
+            if (subtabKey === '__main__') return false;
             if (isCurrentUserAdmin()) return true;
-            if (subtabKey === '__main__') return true;
             return subtabKey.toLowerCase() === currentUser.toLowerCase();
         }
 
@@ -4465,7 +5208,7 @@
             const db = getUsersDb();
             const keys = Object.keys(db);
 
-            let html = `<button class="subtab-pill ${activeBudgetSubtab === '__main__' ? 'active' : ''}" onclick="switchBudgetSubtab('__main__')">🌐 Основная (Общий бюджет)</button>`;
+            let html = `<button class="subtab-pill ${activeBudgetSubtab === '__main__' ? 'active' : ''}" onclick="switchBudgetSubtab('__main__')">🌐 Основная (Совокупный бюджет всех)</button>`;
             keys.forEach(uKey => {
                 const u = db[uKey];
                 const isMe = currentUser && uKey.toLowerCase() === currentUser.toLowerCase();
@@ -4486,21 +5229,21 @@
             let snap = null;
 
             if (subtabKey === '__main__') {
-                snap = getMainSharedBudget();
-            } else if (db[subtabKey]?.data?.inputs) {
-                const inp = db[subtabKey].data.inputs;
+                snap = computeAggregateAllUsersBudget();
+            } else {
+                const inp = db[subtabKey]?.data?.inputs || {};
                 snap = {
-                    plan_budget: inp.plan_budget || '327000',
+                    plan_budget: inp.plan_budget !== undefined ? inp.plan_budget : '0',
                     plan_currency: inp.plan_currency || 'RUB',
-                    plan_people: inp.plan_people || '2',
-                    plan_days: inp.plan_days || '23',
+                    plan_people: inp.plan_people || '1',
+                    plan_days: inp.plan_days || '1',
                     updatedByKey: subtabKey,
                     updatedBy: db[subtabKey]?.displayName || subtabKey,
                     updatedAtStr: db[subtabKey]?.updatedAt ? new Date(db[subtabKey].updatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '',
                     cats: {}
                 };
                 categoriesData.forEach(cat => {
-                    snap.cats[cat.id] = inp['num_' + cat.id] !== undefined ? inp['num_' + cat.id] : cat.val;
+                    snap.cats[cat.id] = inp['num_' + cat.id] !== undefined ? inp['num_' + cat.id] : 0;
                 });
             }
 
@@ -4510,7 +5253,7 @@
                 if (document.getElementById('plan_people')) document.getElementById('plan_people').value = snap.plan_people;
                 if (document.getElementById('plan_days')) document.getElementById('plan_days').value = snap.plan_days;
                 categoriesData.forEach(cat => {
-                    const v = snap.cats?.[cat.id] ?? cat.val;
+                    const v = snap.cats?.[cat.id] ?? 0;
                     const numEl = document.getElementById('num_' + cat.id);
                     const rngEl = document.getElementById('rng_' + cat.id);
                     if (numEl) numEl.value = v;
@@ -4522,24 +5265,35 @@
             }
 
             const authorLine = document.getElementById('budgetLastAuthorLine');
-            if (authorLine) {
-                if (snap && snap.updatedBy) {
-                    const avHtml = getUserInlineAvatarHtml(snap.updatedByKey || snap.updatedBy, 18);
-                    authorLine.innerHTML = `${avHtml} <span>Последнее обновление вкладки: <b style="color:var(--accent);">${snap.updatedBy}</b> ${snap.updatedAtStr ? '(' + snap.updatedAtStr + ')' : ''}</span>`;
-                } else {
-                    authorLine.innerText = '';
+            const sumLbl = document.getElementById('sumTotalLabelTitle');
+            if (subtabKey === '__main__') {
+                if (sumLbl) sumLbl.innerText = 'Совокупный бюджет всех';
+                if (authorLine) {
+                    authorLine.innerHTML = `<span style="color:var(--success); font-weight:700;">📊 Автоматическая сумма бюджетов и категорий всех зарегистрированных участников (${Object.keys(db).length} чел.)</span>`;
+                }
+            } else {
+                if (sumLbl) sumLbl.innerText = 'Личный бюджет';
+                if (authorLine) {
+                    const avHtml = getUserInlineAvatarHtml(subtabKey, 18);
+                    authorLine.innerHTML = `${avHtml} <span>Вкладка участника: <b style="color:var(--accent);">${db[subtabKey]?.displayName || subtabKey}</b> ${snap?.updatedAtStr ? '(обновлено в ' + snap.updatedAtStr + ')' : ''}</span>`;
                 }
             }
 
             const editable = canEditBudgetSubtab(subtabKey);
-            document.getElementById('budgetReadonlyNotice').style.display = editable ? 'none' : 'inline-block';
+            const roNotice = document.getElementById('budgetReadonlyNotice');
+            if (roNotice) {
+                roNotice.style.display = editable ? 'none' : 'inline-block';
+                roNotice.innerText = subtabKey === '__main__'
+                    ? '📊 Авто-сумма всех участников (редактируйте в своей личной вкладке)'
+                    : '👁️ Только чтение (чужой бюджет)';
+            }
             document.getElementById('budgetPresetsRow').style.display = editable ? 'flex' : 'none';
             document.getElementById('btnCopyFromExchange').style.display = editable ? 'inline-block' : 'none';
 
             const titleEl = document.getElementById('budgetParamsTitle');
             if (titleEl) {
                 titleEl.innerText = subtabKey === '__main__'
-                    ? 'Параметры общего бюджета поездки'
+                    ? 'Совокупные параметры бюджета всех пользователей (в батах ฿)'
                     : `Личный бюджет участника: ${db[subtabKey]?.displayName || subtabKey}`;
             }
 
@@ -4560,30 +5314,20 @@
         function persistActiveBudgetSubtab() {
             if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             const snap = extractBudgetSnapshotFromDOM();
-            if (activeBudgetSubtab === '__main__') {
-                saveMainSharedBudget(snap);
-                pushStateToCloudSilent(true);
-            } else {
-                const db = getUsersDb();
-                if (db[activeBudgetSubtab]) {
-                    if (!db[activeBudgetSubtab].data) db[activeBudgetSubtab].data = { inputs: {} };
-                    if (!db[activeBudgetSubtab].data.inputs) db[activeBudgetSubtab].data.inputs = {};
-                    db[activeBudgetSubtab].data.inputs.plan_budget = snap.plan_budget;
-                    db[activeBudgetSubtab].data.inputs.plan_currency = snap.plan_currency;
-                    db[activeBudgetSubtab].data.inputs.plan_people = snap.plan_people;
-                    db[activeBudgetSubtab].data.inputs.plan_days = snap.plan_days;
-                    Object.keys(snap.cats).forEach(cId => {
-                        db[activeBudgetSubtab].data.inputs['num_' + cId] = snap.cats[cId];
-                        db[activeBudgetSubtab].data.inputs['rng_' + cId] = snap.cats[cId];
-                    });
-                    db[activeBudgetSubtab].updatedAt = Date.now();
-                    setUsersDb(db, true);
-                }
-            }
-            const authorLine = document.getElementById('budgetLastAuthorLine');
-            if (authorLine) {
-                const avHtml = getUserInlineAvatarHtml(snap.updatedByKey || snap.updatedBy, 18);
-                authorLine.innerHTML = `${avHtml} <span>Последнее обновление вкладки: <b style="color:var(--accent);">${snap.updatedBy}</b> (${snap.updatedAtStr})</span>`;
+            const db = getUsersDb();
+            if (db[activeBudgetSubtab]) {
+                if (!db[activeBudgetSubtab].data) db[activeBudgetSubtab].data = { inputs: {} };
+                if (!db[activeBudgetSubtab].data.inputs) db[activeBudgetSubtab].data.inputs = {};
+                db[activeBudgetSubtab].data.inputs.plan_budget = snap.plan_budget;
+                db[activeBudgetSubtab].data.inputs.plan_currency = snap.plan_currency;
+                db[activeBudgetSubtab].data.inputs.plan_people = snap.plan_people;
+                db[activeBudgetSubtab].data.inputs.plan_days = snap.plan_days;
+                Object.keys(snap.cats).forEach(cId => {
+                    db[activeBudgetSubtab].data.inputs['num_' + cId] = snap.cats[cId];
+                    db[activeBudgetSubtab].data.inputs['rng_' + cId] = snap.cats[cId];
+                });
+                db[activeBudgetSubtab].updatedAt = Date.now();
+                setUsersDb(db, true);
             }
         }
 
@@ -4593,14 +5337,29 @@
             persistActiveBudgetSubtab();
         }
 
-        /* ==================== КАЛЕНДАРЬ ПОЕЗДКИ И СЕЗОННЫЕ ПРЕДУПРЕЖДЕНИЯ ==================== */
+        /* ==================== ИНДИВИДУАЛЬНЫЙ КАЛЕНДАРЬ ОТПУСКА ПОЛЬЗОВАТЕЛЯ ==================== */
         function updateTripCountdown() {
             const startStr = document.getElementById('trip_start').value;
             const endStr = document.getElementById('trip_end').value;
-            if (!startStr || !endStr) return;
 
             document.getElementById('cal_trip_start').value = startStr;
             document.getElementById('cal_trip_end').value = endStr;
+
+            if (!startStr || !endStr) {
+                const emptyMain = '📅 Даты вашего отпуска еще не выбраны';
+                const emptySub = 'Укажите дату прилета и вылета выше, чтобы включить обратный отсчет';
+                document.getElementById('tripStatusMain').innerHTML = emptyMain;
+                document.getElementById('tripStatusSub').innerText = emptySub;
+                document.getElementById('tripDaysBadge').innerText = '0 дн.';
+                document.getElementById('tripCountdownBanner').style.borderColor = 'var(--border)';
+
+                document.getElementById('calTripStatusMain').innerHTML = emptyMain;
+                document.getElementById('calTripStatusSub').innerText = emptySub;
+                document.getElementById('calTripDaysBadge').innerText = '0 дн.';
+                document.getElementById('calCountdownBanner').style.borderColor = 'var(--border)';
+                renderSeasonalWarnings();
+                return;
+            }
 
             const startDate = new Date(startStr + 'T00:00:00');
             const endDate = new Date(endStr + 'T23:59:59');
@@ -4617,7 +5376,7 @@
                 const daysLeft = Math.floor(diffMs / 86400000);
                 const hoursLeft = Math.floor((diffMs % 86400000) / 3600000);
                 mainHtml = `✈️ До вылета на Пхукет: <span style="color:var(--success)">${daysLeft} дн. ${hoursLeft} ч.</span>`;
-                subText = `Отпуск: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
+                subText = `Ваш отпуск: ${startDate.toLocaleDateString('ru-RU')} — ${endDate.toLocaleDateString('ru-RU')} (${totalTripDays} дн.)`;
             } else if (now >= startDate && now <= endDate) {
                 const dayNumber = Math.floor((now - startDate) / 86400000) + 1;
                 const diffEndMs = endDate - now;
@@ -4647,15 +5406,19 @@
         function syncTripDaysToPlanner() {
             const startStr = document.getElementById('trip_start').value;
             const endStr = document.getElementById('trip_end').value;
-            if (!startStr || !endStr) return;
+            if (!startStr || !endStr) {
+                alert('Сначала укажите даты прилета и вылета!');
+                return;
+            }
             const days = Math.max(1, Math.round((new Date(endStr) - new Date(startStr)) / 86400000));
+            activeBudgetSubtab = inspectedUserByAdmin || currentUser;
+            switchTab('planner');
             document.getElementById('plan_days').value = days;
             updatePlanner();
             persistActiveBudgetSubtab();
-            switchTab('planner');
         }
 
-        function calcPhuketSunTimes(dateObj = new Date()) {
+       function calcPhuketSunTimes(dateObj = new Date()) {
             const start = new Date(dateObj.getFullYear(), 0, 0);
             const dayOfYear = Math.floor((dateObj - start) / 86400000);
             const latRad = 7.8206 * Math.PI / 180;
@@ -4764,7 +5527,7 @@
         const westBeaches = [
             { id: 'kata', name: 'Пляж Ката (Kata Beach)', sub: 'Юго-запад • Главный пляж (по умолчанию)', lat: 7.8206, lon: 98.2981, waveExposure: 0.92, tideSensitivity: 'medium', bottomType: 'Пологий песчаный вход, мягкое дно без кораллов', lowTideImpact: 'Среднее влияние: в сильный отлив вода уходит на 35–50 метров, обнажая плотный песок, но купаться комфортно на любой фазе воды.', highTideImpact: 'Идеально для купания: глубокая вода начинается в 15 метрах от берега, мягкий прибой.', snorkeling: 'У северного и южного мысов (возле камней и острова Пу)', infra: 'Отличная: лежаки (~200 ฿ за пару), массаж, шейки, рестораны, серф-школы' },
             { id: 'katanoy', name: 'Пляж Ката Ной (Kata Noi Beach)', sub: 'Южнее Ката • Уютная бухта с бирюзовой водой', lat: 7.8058, lon: 98.2992, waveExposure: 1.0, tideSensitivity: 'low', bottomType: 'Быстрый набор глубины, чистейший мелкий песок', lowTideImpact: 'Минимальное влияние: даже в пик отлива сохраняется отличная глубина для плавания, дно чистое.', highTideImpact: 'Глубокое и прозрачное море сразу у входа, при свежем ветре — красивые волны.', snorkeling: 'Отличный снорклинг у южных камней (слева при взгляде на море)', infra: 'Спокойная: лежаки в центральной части, видовые рестораны на скалах' },
-            { id: 'karon', name: 'Пляж Карон (Karon Beach)', sub: 'Центральный запад • 3.5 км «поющего» кварцевого песка', lat: 7.8439, lon: 98.2936, waveExposure: 1.15, tideSensitivity: 'low', bottomType: 'Довольно крутой уклон дна, глубоко уже у берега', lowTideImpact: 'Слабое влияние: благодаря быстрому набору глубины на Кароне удобно плавать даже в самую малую воду.', highTideImpact: 'Полноводное глубокое море; при волнении свыше 1 м возможны отбойные течения (следите за флагами).', snorkeling: 'В южной части пляжа на границе с мысом Ката', infra: 'Широкая набережная, лежаки, парк, множество кафе через дорогу' },
+            { id: 'karon', name: 'Пляж Карон (Karon Beach)', sub: 'Центральный запад • 3.5 км «поющего» кварцевым песка', lat: 7.8439, lon: 98.2936, waveExposure: 1.15, tideSensitivity: 'low', bottomType: 'Довольно крутой уклон дна, глубоко уже у берега', lowTideImpact: 'Слабое влияние: благодаря быстрому набору глубины на Кароне удобно плавать даже в самую малую воду.', highTideImpact: 'Полноводное глубокое море; при волнении свыше 1 м возможны отбойные течения (следите за флагами).', snorkeling: 'В южной части пляжа на границе с мысом Ката', infra: 'Широкая набережная, лежаки, парк, множество кафе через дорогу' },
             { id: 'naiharn', name: 'Пляж Най Харн (Nai Harn Beach)', sub: 'Юг Пхукета • Живописная лагуна между зеленых холмов', lat: 7.7768, lon: 98.3059, waveExposure: 0.85, tideSensitivity: 'low', bottomType: 'Ровное песчаное дно, плавный и комфортный заход', lowTideImpact: 'Слабое-среднее: в южной части у озера в отлив становится мелко для детей, в центре глубина сохраняется всегда.', highTideImpact: 'Одно из лучших мест для долгого заплыва на острове, чистейшая вода.', snorkeling: 'У скалистых краев бухты и переход на соседний пляж Ао Сане', infra: 'Фруктовые ряды, недорогие массажные павильоны, тень от казуариновых деревьев' },
             { id: 'yanui', name: 'Пляж Януи (Yanui Beach)', sub: 'Крайний юг (у мыса Промтхеп и Ветряка) • Бухта для снорклинга и каяков', lat: 7.7681, lon: 98.3064, waveExposure: 0.72, tideSensitivity: 'medium', bottomType: 'Песчаный вход в центре и живописные рифовые скалы по краям', lowTideImpact: 'В сильный отлив у берега обнажаются каменистые гряды — лучше заходить в воду по центральному песчаному коридору или в коралловых тапочках.', highTideImpact: 'Идеально для плавания с маской и каякинга вокруг островка Key Island напротив пляжа.', snorkeling: 'Один из лучших на юге Пхукета: кораллы, рыбы-попугаи и мурены прямо у скал и островка', infra: 'Аренда прозрачных каяков, масок, зонтиков, два уютных ресторана через дорогу' },
             { id: 'aosane', name: 'Пляж Ао Сане (Ao Sane Beach)', sub: 'Секретная бухта за Най Харном • Дайвинг и снорклинг с берега', lat: 7.7745, lon: 98.2974, waveExposure: 0.68, tideSensitivity: 'low', bottomType: 'Крупный коралловый песок, гранитные валуны и домашний коралловый риф', lowTideImpact: 'Слабое влияние: благодаря крутому уклону рифа глубина для снорклинга остается отличной даже в отлив.', highTideImpact: 'Кристально прозрачная вода, защищенная от ветра скалами мыса Кратинг.', snorkeling: 'Топовый домашний риф: живые кораллы, стаи рыб и дайв-спот прямо в 15 метрах от берега', infra: 'Тень от огромных деревьев на берегу, душ, уютное пляжное кафе' },
@@ -5460,12 +6223,15 @@
                 setTimeout(() => { btn.innerText = '🔄 Синхронизировать точную погоду, УФ и море'; }, 1400);
             }
         }
-
-        /* ==================== КУРСЫ ВАЛЮТ И ОФИЦИАЛЬНЫЙ БЕНЧМАРК ==================== */
+<!-- ==================== КОНЕЦ ЧАСТИ 3.2 (ВСТАВЬТЕ ЧАСТЬ 3.3 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
+/* ==================== КУРСЫ ВАЛЮТ И ОФИЦИАЛЬНЫЙ БЕНЧМАРК ==================== */
         function copyFromExchangeTab() {
-            if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
-            document.getElementById('plan_budget').value = document.getElementById('budget').value;
-            document.getElementById('plan_currency').value = document.getElementById('currency').value;
+            if (!canEditBudgetSubtab(activeBudgetSubtab)) {
+                activeBudgetSubtab = inspectedUserByAdmin || currentUser;
+                renderBudgetSubtabs();
+            }
+            document.getElementById('plan_budget').value = document.getElementById('budget').value || '0';
+            document.getElementById('plan_currency').value = document.getElementById('currency').value || 'RUB';
             updatePlanner();
             persistActiveBudgetSubtab();
         }
@@ -5590,7 +6356,7 @@
             items.forEach((it, i) => {
                 const isFirst = i === 0;
                 let spreadBadge = '';
-                if (officialCrossRubPerThb && it.effRubPerThb) {
+                if (officialCrossRubPerThb && it.effRubPerThb && isFinite(it.effRubPerThb)) {
                     const markupPct = Math.max(0, ((it.effRubPerThb - officialCrossRubPerThb) / officialCrossRubPerThb) * 100);
                     const cls = markupPct < 2.2 ? 'good' : '';
                     spreadBadge = `<span class="spread-tag ${cls}">наценка +${markupPct.toFixed(2)}% к бирже</span>`;
@@ -5612,25 +6378,25 @@
         }
 
         function render(animate = false) {
-            const b = parseFloat(document.getElementById('budget').value) || 0;
+            const b = Math.max(0, parseFloat(document.getElementById('budget').value) || 0);
             const curr = document.getElementById('currency').value;
             
-            const spb1 = parseFloat(document.getElementById('usd_spb_1').value) || 1;
-            const spb2 = parseFloat(document.getElementById('usd_spb_2').value) || 1;
-            const spb3 = parseFloat(document.getElementById('usd_spb_3').value) || 1;
+            const spb1 = parseFloat(document.getElementById('usd_spb_1').value) || 84.20;
+            const spb2 = parseFloat(document.getElementById('usd_spb_2').value) || 84.35;
+            const spb3 = parseFloat(document.getElementById('usd_spb_3').value) || 84.50;
             const fee1 = parseFloat(document.getElementById('fee_spb_1').value) || 0;
             const fee2 = parseFloat(document.getElementById('fee_spb_2').value) || 0;
-            const eurSpb1 = parseFloat(document.getElementById('eur_spb_1').value) || 1;
-            const cnySpb1 = parseFloat(document.getElementById('cny_spb_1').value) || 1;
+            const eurSpb1 = parseFloat(document.getElementById('eur_spb_1').value) || 94.70;
+            const cnySpb1 = parseFloat(document.getElementById('cny_spb_1').value) || 12.65;
 
-            const usdVp = parseFloat(document.getElementById('usd_vp').value) || 1;
-            const usdMs = parseFloat(document.getElementById('usd_ms').value) || 1;
-            const usdBeach = parseFloat(document.getElementById('usd_beach').value) || 1;
-            const eurVp = parseFloat(document.getElementById('eur_vp').value) || 1;
-            const cnyVp = parseFloat(document.getElementById('cny_vp').value) || 1;
+            const usdVp = parseFloat(document.getElementById('usd_vp').value) || 33.58;
+            const usdMs = parseFloat(document.getElementById('usd_ms').value) || 33.364;
+            const usdBeach = parseFloat(document.getElementById('usd_beach').value) || 33.20;
+            const eurVp = parseFloat(document.getElementById('eur_vp').value) || 37.55;
+            const cnyVp = parseFloat(document.getElementById('cny_vp').value) || 4.72;
 
-            const sbpMs = parseFloat(document.getElementById('sbp_ms').value) || 1;
-            const sbpFm = parseFloat(document.getElementById('sbp_fm').value) || 1;
+            const sbpMs = parseFloat(document.getElementById('sbp_ms').value) || 2.677;
+            const sbpFm = parseFloat(document.getElementById('sbp_fm').value) || 2.695;
 
             const fxUsdRub = parseFloat(document.getElementById('forex_usd_rub').value) || (spb1 - 0.60);
             const fxUsdThb = parseFloat(document.getElementById('forex_usd_thb').value) || (usdVp + 0.18);
@@ -5643,20 +6409,25 @@
             const cards = [];
 
             if (curr === 'RUB') {
-                const usd1 = Math.round((b / spb1) * 100) / 100;
-                const usd2 = Math.round(((b - fee2) / spb2) * 100) / 100;
-                const usd3 = Math.round((b / spb3) * 100) / 100;
+                const usd1 = b > 0 ? Math.round((b / spb1) * 100) / 100 : 0;
+                const usd2 = b > fee2 ? Math.round(((b - fee2) / spb2) * 100) / 100 : 0;
+                const usd3 = b > 0 ? Math.round((b / spb3) * 100) / 100 : 0;
+
+                const baseEff1 = spb1 / usdVp;
+                const baseEff2 = spb2 / usdVp;
+                const baseEffMs = spb1 / usdMs;
+                const baseEff3 = spb3 / usdVp;
 
                 const hUsd = [
-                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $, сбор +${fee1}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd1 * usdVp, exactUsd: usd1, effRubPerThb: (b + fee1) / (usd1 * usdVp) },
-                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(spb2)} ₽/$ (${fmt(usd2)} $, сбор ${fee2}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd2 * usdVp, exactUsd: usd2, effRubPerThb: b / (usd2 * usdVp) },
-                    { name: "СКВ Лиговский ➔ Money Shop Kata", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $) ➔ Money Shop: ${usdMs.toFixed(3)} ฿/$`, resultThb: usd1 * usdMs, exactUsd: usd1, effRubPerThb: (b + fee1) / (usd1 * usdMs) },
-                    { name: "Финам / Авангард ➔ Value Plus", rateText: `СПб: ${fmt(spb3)} ₽/$ (${fmt(usd3)} $, без сбора) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd3 * usdVp, exactUsd: usd3, effRubPerThb: b / (usd3 * usdVp) }
+                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $, сбор +${fee1}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd1 * usdVp, exactUsd: usd1, effRubPerThb: usd1 > 0 ? (b + fee1) / (usd1 * usdVp) : baseEff1 },
+                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(spb2)} ₽/$ (${fmt(usd2)} $, сбор ${fee2}₽) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd2 * usdVp, exactUsd: usd2, effRubPerThb: usd2 > 0 ? b / (usd2 * usdVp) : baseEff2 },
+                    { name: "СКВ Лиговский ➔ Money Shop Kata", rateText: `СПб: ${fmt(spb1)} ₽/$ (${fmt(usd1)} $) ➔ Money Shop: ${usdMs.toFixed(3)} ฿/$`, resultThb: usd1 * usdMs, exactUsd: usd1, effRubPerThb: usd1 > 0 ? (b + fee1) / (usd1 * usdMs) : baseEffMs },
+                    { name: "Финам / Авангард ➔ Value Plus", rateText: `СПб: ${fmt(spb3)} ₽/$ (${fmt(usd3)} $, без сбора) ➔ Таиланд: ${fmt(usdVp)} ฿/$`, resultThb: usd3 * usdVp, exactUsd: usd3, effRubPerThb: usd3 > 0 ? b / (usd3 * usdVp) : baseEff3 }
                 ];
                 hUsd.sort((a, b) => b.resultThb - a.resultThb);
 
                 const bestUsdThb = hUsd[0].resultThb;
-                const bestUsdEff = (b + fee1) / bestUsdThb;
+                const bestUsdEff = bestUsdThb > 0 ? (b + fee1) / bestUsdThb : baseEff1;
                 const usdSpreadPct = Math.max(0, ((bestUsdEff - officialCrossRubThb) / officialCrossRubThb) * 100);
 
                 document.getElementById('homeBestCashRate').innerText = `${bestUsdEff.toFixed(3)} ₽/฿`;
@@ -5672,14 +6443,15 @@
                     hierarchy: buildHierarchyList(hUsd, officialCrossRubThb)
                 });
 
-                const eur1 = Math.round((b / eurSpb1) * 100) / 100;
-                const eur2 = Math.round(((b - fee2) / (eurSpb1 + 0.25)) * 100) / 100;
+                const eur1 = b > 0 ? Math.round((b / eurSpb1) * 100) / 100 : 0;
+                const eur2 = b > fee2 ? Math.round(((b - fee2) / (eurSpb1 + 0.25)) * 100) / 100 : 0;
+                const baseEurEff = eurSpb1 / eurVp;
                 const hEur = [
-                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1)} ₽/€ (${fmt(eur1)} €) ➔ Value Plus: ${fmt(eurVp)} ฿/€`, resultThb: eur1 * eurVp, effRubPerThb: (b + fee1) / (eur1 * eurVp) },
-                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1 + 0.25)} ₽/€ (${fmt(eur2)} €, сбор ${fee2}₽) ➔ Таиланд: ${fmt(eurVp)} ฿/€`, resultThb: eur2 * eurVp, effRubPerThb: b / (eur2 * eurVp) }
+                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1)} ₽/€ (${fmt(eur1)} €) ➔ Value Plus: ${fmt(eurVp)} ฿/€`, resultThb: eur1 * eurVp, effRubPerThb: eur1 > 0 ? (b + fee1) / (eur1 * eurVp) : baseEurEff },
+                    { name: "Камкомбанк ➔ Value Plus", rateText: `СПб: ${fmt(eurSpb1 + 0.25)} ₽/€ (${fmt(eur2)} €, сбор ${fee2}₽) ➔ Таиланд: ${fmt(eurVp)} ฿/€`, resultThb: eur2 * eurVp, effRubPerThb: eur2 > 0 ? b / (eur2 * eurVp) : (eurSpb1 + 0.25) / eurVp }
                 ];
                 const bestEurThb = hEur[0].resultThb;
-                const eurEff = (b + fee1) / bestEurThb;
+                const eurEff = bestEurThb > 0 ? (b + fee1) / bestEurThb : baseEurEff;
                 const eurSpreadPct = Math.max(0, ((eurEff - officialCrossRubThb) / officialCrossRubThb) * 100);
 
                 cards.push({
@@ -5688,12 +6460,13 @@
                     hierarchy: buildHierarchyList(hEur, officialCrossRubThb)
                 });
 
-                const cny1 = Math.round((b / cnySpb1) * 100) / 100;
+                const cny1 = b > 0 ? Math.round((b / cnySpb1) * 100) / 100 : 0;
+                const baseCnyEff = cnySpb1 / cnyVp;
                 const hCny = [
-                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(cnySpb1)} ₽/¥ (${fmt(cny1)} ¥) ➔ Value Plus: ${fmt(cnyVp)} ฿/¥`, resultThb: cny1 * cnyVp, effRubPerThb: (b + fee1) / (cny1 * cnyVp) }
+                    { name: "СКВ Лиговский ➔ Value Plus", rateText: `СПб: ${fmt(cnySpb1)} ₽/¥ (${fmt(cny1)} ¥) ➔ Value Plus: ${fmt(cnyVp)} ฿/¥`, resultThb: cny1 * cnyVp, effRubPerThb: cny1 > 0 ? (b + fee1) / (cny1 * cnyVp) : baseCnyEff }
                 ];
                 const bestCnyThb = hCny[0].resultThb;
-                const cnyEff = (b + fee1) / bestCnyThb;
+                const cnyEff = bestCnyThb > 0 ? (b + fee1) / bestCnyThb : baseCnyEff;
                 const cnySpreadPct = Math.max(0, ((cnyEff - officialCrossRubThb) / officialCrossRubThb) * 100);
 
                 cards.push({
@@ -5769,12 +6542,13 @@
             });
         }
 
-        /* ==================== ПЛАНИРОВЩИК БЮДЖЕТА ==================== */
+        /* ==================== ПЛАНИРОВЩИК БЮДЖЕТА (С НУЛЯМИ ПО УМОЛЧАНИЮ ДЛЯ НОВЫХ УЧАСТНИКОВ) ==================== */
         const categoriesData = [
             {
-                id: 'food_daily', icon: '🍜', name: 'Еда на каждый день (кафе, стритфуд, фудкорты)', maxThb: 60000, step: 500, val: 23000,
+                id: 'food_daily', icon: '🍜', name: 'Еда на каждый день (кафе, стритфуд, фудкорты)', maxThb: 60000, step: 500, val: 0,
                 presets: { eco: 320, comfort: 550, lux: 900 },
                 getHint: (perPersonDay) => {
+                    if (perPersonDay <= 0) return ['Не запланировано (0 ฿):', 'Передвиньте ползунок или выберите пресет выше, чтобы запланировать расходы на ежедневное питание.'];
                     if (perPersonDay < 250) return ['Эконом-минимум:', 'Готовая еда в 7-Eleven (тосты, рис с курицей), ночные рынки и простые макашницы (50–80 ฿ за блюдо).'];
                     if (perPersonDay < 550) return ['Локальный комфорт:', 'Обеды и завтраки в хороших тайских кафе на Ката, пад-тай, том-ям, жареный рис с морепродуктами и свежий кокос.'];
                     if (perPersonDay < 900) return ['Отличный уровень:', 'Европейские завтраки с кофе, плотные обеды в кондиционированных кафе у пляжа без взгляда на ценник.'];
@@ -5782,9 +6556,10 @@
                 }
             },
             {
-                id: 'restaurants', icon: '🍤', name: 'Рестораны, креветки и вечерние ужины', maxThb: 80000, step: 500, val: 25000,
+                id: 'restaurants', icon: '🍤', name: 'Рестораны, креветки и вечерние ужины', maxThb: 80000, step: 500, val: 0,
                 presets: { eco: 200, comfort: 550, lux: 1200 },
                 getHint: (perPersonDay) => {
+                    if (perPersonDay <= 0) return ['Не запланировано (0 ฿):', 'Укажите сумму для расчета вечерних походов в сифуд-рестораны и ужинов у моря.'];
                     if (perPersonDay < 200) return ['Редкие выходы:', '1–2 похода в недорогой сифуд-ресторан за всю поездку, в остальные вечера — обычные уличные кафе.'];
                     if (perPersonDay < 600) return ['Регулярные ужины:', 'Через день ужины со свежими тигровыми креветками, рыбой на гриле, кальмарами и коктейлями на Ката.'];
                     if (perPersonDay < 1100) return ['Гурман-режим:', 'Каждый вечер рестораны у моря, большие сеты морепродуктов, крабы, барбекю и живая музыка.'];
@@ -5792,9 +6567,10 @@
                 }
             },
             {
-                id: 'taxi', icon: '🚕', name: 'Такси и транспорт (InDrive / Bolt / байк)', maxThb: 45000, step: 500, val: 11500,
+                id: 'taxi', icon: '🚕', name: 'Такси и транспорт (InDrive / Bolt / байк)', maxThb: 45000, step: 500, val: 0,
                 presets: { eco: 120, comfort: 250, lux: 650 },
                 getHint: (perPersonDay, totalDay) => {
+                    if (totalDay <= 0) return ['Не запланировано (0 ฿):', 'Укажите бюджет на поездки по острову (такси InDrive/Bolt, тук-туки или аренда скутера/авто).'];
                     if (totalDay < 250) return ['Пешком / Автобус:', 'Прогулки пешком по Ката и Карону, Phuket Smart Bus или аренда простого скутера на длительный срок.'];
                     if (totalDay < 600) return ['Активный комфорт:', '1–2 поездки на такси через InDrive/Bolt по соседним пляжам (Карон, Най Харн, Януи, Раваи) или свежий байк (PCX/NMAX).'];
                     if (totalDay < 1100) return ['Полная свобода на такси:', 'Ежедневные поездки на авто с кондиционером в Central Phuket, Патонг, Пхукет-Таун и на смотровые площадки.'];
@@ -5802,10 +6578,11 @@
                 }
             },
             {
-                id: 'excursions', icon: '🏝️', name: 'Экскурсии, острова и развлечения', maxThb: 65000, step: 500, val: 16000,
+                id: 'excursions', icon: '🏝️', name: 'Экскурсии, острова и развлечения', maxThb: 65000, step: 500, val: 0,
                 presets: { eco: 150, comfort: 380, lux: 850 },
                 getHint: (perPersonDay, totalDay, totalTrip, people) => {
-                    const perPersonTrip = totalTrip / people;
+                    const perPersonTrip = totalTrip / Math.max(1, people);
+                    if (totalTrip <= 0) return ['Не запланировано (0 ฿):', 'Добавьте бюджет на морские туры (Пхи-Пхи, Симиланы, Джеймс Бонд) и развлечения.'];
                     if (perPersonTrip < 3500) return ['Самостоятельный осмотр:', 'Поездка к Большому Будде, мыс Промтхеп, старый город Пхукет-Таун и 1 бюджетная морская прогулка.'];
                     if (perPersonTrip < 8500) return ['Золотая классика (2–3 тура):', 'Скоростной катер на Пхи-Пхи или Симиланы, залив Пханг Нга (Джеймс Бонд), аквапарк Andamanda или зиплайн Хануман.'];
                     if (perPersonTrip < 15000) return ['Насыщенная программа (4–5 туров):', 'Ранние туры без толп (Early Bird) на Симиланы и Пхи-Пхи, слоновий заповедник, шоу Carnival Magic и бич-клабы.'];
@@ -5813,45 +6590,50 @@
                 }
             },
             {
-                id: 'spa', icon: '💆‍♀️', name: 'Массаж и СПА-программы', maxThb: 40000, step: 500, val: 9000,
+                id: 'spa', icon: '💆‍♀️', name: 'Массаж и СПА-программы', maxThb: 40000, step: 500, val: 0,
                 presets: { eco: 80, comfort: 200, lux: 500 },
                 getHint: (perPersonDay) => {
+                    if (perPersonDay <= 0) return ['Не запланировано (0 ฿):', 'Укажите сумму для планирования тайского массажа и СПА.'];
                     if (perPersonDay < 100) return ['По настроению:', 'Массаж ног или классический тайский массаж (300–400 ฿ за час) пару раз в неделю после долгих прогулок.'];
                     if (perPersonDay < 280) return ['Регулярный релакс:', 'Через день часовой ойл-массаж, массаж с алоэ вера после солнца или горячими камнями в хороших салонах Ката.'];
                     return ['СПА-курорт каждый день:', 'Ежедневные 1.5–2 часовые программы в сетевых СПА (Let’s Relax, Oasis Spa) со скрабами и ароматерапией.'];
                 }
             },
             {
-                id: 'drinks', icon: '🍹', name: 'Фрукты, шейки, кофе, бары и 7-Eleven', maxThb: 40000, step: 500, val: 11500,
+                id: 'drinks', icon: '🍹', name: 'Фрукты, шейки, кофе, бары и 7-Eleven', maxThb: 40000, step: 500, val: 0,
                 presets: { eco: 120, comfort: 250, lux: 550 },
                 getHint: (perPersonDay) => {
+                    if (perPersonDay <= 0) return ['Не запланировано (0 ฿):', 'Укажите сумму на свежие манго, кокосы, смузи, кофе и напитки.'];
                     if (perPersonDay < 150) return ['Базовый набор:', 'Вода, свежие нарезанные манго и ананасы с фруктовых макашниц и 1 фруктовый смузи в день.'];
                     if (perPersonDay < 350) return ['Вкусный отпуск:', 'Манго-шейки и кокосы 2–3 раза в день, хороший зерновой айс-латте в кофейнях, вечерние коктейли и снеки.'];
                     return ['Вечеринки и бары:', 'Коктейли в бич-клабах на первой линии Ката/Карон, крафтовые напитки, свежая клубника и манго без ограничений.'];
                 }
             },
             {
-                id: 'shopping', icon: '🛍️', name: 'Шопинг (ТЦ Central Phuket, одежда, аптеки)', maxThb: 80000, step: 1000, val: 15000,
+                id: 'shopping', icon: '🛍️', name: 'Шопинг (ТЦ Central Phuket, одежда, аптеки)', maxThb: 80000, step: 1000, val: 0,
                 presets: { eco: 100, comfort: 320, lux: 900 },
                 getHint: (perPersonDay, totalDay, totalTrip) => {
+                    if (totalTrip <= 0) return ['Не запланировано (0 ฿):', 'Укажите сумму на покупки в торговых центрах, аптеках и магазинах.'];
                     if (totalTrip < 5000) return ['Только необходимое:', 'Солнцезащитные кремы в Boots/Watsons, базовая пляжная одежда, сланцы и аптечка.'];
                     if (totalTrip < 18000) return ['Хороший шопинг в ТЦ:', 'Поездка в Central Festival / Jungceylon: кроссовки, брендовая летняя одежда (Uniqlo, H&M, Nike), тайская уходовая косметика.'];
                     return ['Крупный шопинг:', 'Масштабные покупки брендовой одежды, обуви, парфюмерии или техники с оформлением возврата налога Tax Free (VAT Refund).'];
                 }
             },
             {
-                id: 'souvenirs', icon: '🎁', name: 'Сувениры, подарки и фрукты домой', maxThb: 30000, step: 500, val: 5000,
+                id: 'souvenirs', icon: '🎁', name: 'Сувениры, подарки и фрукты домой', maxThb: 30000, step: 500, val: 0,
                 presets: { eco: 40, comfort: 110, lux: 280 },
                 getHint: (perPersonDay, totalDay, totalTrip) => {
+                    if (totalTrip <= 0) return ['Не запланировано (0 ฿):', 'Укажите сумму на подарки близким и корзину фруктов домой.'];
                     if (totalTrip < 2500) return ['Символические сувениры:', 'Ингаляторы Poy-Sian, тигровые бальзамы, кокосовое масло, магниты и немного сушеного манго.'];
                     if (totalTrip < 7000) return ['Полная корзина подарков:', 'Корзинка свежих манго и маракуйи в ручную кладь, тайский ром SangSom, чаи, натуральная косметика и специи.'];
                     return ['Подарки всем близким:', 'Большой запас манго, дуриановые конфеты, подушки из натурального латекса, шелк и премиум-наборы косметики.'];
                 }
             },
             {
-                id: 'misc', icon: '🏖️', name: 'Пляж и быт (лежаки, сим-карты, прачечная)', maxThb: 25000, step: 500, val: 5500,
+                id: 'misc', icon: '🏖️', name: 'Пляж и быт (лежаки, сим-карты, прачечная)', maxThb: 25000, step: 500, val: 0,
                 presets: { eco: 50, comfort: 120, lux: 250 },
                 getHint: (perPersonDay, totalDay) => {
+                    if (totalDay <= 0) return ['Не запланировано (0 ฿):', 'Укажите сумму на пляжные лежаки, сим-карты и прачечную.'];
                     if (totalDay < 150) return ['На своих полотенцах:', 'Быстрые e-SIM / туристические симки и сдача вещей в прачечную раз в неделю (50 ฿ за кг).'];
                     return ['Полный пляжный комфорт:', 'Ежедневная аренда пары лежаков с зонтиком в тени на пляже Ката (~200 ฿ в день), безлимитный интернет и экспресс-прачечная.'];
                 }
@@ -5911,21 +6693,7 @@
         function getTotalBudgetInThb() {
             const b = parseFloat(document.getElementById('plan_budget').value) || 0;
             const curr = document.getElementById('plan_currency').value;
-            const spb1 = parseFloat(document.getElementById('usd_spb_1').value) || 84.20;
-            const fee1 = parseFloat(document.getElementById('fee_spb_1').value) || 20;
-            const usdVp = parseFloat(document.getElementById('usd_vp').value) || 33.58;
-            const eurVp = parseFloat(document.getElementById('eur_vp').value) || 37.55;
-            const cnyVp = parseFloat(document.getElementById('cny_vp').value) || 4.72;
-
-            if (curr === 'THB') return b;
-            if (curr === 'USD') return b * usdVp;
-            if (curr === 'EUR') return b * eurVp;
-            if (curr === 'CNY') return b * cnyVp;
-            if (curr === 'RUB') {
-                const exactUsd = Math.round((Math.max(0, b - fee1) / spb1) * 100) / 100;
-                return exactUsd * usdVp;
-            }
-            return b;
+            return convertAnyBudgetToThb(b, curr);
         }
 
         function updatePlanner() {
@@ -6037,7 +6805,10 @@
         function fitToBudget() {
             if (!canEditBudgetSubtab(activeBudgetSubtab)) return;
             const totalBudgetThb = getTotalBudgetInThb();
-            if (totalBudgetThb <= 0) return;
+            if (totalBudgetThb <= 0) {
+                alert('Сначала укажите сумму вашего бюджета выше!');
+                return;
+            }
             const targetSpend = totalBudgetThb * 0.85;
 
             let currentTotal = 0;
@@ -6059,26 +6830,31 @@
             logUserActivity(`Сбалансировал(а) категории бюджета с 15% резервом`, 'planner');
         }
 
+        /* ==================== ПОЛНОЕ ОБНОВЛЕНИЕ ВСЕЙ ИНФОРМАЦИИ НА САЙТЕ ==================== */
         async function refreshAllDashboard() {
             const btn = document.getElementById('refreshAllHomeBtn');
-            btn.innerText = '⏳ Обновление всех систем...';
+            if (btn) btn.innerText = '⏳ Полная синхронизация всех разделов сайта...';
             await Promise.all([
+                syncUsersFromCloud(false),
                 syncLiveRates(),
                 scanRealTimeTides(),
-                syncDistrictWeather(),
-                syncUsersFromCloud(false)
+                syncDistrictWeather()
             ]);
+            refreshAllSharedViews();
             updateTripCountdown();
-            renderNextEventOnHome();
-            renderChecklistDeadlineAlertsOnHome();
-            renderActivityFeedUI();
-            btn.innerText = '✅ Все сводки обновлены!';
-            setTimeout(() => { btn.innerText = '🔄 Обновить все сводки (Погода, Море, Курсы)'; }, 1400);
+            render(false);
+            updatePlanner();
+            if (btn) {
+                btn.innerText = '✅ Все данные сайта полностью обновлены!';
+                setTimeout(() => {
+                    btn.innerText = '🔄 Обновить вообще все данные сайта (Облако, Чаты, Погода, Курсы)';
+                }, 1500);
+            }
         }
 
-        /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
+        /* ==================== ОФФЛАЙН-РЕЖИМ СПЕЦИАЛЬНО ДЛЯ IPHONE (БЕЗ СКАЧИВАНИЯ ФАЙЛОВ) ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v8';
+const CACHE_NAME = 'phuket-pwa-cache-v9';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -6106,24 +6882,58 @@ self.addEventListener('fetch', (event) => {
                 caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy)).catch(() => {});
                 return networkRes;
             })
-            .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+            .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html') || caches.match('./')))
     );
 });
 `.trim();
 
-        function downloadServiceWorkerFile() {
-            const blob = new Blob([SW_SCRIPT_CODE], { type: 'application/javascript' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = 'sw.js';
-            a.click();
-            URL.revokeObjectURL(url);
+        async function activateIosOfflineMode() {
+            const btn = document.getElementById('iosOfflineModeBtn');
+            if (btn) btn.innerText = '⏳ Сохранение автономного кэша для iPhone...';
+
+            try {
+                // 1. Сохраняем все текущие данные и состояния в энергонезависимый localStorage
+                saveUserDataState();
+                saveOfflineCache('full_app_state_backup', buildFullSyncPayload());
+
+                // 2. Кэшируем саму страницу и внешние скрипты напрямую в CacheStorage браузера iOS Safari / PWA
+                if ('caches' in window) {
+                    const cache = await caches.open('phuket-pwa-cache-v9');
+                    const fullHtml = '<!DOCTYPE html>\n' + document.documentElement.outerHTML;
+                    const htmlResponse = new Response(fullHtml, {
+                        headers: { 'Content-Type': 'text/html; charset=utf-8' }
+                    });
+                    await cache.put(location.href, htmlResponse.clone());
+                    await cache.put('./', htmlResponse.clone());
+                    await cache.put('./index.html', htmlResponse.clone());
+                    try { await cache.add(location.href); } catch (e) {}
+                }
+
+                // 3. Регистрируем или обновляем Service Worker, если файл sw.js лежит рядом на GitHub Pages
+                if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
+                    try {
+                        await navigator.serviceWorker.register('./sw.js');
+                    } catch (e) {}
+                }
+
+                if (btn) {
+                    btn.innerText = '✅ Оффлайн-режим активен! (Работает без интернета)';
+                    btn.style.borderColor = 'var(--success)';
+                    btn.style.color = 'var(--success)';
+                }
+                showLiveToast('📲 <b>Оффлайн-режим для iPhone активирован!</b> Все данные, бюджеты, чаты и погода сохранены в память устройства. Совет: добавьте сайт «На экран Домой» в Safari для мгновенного запуска без сети.');
+            } catch (e) {
+                if (btn) btn.innerText = '✅ Данные сохранены в память устройства';
+            }
+
+            setTimeout(() => {
+                if (btn) btn.innerText = '📲 Оффлайн-режим (iPhone / Автономный кэш активен ✓)';
+            }, 2500);
         }
 
         function initPwaAndOfflineSupport() {
             const manifestObj = {
-                name: "Пхукет: Дашборд, Планировщик, Чек-лист и Курсы",
+                name: "Пхукет: Помощник, Чат и Бюджет",
                 short_name: "Phuket App",
                 start_url: "./index.html",
                 display: "standalone",
@@ -6139,13 +6949,10 @@ self.addEventListener('fetch', (event) => {
             document.getElementById('pwaManifestLink').href = URL.createObjectURL(manifestBlob);
 
             if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                navigator.serviceWorker.register('./sw.js').catch(() => {
-                    const swBlob = new Blob([SW_SCRIPT_CODE], { type: 'application/javascript' });
-                    navigator.serviceWorker.register(URL.createObjectURL(swBlob)).catch(() => {});
-                });
+                navigator.serviceWorker.register('./sw.js').catch(() => {});
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v8').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v9').then(cache => cache.add(location.href)).catch(() => {});
             }
 
             const updateNetStatus = () => {
@@ -6156,10 +6963,11 @@ self.addEventListener('fetch', (event) => {
             updateNetStatus();
         }
 
-        // Инициализация приложения и запуск живой синхронизации Firebase + WebSocket
+        // Главная инициализация приложения
         (function initApp() {
             initPlannerUI();
             initPwaAndOfflineSupport();
+            initPullToRefresh();
             ensureAdminAccountExists();
             loadSharedEvents();
             initFirebaseAndRealtimeSync();
@@ -6185,8 +6993,8 @@ self.addEventListener('fetch', (event) => {
 
             const savedSessionUser = sessionStorage.getItem(ACTIVE_SESSION_KEY)
                 || localStorage.getItem(ACTIVE_SESSION_KEY)
-                || localStorage.getItem('phuket_active_session_v7')
-                || localStorage.getItem('phuket_active_session_v6');
+                || localStorage.getItem('phuket_active_session_v8')
+                || localStorage.getItem('phuket_active_session_v7');
             const db = getUsersDb();
             const deletedMap = getDeletedUsersMap();
             if (savedSessionUser && db[savedSessionUser] && !deletedMap[savedSessionUser]) {
@@ -6199,12 +7007,12 @@ self.addEventListener('fetch', (event) => {
             syncUsersFromCloud(false);
 
             document.addEventListener('input', (e) => {
-                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk')) {
+                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk') && !e.target.id.startsWith('directChat')) {
                     saveUserDataState();
                 }
             });
             document.addEventListener('change', (e) => {
-                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk')) {
+                if (e.target && e.target.id && !e.target.id.startsWith('gate') && !e.target.id.startsWith('prof') && !e.target.id.startsWith('ev') && !e.target.id.startsWith('chk') && !e.target.id.startsWith('directChat')) {
                     saveUserDataState();
                 }
             });
@@ -6216,6 +7024,7 @@ self.addEventListener('fetch', (event) => {
             renderAllEventsSummary();
             renderNextEventOnHome();
             renderChecklistDeadlineAlertsOnHome();
+            renderUsersDirectoryAndChat();
             renderActivityFeedUI();
             updateScheduleBudgetSnapshot();
             renderChecklistSection();
