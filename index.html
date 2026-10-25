@@ -10,7 +10,10 @@
     <link id="pwaManifestLink" rel="manifest" href="">
     <title>Пхукет: Дашборд, Планировщик, Чек-лист, Курсы и Погода</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <!-- Мгновенный WebSocket-клиент для синхронизации между устройствами и браузерами за 0.1 сек -->
+    <!-- Подключение официального SDK Firebase (Realtime Database) для проекта phuket-app-af3e6 -->
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+    <!-- Резервный мгновенный WebSocket-клиент для параллельной синхронизации за 0.1 сек -->
     <script src="https://unpkg.com/mqtt@5.3.4/dist/mqtt.min.js"></script>
     <style>
         :root {
@@ -60,6 +63,17 @@
         /* Скрытие основного приложения до авторизации */
         #mainAppContainer { display: none; }
         #mainAppContainer.authenticated { display: block; animation: fadeIn 0.3s ease; }
+
+        /* Всплывающее уведомление о действиях других участников в реальном времени */
+        .live-toast-popup {
+            position: fixed; bottom: 18px; right: 18px; left: 18px; max-width: 420px; margin: 0 auto;
+            background: var(--card); border: 1.5px solid var(--accent); border-left: 5px solid var(--success);
+            color: var(--heading); padding: 11px 14px; border-radius: 12px;
+            box-shadow: 0 12px 32px rgba(0,0,0,0.55); z-index: 9500;
+            font-size: 0.8rem; display: none; align-items: center; justify-content: space-between; gap: 10px;
+            animation: fadeIn 0.25s ease;
+        }
+        .live-toast-popup.show { display: flex; }
 
         /* Полноэкранное окно входа и регистрации («Дверь») */
         .auth-gate-overlay {
@@ -162,7 +176,7 @@
 
         /* Онлайн бар и Тумблер Геолокации */
         .top-status-strip {
-            display: grid; grid-template-columns: 1.3fr 1fr; gap: 10px; margin-bottom: 12px;
+            display: grid; grid-template-columns: 1.35fr 1fr; gap: 10px; margin-bottom: 12px;
         }
         @media (max-width: 620px) { .top-status-strip { grid-template-columns: 1fr; } }
         .online-users-card, .geo-toggle-card {
@@ -171,13 +185,18 @@
         }
         .online-badge-pill {
             display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px;
-            border-radius: 20px; font-size: 0.76rem; font-weight: 700;
+            border-radius: 20px; font-size: 0.75rem; font-weight: 700;
             background: rgba(52, 199, 89, 0.14); color: var(--success);
             border: 1px solid rgba(52, 199, 89, 0.38);
         }
         .online-dot-pulse {
             width: 8px; height: 8px; border-radius: 50%; background: var(--success);
             box-shadow: 0 0 8px var(--success); display: inline-block; flex-shrink: 0;
+            animation: pulseDot 1.6s infinite;
+        }
+        @keyframes pulseDot {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.28); opacity: 0.7; }
         }
         .switch-wrap { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
         .ios-switch {
@@ -195,6 +214,21 @@
         .ios-switch input:checked + .ios-slider { background-color: var(--success); border-color: var(--success); }
         .ios-switch input:checked + .ios-slider:before { transform: translateX(20px); }
 
+        /* Лента последних действий участников в реальном времени */
+        .activity-feed-box {
+            background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--accent);
+            border-radius: 12px; padding: 11px 13px; margin-bottom: 12px;
+        }
+        .activity-list {
+            display: flex; flex-direction: column; gap: 6px; max-height: 145px; overflow-y: auto;
+        }
+        .activity-row {
+            display: flex; justify-content: space-between; align-items: center; gap: 8px;
+            background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px;
+            padding: 6px 10px; font-size: 0.77rem; cursor: pointer; transition: border-color 0.15s;
+        }
+        .activity-row:hover { border-color: var(--accent); }
+
         /* Сетка: Даты поездки + Ближайшее событие на Главной */
         .trip-and-event-grid {
             display: grid; grid-template-columns: 1.15fr 1fr; gap: 10px; margin-bottom: 12px;
@@ -207,7 +241,6 @@
         }
         .trip-countdown-badge { background: rgba(52, 199, 89, 0.12); border: 1px solid rgba(52, 199, 89, 0.35); border-radius: 9px; padding: 10px 12px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
 
-        /* Быстрый выбор эмодзи-аватара */
         .avatar-presets-row { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 6px; }
         .avatar-preset-btn {
             width: 34px; height: 34px; border-radius: 50%; border: 1px solid var(--border);
@@ -216,7 +249,6 @@
         }
         .avatar-preset-btn:hover { transform: scale(1.12); border-color: var(--accent); }
 
-        /* Модальные окна Профиля и Админ-панели */
         .app-modal-backdrop {
             display: none; position: fixed; inset: 0; z-index: 5000;
             background: rgba(0, 0, 0, 0.65); backdrop-filter: blur(4px);
@@ -292,7 +324,7 @@
         .cal-cell { min-height: 68px; background: var(--card-alt); border: 1px solid var(--border); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; justify-content: flex-start; cursor: pointer; position: relative; transition: all 0.15s; overflow: hidden; }
         .cal-cell:hover { border-color: var(--accent); }
         .cal-cell.empty { background: transparent; border-color: transparent; cursor: default; min-height: 20px; }
-        .cal-cell.in-vacation { background: rgba(0, 122, 255, 0.13); border-color: rgba(0, 122, 255, 0.38); }
+        .cal-cell.in-vacation { background: rgba(0, 122, 255, 0.13); border: 1px solid rgba(0, 122, 255, 0.38); }
         .cal-cell.is-today { box-shadow: inset 0 0 0 1.5px var(--warning); }
         .cal-cell.selected { border: 2px solid var(--success); box-shadow: 0 0 10px rgba(52, 199, 89, 0.25); }
         .cal-day-num { font-size: 0.78rem; font-weight: 700; color: var(--text); display: flex; justify-content: space-between; align-items: center; margin-bottom: 3px; }
@@ -309,7 +341,7 @@
         .ev-list-item { background: var(--card-alt); border: 1px solid var(--border); border-left: 4px solid var(--accent); border-radius: 8px; padding: 9px 11px; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
         .ev-del-btn { background: rgba(255, 59, 48, 0.15); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.3); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
         .ev-edit-btn { background: rgba(0, 122, 255, 0.15); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 6px; padding: 4px 8px; font-size: 0.72rem; font-weight: 600; cursor: pointer; }
-        .ev-author-badge { display: inline-block; background: rgba(0, 122, 255, 0.16); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 10px; padding: 1px 7px; font-size: 0.68rem; font-weight: 700; margin-left: 6px; }
+        .ev-author-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(0, 122, 255, 0.16); color: var(--accent); border: 1px solid rgba(0, 122, 255, 0.35); border-radius: 10px; padding: 2px 8px; font-size: 0.69rem; font-weight: 700; margin-left: 4px; }
 
         /* Стили Чек-листа вещей (Вкладка 6) */
         .folder-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin-bottom: 14px; }
@@ -325,7 +357,7 @@
             background: var(--card); border: 1px solid var(--border); border-left: 5px solid var(--accent);
             border-radius: 11px; padding: 12px; margin-bottom: 10px; transition: opacity 0.2s;
         }
-        .chk-item-card.done { opacity: 0.68; }
+        .chk-item-card.done { opacity: 0.72; }
         .chk-circle {
             width: 24px; height: 24px; border-radius: 50%; border: 2px solid var(--accent);
             display: inline-flex; align-items: center; justify-content: center; cursor: pointer;
@@ -337,7 +369,7 @@
         .urg-med { background: rgba(255, 159, 10, 0.15); color: var(--warning); border: 1px solid rgba(255, 159, 10, 0.35); }
         .urg-high { background: rgba(255, 59, 48, 0.18); color: var(--danger); border: 1px solid rgba(255, 59, 48, 0.4); }
         .subtask-row {
-            display: flex; align-items: center; gap: 8px; padding: 5px 8px;
+            display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 5px 8px;
             background: var(--card-alt); border-radius: 6px; margin-top: 5px; font-size: 0.8rem;
         }
         .checklist-total-footer {
@@ -495,6 +527,12 @@
 </head>
 <body>
 
+    <!-- Всплывающее уведомление о действиях других участников -->
+    <div class="live-toast-popup" id="liveActivityToast">
+        <div id="liveActivityToastText">🔔 Новое действие участника</div>
+        <button class="link-btn" onclick="document.getElementById('liveActivityToast').classList.remove('show')">ОК</button>
+    </div>
+
     <!-- ==================== ЭКРАН АВТОРИЗАЦИИ («ДВЕРЬ» В ПРИЛОЖЕНИЕ) ==================== -->
     <div class="auth-gate-overlay" id="authGateOverlay">
         <div class="auth-card">
@@ -533,7 +571,7 @@
 
             <button class="action-btn" style="width:100%; padding:13px;" id="gateSubmitBtn" onclick="submitAuthGate()">Войти в приложение</button>
             <div style="text-align:center; margin-top:10px; display:flex; justify-content:center; gap:8px; flex-wrap:wrap;">
-                <button class="link-btn" id="syncCloudGateBtn" onclick="syncUsersFromCloud(true)" title="Синхронизировать базу профилей с облаком">🔄 Синхронизировать базу с сервером</button>
+                <button class="link-btn" id="syncCloudGateBtn" onclick="syncUsersFromCloud(true)" title="Синхронизировать базу профилей с Firebase">🔄 Синхронизировать с Firebase</button>
             </div>
         </div>
     </div>
@@ -544,7 +582,7 @@
             <h1>🌴 Пхукет: Помощник</h1>
             <div class="header-right">
                 <button class="theme-toggle-btn" id="themeToggleBtn" onclick="toggleTheme()" title="Переключить тему">☀️ Светлая</button>
-                <div class="pwa-badge online" id="networkBadge" title="Статус живой синхронизации">● Live Синхр.</div>
+                <div class="pwa-badge online" id="networkBadge" title="Статус живой синхронизации Firebase + WSS">● Firebase Live</div>
 
                 <!-- Иконка и меню профиля справа сверху -->
                 <div class="profile-menu-wrap" id="profileMenuWrap">
@@ -558,7 +596,7 @@
                         <div class="pd-header">
                             <div class="pd-name" id="pdUsername">Гость</div>
                             <div class="pd-role" id="pdRoleLabel">Путешественник</div>
-                            <div style="font-size:0.68rem; color:var(--success); margin-top:2px;" id="autoSaveStatus">✓ Живая синхронизация активна</div>
+                            <div style="font-size:0.68rem; color:var(--success); margin-top:2px;" id="autoSaveStatus">✓ Firebase синхронизация активна</div>
                         </div>
                         <button class="pd-item" onclick="openProfileSettingsModal()">⚙️ Настроить профиль</button>
                         <button class="pd-item" id="pdAdminBtn" style="display:none; color:var(--warning);" onclick="openAdminPanelModal()">🛠️ Настройки сервиса (Админ)</button>
@@ -581,14 +619,14 @@
 
         <!-- ==================== ВКЛАДКА 0: ГЛАВНАЯ СТРАНИЦА (ДАШБОРД) ==================== -->
         <div id="tab-home" class="tab-content active">
-            <!-- Блок: Кто сейчас онлайн (ники) + Тумблер Геолокации -->
+            <!-- Блок: Кто сейчас онлайн (ники + открытая вкладка) + Тумблер Геолокации -->
             <div class="top-status-strip">
                 <div class="online-users-card">
                     <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:6px; flex-wrap:wrap;">
                         <span style="font-size:0.76rem; font-weight:800; color:var(--success); text-transform:uppercase;">
                             🟢 Сейчас на сайте (<span id="onlineCountBadge">1</span>)
                         </span>
-                        <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхр. БД</button>
+                        <button class="link-btn" onclick="syncUsersFromCloud(true)">🔄 Синхр. Firebase</button>
                     </div>
                     <div id="onlineUsersListBox" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center;"></div>
                 </div>
@@ -604,6 +642,17 @@
                             <span class="ios-slider"></span>
                         </label>
                     </div>
+                </div>
+            </div>
+
+            <!-- Живая лента последних действий участников (кто что добавил в разделы) -->
+            <div class="activity-feed-box">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; gap:6px; flex-wrap:wrap;">
+                    <span style="font-size:0.77rem; font-weight:800; color:var(--accent); text-transform:uppercase;">⚡ Кто что добавил / изменил в разделах (Live-лента)</span>
+                    <span style="font-size:0.7rem; color:var(--muted);" id="firebaseConnStatusText">Подключение к облаку...</span>
+                </div>
+                <div class="activity-list" id="homeActivityFeedList">
+                    <div style="font-size:0.76rem; color:var(--muted);">Здесь мгновенно отображаются все новые записи участников в Планировании, Чек-листе и Бюджете.</div>
                 </div>
             </div>
 
@@ -888,7 +937,6 @@
                     </div>
                 </div>
 
-                <!-- Опциональная метка на карте для мероприятия -->
                 <div class="grid-2" style="margin-bottom:8px;">
                     <div class="field">
                         <label>📍 Место на карте (опционально — выберите локацию или координаты)</label>
@@ -925,7 +973,7 @@
             </div>
         </div>
 <!-- ==================== КОНЕЦ ЧАСТИ 1 (ВСТАВЬТЕ ЧАСТЬ 2 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
- <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ, ВАЛЮТА, РЕДАКТИРОВАНИЕ И ПОЛНАЯ СУММА) ==================== -->
+ <!-- ==================== ВКЛАДКА 6: ЧЕК-ЛИСТ ВЕЩЕЙ (ПАПКИ, АВТОРСТВО, ВАЛЮТА И ПОЛНАЯ СУММА) ==================== -->
         <div id="tab-checklist" class="tab-content">
             <div class="box">
                 <h2>
@@ -936,7 +984,7 @@
                 <!-- Кнопка создания списка, если у текущего пользователя еще нет своей папки -->
                 <div id="createMyChecklistBanner" style="display:none; text-align:center; padding:18px; background:var(--card-alt); border:1px dashed var(--accent); border-radius:12px; margin-bottom:12px;">
                     <div style="font-size:1.02rem; font-weight:800; color:var(--heading); margin-bottom:6px;">У вас еще нет личного чек-листа вещей</div>
-                    <div style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">Создайте свою именную папку, чтобы добавлять и редактировать вещи («Взять», «Собрано», «Купить»), ссылки, фото и подзадачи.</div>
+                    <div style="font-size:0.8rem; color:var(--muted); margin-bottom:12px;">Создайте свою именную папку, чтобы добавлять и редактировать вещи («Взять», «Собрано», «Купить»), ссылки, фото и подзадачи. Все участники сразу увидят ваш список.</div>
                     <button class="action-btn" onclick="createUserChecklistFolder()">➕ Создать список вещей</button>
                 </div>
 
@@ -1198,6 +1246,7 @@
                     <span id="budgetReadonlyNotice" style="font-size:0.74rem; color:var(--warning); font-weight:700; display:none;">👁️ Только чтение (чужой бюджет)</span>
                 </div>
                 <div class="subtabs-bar" id="budgetUserSubtabs"></div>
+                <div id="budgetLastAuthorLine" style="font-size:0.73rem; color:var(--muted); margin-top:2px;"></div>
             </div>
 
             <div class="summary-static">
@@ -1495,7 +1544,7 @@
             </div>
 
             <div style="font-size:0.77rem; color:var(--muted); margin-bottom:10px;" id="adminSyncStatusLine">
-                Мгновенная синхронизация активна. Вы можете менять любому пользователю имя, аватарку, описание, пароль или редактировать его разделы.
+                Firebase + WebSocket синхронизация активна. Вы можете менять любому пользователю имя, аватарку, описание, пароль или редактировать его разделы.
             </div>
 
             <!-- Область 1: Пользователи онлайн прямо сейчас -->
@@ -1554,7 +1603,7 @@
             }
         }
 
-        /* ==================== 100% НАДЕЖНЫЕ АВАТАРКИ БЕЗ «ЗНАКА ВОПРОСА» ==================== */
+        /* ==================== НАДЕЖНЫЕ АВАТАРКИ БЕЗ «ЗНАКА ВОПРОСА» ==================== */
         function createEmojiSvgDataUrl(emoji, bg = '#007aff') {
             const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100"><rect width="100" height="100" rx="50" fill="${bg}"/><text x="50" y="68" font-size="56" text-anchor="middle">${emoji}</text></svg>`;
             return 'data:image/svg+xml;utf8,' + encodeURIComponent(svg);
@@ -1600,12 +1649,10 @@
                 el.innerText = letter;
                 return;
             }
-            // Если выбран короткий эмодзи
             if (val.length <= 4 && !val.startsWith('http') && !val.startsWith('data:')) {
                 el.innerText = val;
                 return;
             }
-            // Безопасная картинка с авто-фоллбэком на первую букву при любой ошибке загрузки
             el.innerHTML = '';
             const img = document.createElement('img');
             img.alt = letter;
@@ -1618,23 +1665,42 @@
             el.appendChild(img);
         }
 
-        /* ==================== ЕДИНАЯ БАЗА ДАННЫХ И МГНОВЕННАЯ СИНХРОНИЗАЦИЯ (MQTT WSS + LOCAL) ==================== */
-        const USERS_DB_KEY = 'phuket_users_database_v7';
-        const LEGACY_DB_KEYS = ['phuket_users_database_v6', 'phuket_users_database_v5', 'phuket_users_database_v4', 'phuket_users_database_v3', 'phuket_users_database_v2', 'phuket_users_database_v1', 'phuket_users_db'];
-        const ACTIVE_SESSION_KEY = 'phuket_active_session_v7';
-        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v7';
-        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v7';
-        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v7';
-        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v7';
+        /* ==================== FIREBASE REALTIME DATABASE (phuket-app-af3e6) + WSS СИНХРОНИЗАЦИЯ ==================== */
+        const FIREBASE_CONFIG = {
+            apiKey: "AIzaSyA22OxphB32QA1N_QluhYsrd8uVhUNZujM",
+            authDomain: "phuket-app-af3e6.firebaseapp.com",
+            databaseURL: "https://phuket-app-af3e6-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "phuket-app-af3e6",
+            storageBucket: "phuket-app-af3e6.firebasestorage.app",
+            messagingSenderId: "756362257841",
+            appId: "1:756362257841:web:c1dc8c49d8e7f2c455c990",
+            measurementId: "G-6CS8H5BV7H"
+        };
+        const FIREBASE_DB_CANDIDATES = [
+            "https://phuket-app-af3e6-default-rtdb.europe-west1.firebasedatabase.app",
+            "https://phuket-app-af3e6-default-rtdb.firebaseio.com"
+        ];
+        let activeFirebaseRestUrl = FIREBASE_DB_CANDIDATES[0];
+        let fbDb = null;
+        let fbConnected = false;
 
-        // Топики мгновенного WebSocket-брокера (работает между любыми браузерами, вкладками и телефонами за 0.1 сек)
-        const MQTT_BASE_TOPIC = 'phuket_helper_app_2026_v7_live_room';
+        const USERS_DB_KEY = 'phuket_users_database_v8';
+        const LEGACY_DB_KEYS = ['phuket_users_database_v7', 'phuket_users_database_v6', 'phuket_users_database_v5', 'phuket_users_database_v4', 'phuket_users_database_v3'];
+        const ACTIVE_SESSION_KEY = 'phuket_active_session_v8';
+        const SHARED_EVENTS_KEY = 'phuket_shared_calendar_events_v8';
+        const SHARED_CHECKLIST_KEY = 'phuket_shared_checklists_v8';
+        const SHARED_MAIN_BUDGET_KEY = 'phuket_shared_main_budget_v8';
+        const ONLINE_PRESENCE_KEY = 'phuket_online_presence_v8';
+        const SHARED_ACTIVITY_KEY = 'phuket_shared_activity_feed_v8';
+
+        const MQTT_BASE_TOPIC = 'phuket_helper_af3e6_v8_live_room';
         const MQTT_STATE_TOPIC = `${MQTT_BASE_TOPIC}/full_state`;
         const MQTT_PRESENCE_TOPIC = `${MQTT_BASE_TOPIC}/presence`;
-        const REST_BACKUP_URL = 'https://ntfy.sh/phuket_helper_realtime_db_2026_v7_sync';
+        const REST_BACKUP_URL = 'https://ntfy.sh/phuket_helper_af3e6_realtime_v8';
 
         let authMode = 'login';
         let currentUser = null;
+        let currentActiveTab = 'home';
         let inspectedUserByAdmin = null;
         let activeBudgetSubtab = '__main__';
         let activeChecklistFolderUser = null;
@@ -1642,6 +1708,17 @@
         let uploadedChecklistImgData = '';
         let mqttClient = null;
         let lastCloudPushTs = 0;
+        let lastSeenActivityId = '';
+
+        const TAB_TITLES_RU = {
+            home: '🏠 Главная',
+            schedule: '📅 Планирование',
+            checklist: '🧳 Чек-лист',
+            planner: '🏖️ Бюджет',
+            exchange: '📊 Курсы',
+            tides: '🌊 Приливы',
+            weather: '🌤️ Погода'
+        };
 
         let geoState = {
             enabled: false,
@@ -1658,7 +1735,7 @@
         const HAS_SPECIAL_REGEX = /[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~`]/;
 
         // Локальная мгновенная шина между вкладками одного браузера
-        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v7') : null;
+        const syncChannel = ('BroadcastChannel' in window) ? new BroadcastChannel('phuket_realtime_sync_v8') : null;
         if (syncChannel) {
             syncChannel.onmessage = (ev) => {
                 if (!ev.data) return;
@@ -1689,6 +1766,7 @@
         function refreshAllSharedViews() {
             loadSharedEvents();
             renderOnlineUsersUI();
+            renderActivityFeedUI();
             renderHeaderProfileUI();
             if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
                 renderAdminUsersList();
@@ -1699,6 +1777,77 @@
             renderSelectedDayPreview();
             renderAllEventsSummary();
             renderNextEventOnHome();
+        }
+
+        /* ==================== ЖИВАЯ ЛЕНТА ДЕЙСТВИЙ («КТО ЧТО ДОБАВИЛ В РАЗДЕЛЫ») ==================== */
+        function getActivityLog() {
+            try {
+                return JSON.parse(localStorage.getItem(SHARED_ACTIVITY_KEY) || '[]');
+            } catch (e) { return []; }
+        }
+
+        function saveActivityLog(list) {
+            try {
+                localStorage.setItem(SHARED_ACTIVITY_KEY, JSON.stringify(list.slice(0, 25)));
+            } catch (e) {}
+        }
+
+        function showLiveToast(text) {
+            const toast = document.getElementById('liveActivityToast');
+            const txtEl = document.getElementById('liveActivityToastText');
+            if (!toast || !txtEl) return;
+            txtEl.innerHTML = text;
+            toast.classList.add('show');
+            clearTimeout(window._toastTimer);
+            window._toastTimer = setTimeout(() => {
+                toast.classList.remove('show');
+            }, 4200);
+        }
+
+        function logUserActivity(actionText, sectionTab = 'home') {
+            if (!currentUser) return;
+            const db = getUsersDb();
+            const authorName = db[currentUser]?.displayName || currentUser;
+            const entry = {
+                id: 'act_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6),
+                userKey: currentUser,
+                author: authorName,
+                action: actionText,
+                tab: sectionTab,
+                ts: Date.now()
+            };
+            lastSeenActivityId = entry.id;
+            const list = getActivityLog();
+            list.unshift(entry);
+            saveActivityLog(list.slice(0, 25));
+            renderActivityFeedUI();
+            pushStateToCloudSilent(true);
+        }
+
+        function renderActivityFeedUI() {
+            const box = document.getElementById('homeActivityFeedList');
+            if (!box) return;
+            const list = getActivityLog();
+            if (!list || list.length === 0) {
+                box.innerHTML = `<div style="font-size:0.76rem; color:var(--muted);">Пока нет записей в ленте. Любое добавление события, вещи в чек-лист или изменение бюджета сразу отобразится здесь с именем автора.</div>`;
+                return;
+            }
+            box.innerHTML = list.slice(0, 8).map(item => {
+                const tStr = new Date(item.ts).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+                const tabName = TAB_TITLES_RU[item.tab] || 'Раздел';
+                return `
+                    <div class="activity-row" onclick="switchTab('${item.tab || 'home'}')">
+                        <div>
+                            <b style="color:var(--accent);">👤 ${item.author}</b>:
+                            <span style="color:var(--heading);">${item.action}</span>
+                        </div>
+                        <div style="display:flex; align-items:center; gap:6px; flex-shrink:0;">
+                            <span class="ev-author-badge" style="margin:0;">${tabName}</span>
+                            <span style="font-size:0.7rem; color:var(--muted);">${tStr}</span>
+                        </div>
+                    </div>
+                `;
+            }).join('');
         }
 
         function getUsersDb() {
@@ -1763,16 +1912,17 @@
             }
         }
 
-        /* ==================== МГНОВЕННАЯ ОБЛАЧНАЯ СИНХРОНИЗАЦИЯ (WEBSOCKET MQTT + FALLBACK) ==================== */
+        /* ==================== ДВИЖОК СИНХРОНИЗАЦИИ FIREBASE (phuket-app-af3e6) + WSS ==================== */
         function buildFullSyncPayload() {
             return {
-                type: 'PHUKET_DB_STATE_V7',
+                type: 'PHUKET_DB_STATE_V8',
                 users: getUsersDb(),
                 presence: getOnlinePresenceDb(),
                 checklists: getChecklistsDb(),
                 sharedEvents: getSharedEventsDb(),
                 eventsUpdatedAt: Number(localStorage.getItem(SHARED_EVENTS_KEY + '_ts') || Date.now()),
                 mainBudget: getMainSharedBudget(),
+                activityLog: getActivityLog(),
                 ts: Date.now()
             };
         }
@@ -1801,14 +1951,18 @@
             if (snap.presence && typeof snap.presence === 'object') {
                 const localPres = getOnlinePresenceDb();
                 Object.keys(snap.presence).forEach(uKey => {
-                    const incTs = snap.presence[uKey];
+                    const incItem = snap.presence[uKey];
+                    const incTs = (typeof incItem === 'object' && incItem !== null) ? (incItem.ts || 0) : Number(incItem || 0);
+                    const locItem = localPres[uKey];
+                    const locTs = (typeof locItem === 'object' && locItem !== null) ? (locItem.ts || 0) : Number(locItem || 0);
+
                     if (incTs === 0) {
                         if (localPres[uKey]) {
                             delete localPres[uKey];
                             anyUpdated = true;
                         }
-                    } else if (incTs > (localPres[uKey] || 0)) {
-                        localPres[uKey] = incTs;
+                    } else if (incTs >= locTs) {
+                        localPres[uKey] = typeof incItem === 'object' ? incItem : { ts: incTs, tab: 'home' };
                         anyUpdated = true;
                     }
                 });
@@ -1847,46 +2001,133 @@
                 }
             }
 
+            if (Array.isArray(snap.activityLog) && snap.activityLog.length > 0) {
+                const localAct = getActivityLog();
+                const map = {};
+                [...snap.activityLog, ...localAct].forEach(a => {
+                    if (a && a.id) map[a.id] = a;
+                });
+                const mergedAct = Object.values(map).sort((a, b) => (b.ts || 0) - (a.ts || 0)).slice(0, 25);
+                saveActivityLog(mergedAct);
+                const newest = mergedAct[0];
+                if (newest && newest.id !== lastSeenActivityId) {
+                    if (lastSeenActivityId && currentUser && newest.userKey && newest.userKey.toLowerCase() !== currentUser.toLowerCase()) {
+                        showLiveToast(`🔔 <b>${newest.author}</b>: ${newest.action}`);
+                    }
+                    lastSeenActivityId = newest.id;
+                }
+                anyUpdated = true;
+            }
+
             if (anyUpdated) {
                 refreshAllSharedViews();
             }
         }
 
-        function initRealtimeMqttSync() {
-            if (typeof mqtt === 'undefined') return;
-            try {
-                mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
-                    clientId: 'phuket_usr_' + Math.random().toString(36).slice(2, 10),
-                    clean: true,
-                    connectTimeout: 4000,
-                    reconnectPeriod: 2000
-                });
+        // Инициализация Firebase Realtime Database (с автоопределением региона базы) + параллельный WebSocket
+        async function initFirebaseAndRealtimeSync() {
+            const connLbl = document.getElementById('firebaseConnStatusText');
 
-                mqttClient.on('connect', () => {
-                    mqttClient.subscribe(MQTT_STATE_TOPIC, { qos: 0 });
-                    mqttClient.subscribe(MQTT_PRESENCE_TOPIC, { qos: 0 });
-                    if (currentUser) pingOnlineStatus(true);
-                    pushStateToCloudSilent(true);
-                });
+            // 1. Автоопределение активного URL базы Firebase (Европа или США)
+            for (const candidateUrl of FIREBASE_DB_CANDIDATES) {
+                try {
+                    const res = await fetch(`${candidateUrl}/.json?shallow=true`);
+                    if (res.ok || res.status === 401) {
+                        activeFirebaseRestUrl = candidateUrl;
+                        FIREBASE_CONFIG.databaseURL = candidateUrl;
+                        break;
+                    }
+                } catch (e) {}
+            }
 
-                mqttClient.on('message', (topic, message) => {
-                    try {
-                        const data = JSON.parse(message.toString());
-                        if (topic === MQTT_STATE_TOPIC && data.type === 'PHUKET_DB_STATE_V7') {
-                            applyIncomingCloudSnapshot(data);
-                        } else if (topic === MQTT_PRESENCE_TOPIC && data.user) {
-                            const pres = getOnlinePresenceDb();
-                            if (data.ts === 0) delete pres[data.user];
-                            else pres[data.user] = data.ts;
-                            localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
-                            renderOnlineUsersUI();
-                            if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
-                                renderAdminUsersList();
-                            }
+            // 2. Подключение официального Firebase SDK с поддержкой onDisconnect() для мгновенного статуса Онлайн
+            if (typeof firebase !== 'undefined') {
+                try {
+                    if (!firebase.apps.length) {
+                        firebase.initializeApp(FIREBASE_CONFIG);
+                    }
+                    fbDb = firebase.database();
+
+                    fbDb.ref('.info/connected').on('value', (snap) => {
+                        fbConnected = Boolean(snap.val());
+                        if (connLbl) {
+                            connLbl.innerHTML = fbConnected
+                                ? '<span style="color:var(--success);font-weight:700;">● Firebase RTDB подключена (Live)</span>'
+                                : '<span style="color:var(--accent);font-weight:700;">● WebSocket Live канал активен</span>';
                         }
-                    } catch (e) {}
-                });
-            } catch (e) {}
+                        if (fbConnected && currentUser) {
+                            const userPresRef = fbDb.ref(`phuket_app_v8/presence/${currentUser}`);
+                            userPresRef.onDisconnect().remove();
+                            pingOnlineStatus(true);
+                        }
+                    });
+
+                    fbDb.ref('phuket_app_v8/state').on('value', (snap) => {
+                        const val = snap.val();
+                        if (val && val.type === 'PHUKET_DB_STATE_V8') {
+                            applyIncomingCloudSnapshot(val);
+                        }
+                    });
+
+                    fbDb.ref('phuket_app_v8/presence').on('value', (snap) => {
+                        const presObj = snap.val() || {};
+                        const localPres = getOnlinePresenceDb();
+                        const now = Date.now();
+                        Object.keys(presObj).forEach(uKey => {
+                            localPres[uKey] = presObj[uKey];
+                        });
+                        // Если в Firebase ключ удален через onDisconnect, очищаем устаревшие записи
+                        Object.keys(localPres).forEach(uKey => {
+                            if (!presObj[uKey] && uKey !== currentUser) {
+                                const itemTs = localPres[uKey]?.ts || localPres[uKey] || 0;
+                                if (now - itemTs > 15000) delete localPres[uKey];
+                            }
+                        });
+                        localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(localPres));
+                        renderOnlineUsersUI();
+                    });
+                } catch (e) {}
+            }
+
+            // 3. Параллельный мгновенный WebSocket канал (MQTT WSS) — гарантирует синхронизацию за 0.1 сек при любых правилах Firebase
+            if (typeof mqtt !== 'undefined') {
+                try {
+                    mqttClient = mqtt.connect('wss://broker.emqx.io:8084/mqtt', {
+                        clientId: 'phuket_af3e6_' + Math.random().toString(36).slice(2, 10),
+                        clean: true,
+                        connectTimeout: 4000,
+                        reconnectPeriod: 2000
+                    });
+
+                    mqttClient.on('connect', () => {
+                        if (!fbConnected && connLbl) {
+                            connLbl.innerHTML = '<span style="color:var(--success);font-weight:700;">● Live WebSocket синхронизация активна</span>';
+                        }
+                        mqttClient.subscribe(MQTT_STATE_TOPIC, { qos: 0 });
+                        mqttClient.subscribe(MQTT_PRESENCE_TOPIC, { qos: 0 });
+                        if (currentUser) pingOnlineStatus(true);
+                        pushStateToCloudSilent(true);
+                    });
+
+                    mqttClient.on('message', (topic, message) => {
+                        try {
+                            const data = JSON.parse(message.toString());
+                            if (topic === MQTT_STATE_TOPIC && data.type === 'PHUKET_DB_STATE_V8') {
+                                applyIncomingCloudSnapshot(data);
+                            } else if (topic === MQTT_PRESENCE_TOPIC && data.user) {
+                                const pres = getOnlinePresenceDb();
+                                if (data.ts === 0) delete pres[data.user];
+                                else pres[data.user] = { ts: data.ts, tab: data.tab || 'home', displayName: data.displayName || data.user };
+                                localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
+                                renderOnlineUsersUI();
+                                if (document.getElementById('adminPanelModal')?.classList.contains('open')) {
+                                    renderAdminUsersList();
+                                }
+                            }
+                        } catch (e) {}
+                    });
+                } catch (e) {}
+            }
         }
 
         async function pushStateToCloudSilent(force = false) {
@@ -1897,14 +2138,27 @@
             const payload = buildFullSyncPayload();
             notifyRealtimePeers(payload);
 
-            // 1. Мгновенная отправка через WebSocket с флагом retain=true (новые клиенты получают состояние за 0.1 сек)
+            // 1. Запись в Firebase Realtime Database (SDK + REST)
+            if (fbDb && fbConnected) {
+                try {
+                    fbDb.ref('phuket_app_v8/state').set(payload).catch(() => {});
+                } catch (e) {}
+            } else {
+                fetch(`${activeFirebaseRestUrl}/phuket_app_v8/state.json`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            }
+
+            // 2. Мгновенная рассылка по WebSocket с retain=true
             if (mqttClient && mqttClient.connected) {
                 try {
                     mqttClient.publish(MQTT_STATE_TOPIC, JSON.stringify(payload), { qos: 0, retain: true });
                 } catch (e) {}
             }
 
-            // 2. Дублирующий бэкап по HTTPS
+            // 3. Облачный REST-бэкап
             try {
                 fetch(REST_BACKUP_URL, {
                     method: 'POST',
@@ -1917,16 +2171,27 @@
             ensureAdminAccountExists();
             const statusLine = document.getElementById('adminSyncStatusLine');
             const gateBtn = document.getElementById('syncCloudGateBtn');
-            if (statusLine) statusLine.innerText = '⏳ Мгновенная синхронизация всех профилей, онлайна и разделов...';
-            if (showFeedback && gateBtn) gateBtn.innerText = '⏳ Синхронизация...';
+            if (statusLine) statusLine.innerText = '⏳ Синхронизация с Firebase Realtime Database...';
+            if (showFeedback && gateBtn) gateBtn.innerText = '⏳ Синхронизация с Firebase...';
 
-            if (mqttClient && mqttClient.connected) {
-                mqttClient.subscribe(MQTT_STATE_TOPIC);
+            // Чтение состояния напрямую из Firebase REST + резервного канала
+            for (const baseUrl of FIREBASE_DB_CANDIDATES) {
+                try {
+                    const r = await fetch(`${baseUrl}/phuket_app_v8/state.json`);
+                    if (r.ok) {
+                        const snap = await r.json();
+                        if (snap && snap.type === 'PHUKET_DB_STATE_V8') {
+                            activeFirebaseRestUrl = baseUrl;
+                            applyIncomingCloudSnapshot(snap);
+                            break;
+                        }
+                    }
+                } catch (e) {}
             }
 
             try {
                 const controller = new AbortController();
-                const timer = setTimeout(() => controller.abort(), 3200);
+                const timer = setTimeout(() => controller.abort(), 3000);
                 const res = await fetch(`${REST_BACKUP_URL}/json?poll=1&since=48h`, { signal: controller.signal });
                 clearTimeout(timer);
                 if (res.ok) {
@@ -1937,7 +2202,7 @@
                             const wrapper = JSON.parse(line);
                             if (wrapper && wrapper.message) {
                                 const inner = JSON.parse(wrapper.message);
-                                if (inner && inner.type === 'PHUKET_DB_STATE_V7') {
+                                if (inner && inner.type === 'PHUKET_DB_STATE_V8') {
                                     applyIncomingCloudSnapshot(inner);
                                 }
                             }
@@ -1951,24 +2216,29 @@
             const totalUsers = Object.keys(getUsersDb()).length;
             const nowStr = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
             if (statusLine) {
-                statusLine.innerHTML = `✅ Синхронизировано в <b>${nowStr}</b>. Всего зарегистрированных профилей: <b>${totalUsers}</b>.`;
+                statusLine.innerHTML = `✅ Синхронизировано с Firebase в <b>${nowStr}</b>. Всего зарегистрированных профилей: <b>${totalUsers}</b>.`;
             }
             if (gateBtn) {
-                gateBtn.innerText = showFeedback ? `✅ Синхронизировано (профилей: ${totalUsers})` : '🔄 Синхронизировать базу с сервером';
+                gateBtn.innerText = showFeedback ? `✅ Синхронизировано (профилей: ${totalUsers})` : '🔄 Синхронизировать с Firebase';
                 if (showFeedback) {
-                    setTimeout(() => { gateBtn.innerText = '🔄 Синхронизировать базу с сервером'; }, 1800);
+                    setTimeout(() => { gateBtn.innerText = '🔄 Синхронизировать с Firebase'; }, 1800);
                 }
             }
         }
 
-        /* ==================== МГНОВЕННЫЙ ОНЛАЙН (ПОДДЕРЖКА 3+ ПРОФИЛЕЙ ОДНОВРЕМЕННО) ==================== */
+        /* ==================== ОТОБРАЖЕНИЕ ПОЛЬЗОВАТЕЛЕЙ ОНЛАЙН И ИХ ОТКРЫТОГО РАЗДЕЛА ==================== */
         function getOnlinePresenceDb() {
             const merged = {};
-            ['phuket_online_presence_v7', 'phuket_online_presence_v6', 'phuket_online_presence_v5'].forEach(k => {
+            [ONLINE_PRESENCE_KEY, 'phuket_online_presence_v7', 'phuket_online_presence_v6'].forEach(k => {
                 try {
                     const p = JSON.parse(localStorage.getItem(k) || '{}');
                     Object.keys(p).forEach(u => {
-                        merged[u] = Math.max(merged[u] || 0, p[u] || 0);
+                        const val = p[u];
+                        const ts = (typeof val === 'object' && val !== null) ? (val.ts || 0) : Number(val || 0);
+                        const curTs = (typeof merged[u] === 'object' && merged[u] !== null) ? (merged[u].ts || 0) : Number(merged[u] || 0);
+                        if (ts >= curTs) {
+                            merged[u] = typeof val === 'object' ? val : { ts, tab: 'home' };
+                        }
                     });
                 } catch (e) {}
             });
@@ -1978,14 +2248,27 @@
         function pingOnlineStatus(pushToNetwork = true) {
             if (!currentUser) return;
             const now = Date.now();
+            const db = getUsersDb();
+            const displayName = db[currentUser]?.displayName || currentUser;
             const pres = getOnlinePresenceDb();
-            pres[currentUser] = now;
+            const presEntry = {
+                ts: now,
+                tab: currentActiveTab || 'home',
+                displayName
+            };
+            pres[currentUser] = presEntry;
+
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
                 notifyRealtimePeers();
                 if (pushToNetwork) {
+                    if (fbDb && fbConnected) {
+                        const ref = fbDb.ref(`phuket_app_v8/presence/${currentUser}`);
+                        ref.onDisconnect().remove();
+                        ref.set(presEntry).catch(() => {});
+                    }
                     if (mqttClient && mqttClient.connected) {
-                        mqttClient.publish(MQTT_PRESENCE_TOPIC, JSON.stringify({ user: currentUser, ts: now }));
+                        mqttClient.publish(MQTT_PRESENCE_TOPIC, JSON.stringify({ user: currentUser, ...presEntry }));
                     }
                     pushStateToCloudSilent();
                 }
@@ -2000,6 +2283,9 @@
             try {
                 localStorage.setItem(ONLINE_PRESENCE_KEY, JSON.stringify(pres));
                 notifyRealtimePeers();
+                if (fbDb && fbConnected) {
+                    fbDb.ref(`phuket_app_v8/presence/${currentUser}`).remove().catch(() => {});
+                }
                 if (mqttClient && mqttClient.connected) {
                     mqttClient.publish(MQTT_PRESENCE_TOPIC, JSON.stringify({ user: currentUser, ts: 0 }));
                 }
@@ -2015,19 +2301,25 @@
             const active = [];
 
             if (currentUser) {
-                pres[currentUser] = now;
+                pres[currentUser] = {
+                    ts: now,
+                    tab: currentActiveTab || 'home',
+                    displayName: db[currentUser]?.displayName || currentUser
+                };
             }
 
             Object.keys(pres).forEach(uKey => {
-                const lastSeen = pres[uKey] || 0;
-                // Активен в течение последних 45 секунд
-                if (lastSeen > 0 && (now - lastSeen <= 45000)) {
+                const entry = pres[uKey];
+                const lastSeen = (typeof entry === 'object' && entry !== null) ? (entry.ts || 0) : Number(entry || 0);
+                const tabKey = (typeof entry === 'object' && entry !== null) ? (entry.tab || 'home') : 'home';
+                if (lastSeen > 0 && (now - lastSeen <= 35000)) {
                     const uObj = db[uKey] || {};
-                    const display = uObj.displayName || uKey;
+                    const display = uObj.displayName || entry?.displayName || uKey;
                     active.push({
                         key: uKey,
                         displayName: display,
                         avatar: uObj.avatar || '',
+                        tabTitle: TAB_TITLES_RU[tabKey] || '🏠 Главная',
                         isMe: currentUser && uKey.toLowerCase() === currentUser.toLowerCase()
                     });
                 }
@@ -2045,9 +2337,9 @@
 
             const html = activeList.length > 0
                 ? activeList.map(u => `
-                    <span class="online-badge-pill">
+                    <span class="online-badge-pill" title="Сейчас открыт раздел: ${u.tabTitle}">
                         <span class="online-dot-pulse"></span>
-                        <span>${u.displayName}${u.isMe ? ' (Вы)' : ''} — онлайн</span>
+                        <span><b>${u.displayName}</b>${u.isMe ? ' (Вы)' : ''} • онлайн <span style="opacity:0.85; font-weight:600;">[${u.tabTitle}]</span></span>
                     </span>
                 `).join('')
                 : `<span style="font-size:0.76rem; color:var(--muted);">Сейчас никого нет онлайн</span>`;
@@ -2056,14 +2348,13 @@
             if (adminBox) adminBox.innerHTML = html;
         }
 
-        // Быстрый пульс онлайна каждые 5 секунд для мгновенного отображения всех активных профилей
         setInterval(() => {
             if (currentUser) {
                 pingOnlineStatus(true);
             } else {
                 renderOnlineUsersUI();
             }
-        }, 5000);
+        }, 4000);
 
         window.addEventListener('beforeunload', () => {
             if (currentUser) {
@@ -2143,7 +2434,7 @@
             );
         }
 
-        /* ==================== ВХОД, РЕГИСТРАЦИЯ И СЕССИИ В РАЗНЫХ ВКЛАДКАХ ==================== */
+        /* ==================== ВХОД, РЕГИСТРАЦИЯ И ПРОФИЛЬ ==================== */
         function findUserKeyCaseInsensitive(db, nickname) {
             const target = (nickname || '').trim().toLowerCase();
             return Object.keys(db).find(k => (k.toLowerCase() === target) || ((db[k]?.displayName || '').toLowerCase() === target)) || null;
@@ -2288,7 +2579,7 @@
                 };
                 setUsersDb(db, true);
                 completeLoginSession(login);
-                pushStateToCloudSilent(true);
+                logUserActivity(`Зарегистрировался(ась) в сервисе Пхукет Помощник`, 'home');
             }
         }
 
@@ -2325,7 +2616,7 @@
             const statusEl = document.getElementById('autoSaveStatus');
             if (statusEl) {
                 const t = new Date().toLocaleTimeString('ru-RU', {hour:'2-digit', minute:'2-digit', second:'2-digit'});
-                statusEl.innerText = `✓ Сохранено (${t})`;
+                statusEl.innerText = `✓ Сохранено в облако (${t})`;
             }
         }
 
@@ -2358,6 +2649,7 @@
             renderAllEventsSummary();
             renderNextEventOnHome();
             renderChecklistSection();
+            renderActivityFeedUI();
         }
 
         function completeLoginSession(userKey) {
@@ -2365,7 +2657,6 @@
             inspectedUserByAdmin = null;
             activeBudgetSubtab = userKey;
             activeChecklistFolderUser = userKey;
-            // Храним активную сессию в sessionStorage, чтобы можно было сидеть с 3 разных аккаунтов в соседних вкладках!
             sessionStorage.setItem(ACTIVE_SESSION_KEY, currentUser);
             localStorage.setItem(ACTIVE_SESSION_KEY, currentUser);
 
@@ -2394,7 +2685,7 @@
             setAuthMode('login');
         }
 
-        /* ==================== ПРОФИЛЬ И РЕДАКТИРОВАНИЕ ПОЛЬЗОВАТЕЛЕЙ АДМИНОМ ==================== */
+        /* ==================== МЕНЮ ПРОФИЛЯ И АДМИН-ПАНЕЛЬ ==================== */
         function renderHeaderProfileUI() {
             if (!currentUser) return;
             const db = getUsersDb();
@@ -2469,7 +2760,6 @@
         async function uploadProfileAvatarFile(inputEl) {
             const file = inputEl.files?.[0];
             if (!file) return;
-            // Автоматическое сжатие фото до легкого JPEG 96x96 — гарантированно отображается без знака вопроса у всех
             const compressedDataUrl = await compressImageFileToDataUrl(file, 96, 0.82);
             if (compressedDataUrl) {
                 document.getElementById('profAvatarUrlInput').value = compressedDataUrl;
@@ -2499,7 +2789,6 @@
                 return;
             }
 
-            // Проверка на уникальность нового имени
             const duplicateKey = Object.keys(db).find(k => k !== targetKey && (db[k]?.displayName || k).toLowerCase() === newDisplayName.toLowerCase());
             if (duplicateKey) {
                 msgEl.style.display = 'block';
@@ -2524,7 +2813,6 @@
             u.bio = newBio;
             u.updatedAt = Date.now();
 
-            // Обновляем отображаемое имя в папке чек-листа, если она есть
             const chkDb = getChecklistsDb();
             if (chkDb[targetKey]) {
                 chkDb[targetKey].displayName = newDisplayName;
@@ -2575,7 +2863,9 @@
                 const u = db[uKey];
                 const budgetVal = u.data?.inputs?.plan_budget || u.data?.inputs?.budget || '327000';
                 const isBeingEdited = (inspectedUserByAdmin || currentUser) === uKey;
-                const isUserOnline = (uKey === currentUser) || ((pres[uKey] || 0) > 0 && (now - (pres[uKey] || 0)) <= 45000);
+                const presEntry = pres[uKey];
+                const lastSeen = (typeof presEntry === 'object' && presEntry !== null) ? (presEntry.ts || 0) : Number(presEntry || 0);
+                const isUserOnline = (uKey === currentUser) || (lastSeen > 0 && (now - lastSeen) <= 35000);
                 const createdStr = u.createdAt ? new Date(u.createdAt).toLocaleDateString('ru-RU') : '—';
                 const userChkItems = chkDb[uKey]?.items || [];
                 const userChkDone = userChkItems.filter(i => i.done).length;
@@ -2623,8 +2913,8 @@
             renderAdminUsersList();
         }
 <!-- ==================== КОНЕЦ ЧАСТИ 2 (ВСТАВЬТЕ ЧАСТЬ 3 СРАЗУ НИЖЕ ЭТОЙ СТРОКИ) ==================== -->
-/* ==================== КЭШ И РОУТЕР ВКЛАДОК ==================== */
-        const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v2';
+/* ==================== КЭШ И РОУТЕР ВКЛАДОК (С ПЕРЕДАЧЕЙ АКТИВНОГО РАЗДЕЛА В ОНЛАЙН) ==================== */
+        const OFFLINE_CACHE_KEY = 'phuket_pwa_offline_cache_v8';
         function saveOfflineCache(section, payload) {
             try {
                 const cur = JSON.parse(localStorage.getItem(OFFLINE_CACHE_KEY) || '{}');
@@ -2645,6 +2935,9 @@
                 document.getElementById('authGateOverlay').classList.remove('hidden');
                 return;
             }
+
+            currentActiveTab = tab;
+            pingOnlineStatus(true);
 
             ['home', 'schedule', 'checklist', 'exchange', 'planner', 'tides', 'weather'].forEach(t => {
                 const el = document.getElementById('tab-' + t);
@@ -2684,6 +2977,7 @@
                 updateTripCountdown();
                 renderSeasonalWarnings();
                 renderOnlineUsersUI();
+                renderActivityFeedUI();
                 renderNextEventOnHome();
             }
         }
@@ -2700,7 +2994,7 @@
                 shared = JSON.parse(localStorage.getItem(SHARED_EVENTS_KEY) || '{}');
             } catch (e) { shared = {}; }
 
-            ['phuket_shared_calendar_events_v6', 'phuket_shared_calendar_events_v5', 'phuket_shared_calendar_events_v4'].forEach(oldK => {
+            ['phuket_shared_calendar_events_v7', 'phuket_shared_calendar_events_v6', 'phuket_shared_calendar_events_v5', 'phuket_shared_calendar_events_v4'].forEach(oldK => {
                 try {
                     const oldEv = JSON.parse(localStorage.getItem(oldK) || '{}');
                     Object.keys(oldEv).forEach(dIso => {
@@ -2746,7 +3040,6 @@
             calendarEvents = getSharedEventsDb();
         }
 
-        // Вывод ближайшего запланированного события на Главной странице рядом с датами отпуска
         function renderNextEventOnHome() {
             const box = document.getElementById('homeNextEventContent');
             const totalLbl = document.getElementById('homeTotalEventsCountLbl');
@@ -2777,7 +3070,7 @@
                 return;
             }
 
-            const nowMs = Date.now() - 3600000; // События с текущего часа и далее
+            const nowMs = Date.now() - 3600000;
             let nextItem = allList.find(x => x.dtMs >= nowMs) || allList[0];
             const { dateIso, ev } = nextItem;
 
@@ -2798,7 +3091,7 @@
                     </div>
                     <div style="font-size:0.98rem; font-weight:800; color:var(--heading); margin-top:2px;">
                         ${ev.title}
-                        <span class="ev-author-badge">✍️ ${ev.author || 'Участник'}</span>
+                        <span class="ev-author-badge">✍️ Добавил(а): ${ev.author || 'Участник'}${ev.createdAtStr ? ' • ' + ev.createdAtStr : ''}</span>
                     </div>
                     ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
                     ${mapLinkHtml}
@@ -2941,8 +3234,8 @@
                 let pillsHtml = '';
                 dayEvents.slice(0, 2).forEach(ev => {
                     const timePart = ev.start ? `${ev.start}` : '';
-                    const authorTag = ev.author ? `[${ev.author}] ` : '';
-                    pillsHtml += `<div class="cal-ev-pill" style="background:${ev.color || '#007aff'};" title="${authorTag}${timePart} ${ev.title}">${timePart} ${ev.title}</div>`;
+                    const authorShort = ev.author ? `${ev.author}: ` : '';
+                    pillsHtml += `<div class="cal-ev-pill" style="background:${ev.color || '#007aff'};" title="Добавил(а): ${ev.author || 'Участник'} | ${timePart} ${ev.title}">${timePart} ${authorShort}${ev.title}</div>`;
                 });
                 if (dayEvents.length > 2) {
                     pillsHtml += `<div class="cal-ev-more">+ ещё ${dayEvents.length - 2}</div>`;
@@ -3015,9 +3308,9 @@
                     return `
                         <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'};">
                             <div>
-                                <div style="font-weight:700; color:var(--heading);">
-                                    <span style="color:${ev.color || '#007aff'};">⏰ ${ev.start || '--:--'}${ev.end ? ' — ' + ev.end : ''}</span> • ${ev.title}
-                                    <span class="ev-author-badge">✍️ Автор: ${ev.author || 'Участник'}</span>
+                                <div style="font-weight:700; color:var(--heading); display:flex; align-items:center; flex-wrap:wrap; gap:4px;">
+                                    <span style="color:${ev.color || '#007aff'};">⏰ ${ev.start || '--:--'}${ev.end ? ' — ' + ev.end : ''}</span> • <span>${ev.title}</span>
+                                    <span class="ev-author-badge">✍️ Добавил(а): ${ev.author || 'Участник'}${ev.createdAtStr ? ' (' + ev.createdAtStr + ')' : ''}</span>
                                 </div>
                                 ${ev.desc ? `<div style="font-size:0.78rem; color:var(--muted); margin-top:3px;">${ev.desc}</div>` : ''}
                                 ${buildEventMapHtml(ev)}
@@ -3071,6 +3364,7 @@
 
             const db = getUsersDb();
             const authorName = db[currentUser]?.displayName || currentUser || 'Участник';
+            const createdAtStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 
             loadSharedEvents();
             if (!calendarEvents[selectedDateIso]) calendarEvents[selectedDateIso] = [];
@@ -3083,7 +3377,8 @@
                 desc,
                 mapPin,
                 mapCoords,
-                author: authorName
+                author: authorName,
+                createdAtStr
             });
 
             document.getElementById('evTitleInput').value = '';
@@ -3092,6 +3387,7 @@
             document.getElementById('evMapCustomInput').value = '';
 
             saveSharedEventsDb(calendarEvents);
+            logUserActivity(`Добавил(а) событие «${title}» на ${formatIsoHuman(selectedDateIso)}`, 'schedule');
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
@@ -3101,9 +3397,13 @@
         function deleteCalendarEvent(dateIso, evId) {
             loadSharedEvents();
             if (!calendarEvents[dateIso]) return;
+            const removed = calendarEvents[dateIso].find(e => e.id === evId);
             calendarEvents[dateIso] = calendarEvents[dateIso].filter(e => e.id !== evId);
             if (calendarEvents[dateIso].length === 0) delete calendarEvents[dateIso];
             saveSharedEventsDb(calendarEvents);
+            if (removed) {
+                logUserActivity(`Удалил(а) событие «${removed.title}» (${formatIsoHuman(dateIso)})`, 'schedule');
+            }
             renderCalendarGrid();
             renderSelectedDayPreview();
             renderAllEventsSummary();
@@ -3128,7 +3428,7 @@
                         <div class="ev-list-item" style="border-left-color:${ev.color || '#007aff'}; cursor:pointer;" onclick="selectCalendarDate('${dIso}')">
                             <div>
                                 <div style="font-size:0.74rem; color:var(--muted); font-weight:600;">
-                                    📅 ${formatIsoHuman(dIso)} <span class="ev-author-badge">✍️ Автор: ${ev.author || 'Участник'}</span>
+                                    📅 ${formatIsoHuman(dIso)} <span class="ev-author-badge">✍️ Добавил(а): ${ev.author || 'Участник'}${ev.createdAtStr ? ' • ' + ev.createdAtStr : ''}</span>
                                 </div>
                                 <div style="font-weight:700; color:var(--heading); margin-top:2px;">
                                     <span style="color:${ev.color || '#007aff'};">${ev.start || '--:--'}${ev.end ? '–' + ev.end : ''}</span> • ${ev.title}
@@ -3144,7 +3444,7 @@
             box.innerHTML = html;
         }
 
-        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (ВАЛЮТА, РЕДАКТИРОВАНИЕ И ПОЛНАЯ СУММА ВНИЗУ) ==================== */
+        /* ==================== РАЗДЕЛ «ЧЕК-ЛИСТ ВЕЩЕЙ» (С ЯВНЫМ АВТОРСТВОМ И СТАТУСОМ ВЫПОЛНЕНИЯ) ==================== */
         const CURRENCY_SYMBOLS = { RUB: '₽', THB: '฿', USD: '$', EUR: '€' };
 
         function getChecklistsDb() {
@@ -3153,7 +3453,7 @@
                 chk = JSON.parse(localStorage.getItem(SHARED_CHECKLIST_KEY) || '{}');
             } catch (e) { chk = {}; }
 
-            ['phuket_shared_checklists_v6', 'phuket_shared_checklists_v5', 'phuket_shared_checklists_v4'].forEach(oldK => {
+            ['phuket_shared_checklists_v7', 'phuket_shared_checklists_v6', 'phuket_shared_checklists_v5', 'phuket_shared_checklists_v4'].forEach(oldK => {
                 try {
                     const oldObj = JSON.parse(localStorage.getItem(oldK) || '{}');
                     Object.keys(oldObj).forEach(uKey => {
@@ -3180,7 +3480,6 @@
             return folderOwnerKey.toLowerCase() === currentUser.toLowerCase();
         }
 
-        // Конвертер валют для чек-листа на основе актуальных курсов из приложения
         function convertChecklistCurrencyAmount(amount, fromCurr, toCurr) {
             const val = Number(amount || 0);
             if (!val || fromCurr === toCurr) return val;
@@ -3190,7 +3489,6 @@
             const eurThb = parseFloat(document.getElementById('eur_vp')?.value) || 37.55;
             const rubPerThb = spbUsd / vpThb;
 
-            // Переводим сначала в THB как базовую единицу
             let inThb = val;
             if (fromCurr === 'RUB') inThb = val / rubPerThb;
             else if (fromCurr === 'USD') inThb = val * vpThb;
@@ -3221,16 +3519,18 @@
             if (!currentUser) return;
             const chkDb = getChecklistsDb();
             const db = getUsersDb();
+            const dispName = db[currentUser]?.displayName || currentUser;
             if (!chkDb[currentUser]) {
                 chkDb[currentUser] = {
                     owner: currentUser,
-                    displayName: db[currentUser]?.displayName || currentUser,
+                    displayName: dispName,
                     currency: 'RUB',
                     createdAt: Date.now(),
                     updatedAt: Date.now(),
                     items: []
                 };
                 saveChecklistsDb(chkDb);
+                logUserActivity(`Создал(а) личную папку в Чек-листе вещей`, 'checklist');
             }
             activeChecklistFolderUser = currentUser;
             renderChecklistSection();
@@ -3306,7 +3606,7 @@
                 currSel.disabled = !editable;
             }
 
-            document.getElementById('chkActiveFolderTitle').innerText = `📂 Чек-лист вещей — автор: ${activeOwnerName}`;
+            document.getElementById('chkActiveFolderTitle').innerText = `📂 Чек-лист вещей — автор папки: ${activeOwnerName}`;
             document.getElementById('chkActiveFolderAccessHint').innerHTML = editable
                 ? `<span style="color:var(--success);font-weight:700;">✓ Вы можете добавлять, редактировать и отмечать позиции в этой папке</span>`
                 : `<span style="color:var(--warning);font-weight:700;">👁️ Режим чтения: вы видите все вещи и отметки участника ${activeOwnerName} в реальном времени</span>`;
@@ -3426,17 +3726,22 @@
             const folder = chkDb[activeChecklistFolderUser];
             if (!folder) return;
 
+            const db = getUsersDb();
+            const authorDisplay = db[currentUser]?.displayName || currentUser;
+            const timeStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
             if (editingId) {
                 const existingItem = (folder.items || []).find(i => i.id === editingId);
                 if (existingItem) {
                     const oldSubMap = {};
                     (existingItem.subtasks || []).forEach(st => {
-                        oldSubMap[st.title.toLowerCase()] = st.done;
+                        oldSubMap[st.title.toLowerCase()] = { done: st.done, doneBy: st.doneBy };
                     });
                     const updatedSubtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
                         id: 'sub_' + Date.now() + '_' + idx,
                         title: st,
-                        done: existingItem.done ? true : Boolean(oldSubMap[st.toLowerCase()])
+                        done: existingItem.done ? true : Boolean(oldSubMap[st.toLowerCase()]?.done),
+                        doneBy: oldSubMap[st.toLowerCase()]?.doneBy || ''
                     }));
 
                     existingItem.title = title;
@@ -3449,12 +3754,16 @@
                     existingItem.imageUrl = imageUrl;
                     existingItem.links = links;
                     existingItem.subtasks = updatedSubtasks;
+                    existingItem.editedBy = authorDisplay;
+                    existingItem.editedAtStr = timeStr;
+                    logUserActivity(`Обновил(а) вещь «${title}» в списке ${folder.displayName || activeChecklistFolderUser}`, 'checklist');
                 }
             } else {
                 const subtasks = subtasksRaw.split(/[\n,]+/).map(s => s.trim()).filter(Boolean).map((st, idx) => ({
                     id: 'sub_' + Date.now() + '_' + idx,
                     title: st,
-                    done: false
+                    done: false,
+                    doneBy: ''
                 }));
 
                 folder.items.push({
@@ -3470,8 +3779,12 @@
                     links,
                     subtasks,
                     done: false,
-                    author: currentUser
+                    author: authorDisplay,
+                    createdAtStr: timeStr,
+                    completedBy: '',
+                    completedAtStr: ''
                 });
+                logUserActivity(`Добавил(а) вещь «${title}» в список ${folder.displayName || activeChecklistFolderUser}`, 'checklist');
             }
 
             folder.updatedAt = Date.now();
@@ -3488,12 +3801,23 @@
             const item = (folder.items || []).find(i => i.id === itemId);
             if (!item) return;
 
+            const db = getUsersDb();
+            const actorName = db[currentUser]?.displayName || currentUser;
+            const timeStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
             item.done = !item.done;
+            item.completedBy = item.done ? actorName : '';
+            item.completedAtStr = item.done ? timeStr : '';
+
             if (item.done && Array.isArray(item.subtasks)) {
-                item.subtasks.forEach(st => { st.done = true; });
+                item.subtasks.forEach(st => {
+                    st.done = true;
+                    st.doneBy = actorName;
+                });
             }
             folder.updatedAt = Date.now();
             saveChecklistsDb(chkDb);
+            logUserActivity(`${item.done ? 'Отметил(а) выполненным ✅' : 'Вернул(а) в работу ⏳'} «${item.title}»`, 'checklist');
             renderChecklistSection();
         }
 
@@ -3507,15 +3831,26 @@
 
             const sub = item.subtasks.find(s => s.id === subId);
             if (!sub) return;
+
+            const db = getUsersDb();
+            const actorName = db[currentUser]?.displayName || currentUser;
+            const timeStr = new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
             sub.done = !sub.done;
+            sub.doneBy = sub.done ? actorName : '';
 
             if (item.subtasks.length > 0 && item.subtasks.every(s => s.done)) {
                 item.done = true;
+                item.completedBy = actorName;
+                item.completedAtStr = timeStr;
             } else if (!sub.done) {
                 item.done = false;
+                item.completedBy = '';
+                item.completedAtStr = '';
             }
             folder.updatedAt = Date.now();
             saveChecklistsDb(chkDb);
+            logUserActivity(`${sub.done ? 'Закрыл(а) подзадачу ✅' : 'Открыл(а) подзадачу'} «${sub.title}» (${item.title})`, 'checklist');
             renderChecklistSection();
         }
 
@@ -3524,9 +3859,13 @@
             const chkDb = getChecklistsDb();
             const folder = chkDb[activeChecklistFolderUser];
             if (!folder) return;
+            const removed = (folder.items || []).find(i => i.id === itemId);
             folder.items = (folder.items || []).filter(i => i.id !== itemId);
             folder.updatedAt = Date.now();
             saveChecklistsDb(chkDb);
+            if (removed) {
+                logUserActivity(`Удалил(а) вещь «${removed.title}» из списка`, 'checklist');
+            }
             renderChecklistSection();
         }
 
@@ -3549,7 +3888,6 @@
 
             const allFolderItems = folder.items || [];
 
-            // Расчет полной суммы всех позиций в папке (а также отдельно выполненных и не выполненных)
             let sumAll = 0, sumOpen = 0, sumDone = 0;
             allFolderItems.forEach(it => {
                 const conv = convertChecklistCurrencyAmount(it.amount || 0, it.currency || folderCurr, folderCurr);
@@ -3603,8 +3941,11 @@
 
                 const subtasksHtml = (item.subtasks || []).map(st => `
                     <div class="subtask-row" onclick="${editable ? `toggleChecklistSubtask('${item.id}', '${st.id}')` : ''}" style="cursor:${editable ? 'pointer' : 'default'};">
-                        <span class="chk-circle ${st.done ? 'checked' : ''}" style="width:18px; height:18px; font-size:0.65rem;">${st.done ? '✓' : ''}</span>
-                        <span style="${st.done ? 'text-decoration:line-through; color:var(--muted);' : 'color:var(--text);'}">${st.title}</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="chk-circle ${st.done ? 'checked' : ''}" style="width:18px; height:18px; font-size:0.65rem;">${st.done ? '✓' : ''}</span>
+                            <span style="${st.done ? 'text-decoration:line-through; color:var(--muted);' : 'color:var(--text);'}">${st.title}</span>
+                        </div>
+                        ${st.done && st.doneBy ? `<span style="font-size:0.68rem; color:var(--success); font-weight:700;">✓ ${st.doneBy}</span>` : ''}
                     </div>
                 `).join('');
 
@@ -3621,7 +3962,8 @@
                                         <span class="urgency-badge ${u.cls}">${u.text}</span>
                                         <span style="font-size:0.72rem; color:var(--accent); font-weight:700;">${catNames[item.category] || '🎒 Вещь'}</span>
                                         ${item.amount > 0 ? `<span style="font-size:0.76rem; font-weight:800; color:var(--success);">💰 ${fmtInt(item.amount)} ${itSym}</span>` : ''}
-                                        ${item.done ? `<span style="font-size:0.7rem; color:var(--success); font-weight:700;">[✓ Выполнено]</span>` : ''}
+                                        <span class="ev-author-badge">✍️ Добавил(а): ${item.author || folder.displayName || activeChecklistFolderUser}${item.createdAtStr ? ' • ' + item.createdAtStr : ''}</span>
+                                        ${item.done ? `<span style="font-size:0.7rem; color:var(--success); font-weight:700;">[✅ Выполнил(а): ${item.completedBy || item.author || 'Участник'}${item.completedAtStr ? ' в ' + item.completedAtStr : ''}]</span>` : ''}
                                     </div>
                                     ${item.desc ? `<div style="font-size:0.8rem; color:var(--desc-text); margin-top:4px;">${item.desc}</div>` : ''}
                                     ${item.imageUrl ? `<div style="margin-top:8px;"><img src="${item.imageUrl}" alt="img" onerror="this.style.display='none'" style="max-width:180px; max-height:130px; border-radius:8px; border:1px solid var(--border); object-fit:cover;"></div>` : ''}
@@ -3655,12 +3997,16 @@
         }
 
         function extractBudgetSnapshotFromDOM() {
+            const db = getUsersDb();
+            const actor = db[currentUser]?.displayName || currentUser || 'Участник';
             const snap = {
                 plan_budget: document.getElementById('plan_budget')?.value || '327000',
                 plan_currency: document.getElementById('plan_currency')?.value || 'RUB',
                 plan_people: document.getElementById('plan_people')?.value || '2',
                 plan_days: document.getElementById('plan_days')?.value || '23',
                 cats: {},
+                updatedBy: actor,
+                updatedAtStr: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
                 updatedAt: Date.now()
             };
             categoriesData.forEach(cat => {
@@ -3710,6 +4056,8 @@
                     plan_currency: inp.plan_currency || 'RUB',
                     plan_people: inp.plan_people || '2',
                     plan_days: inp.plan_days || '23',
+                    updatedBy: db[subtabKey]?.displayName || subtabKey,
+                    updatedAtStr: db[subtabKey]?.updatedAt ? new Date(db[subtabKey].updatedAt).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }) : '',
                     cats: {}
                 };
                 categoriesData.forEach(cat => {
@@ -3732,6 +4080,15 @@
                         rngEl.value = v;
                     }
                 });
+            }
+
+            const authorLine = document.getElementById('budgetLastAuthorLine');
+            if (authorLine) {
+                if (snap && snap.updatedBy) {
+                    authorLine.innerHTML = `✍️ Последнее обновление вкладки: <b style="color:var(--accent);">${snap.updatedBy}</b> ${snap.updatedAtStr ? '(' + snap.updatedAtStr + ')' : ''}`;
+                } else {
+                    authorLine.innerText = '';
+                }
             }
 
             const editable = canEditBudgetSubtab(subtabKey);
@@ -3782,6 +4139,10 @@
                     db[activeBudgetSubtab].updatedAt = Date.now();
                     setUsersDb(db, true);
                 }
+            }
+            const authorLine = document.getElementById('budgetLastAuthorLine');
+            if (authorLine) {
+                authorLine.innerHTML = `✍️ Последнее обновление вкладки: <b style="color:var(--accent);">${snap.updatedBy}</b> (${snap.updatedAtStr})`;
             }
         }
 
@@ -5218,6 +5579,8 @@
             });
             updatePlanner();
             persistActiveBudgetSubtab();
+            const modeNames = { eco: 'Эконом-режим', comfort: 'Комфорт', lux: 'На широкую ногу' };
+            logUserActivity(`Применил(а) пресет бюджета «${modeNames[mode] || mode}»`, 'planner');
         }
 
         function fitToBudget() {
@@ -5242,6 +5605,7 @@
             });
             updatePlanner();
             persistActiveBudgetSubtab();
+            logUserActivity(`Сбалансировал(а) категории бюджета с 15% резервом`, 'planner');
         }
 
         async function refreshAllDashboard() {
@@ -5255,13 +5619,14 @@
             ]);
             updateTripCountdown();
             renderNextEventOnHome();
+            renderActivityFeedUI();
             btn.innerText = '✅ Все сводки обновлены!';
             setTimeout(() => { btn.innerText = '🔄 Обновить все сводки (Погода, Море, Курсы)'; }, 1400);
         }
 
         /* ==================== АВТОНОМНОСТЬ, PWA МАНИФЕСТ И SERVICE WORKER ==================== */
         const SW_SCRIPT_CODE = `
-const CACHE_NAME = 'phuket-pwa-cache-v7';
+const CACHE_NAME = 'phuket-pwa-cache-v8';
 const ASSETS = ['./', './index.html'];
 
 self.addEventListener('install', (event) => {
@@ -5328,14 +5693,14 @@ self.addEventListener('fetch', (event) => {
                 });
             }
             if ('caches' in window && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
-                caches.open('phuket-pwa-cache-v7').then(cache => cache.add(location.href)).catch(() => {});
+                caches.open('phuket-pwa-cache-v8').then(cache => cache.add(location.href)).catch(() => {});
             }
 
             const updateNetStatus = () => {
                 const badge = document.getElementById('networkBadge');
                 if (navigator.onLine) {
                     badge.className = 'pwa-badge online';
-                    badge.innerText = '● Live Синхр.';
+                    badge.innerText = '● Firebase Live';
                 } else {
                     badge.className = 'pwa-badge offline';
                     badge.innerText = '📴 Оффлайн (Кэш)';
@@ -5346,13 +5711,13 @@ self.addEventListener('fetch', (event) => {
             updateNetStatus();
         }
 
-        // Инициализация приложения и запуск живой WebSocket + облачной синхронизации
+        // Инициализация приложения и запуск живой синхронизации Firebase + WebSocket
         (function initApp() {
             initPlannerUI();
             initPwaAndOfflineSupport();
             ensureAdminAccountExists();
             loadSharedEvents();
-            initRealtimeMqttSync();
+            initFirebaseAndRealtimeSync();
 
             if (window.Telegram && window.Telegram.WebApp) {
                 const tg = window.Telegram.WebApp;
@@ -5373,11 +5738,11 @@ self.addEventListener('fetch', (event) => {
                 }
             });
 
-            // Приоритет sessionStorage позволяет тестировать 3+ разных профиля одновременно в соседних вкладках
+            // Приоритет sessionStorage позволяет тестировать несколько разных профилей одновременно в соседних вкладках
             const savedSessionUser = sessionStorage.getItem(ACTIVE_SESSION_KEY)
                 || localStorage.getItem(ACTIVE_SESSION_KEY)
-                || localStorage.getItem('phuket_active_session_v5')
-                || localStorage.getItem('phuket_active_session_v4');
+                || localStorage.getItem('phuket_active_session_v7')
+                || localStorage.getItem('phuket_active_session_v6');
             const db = getUsersDb();
             if (savedSessionUser && db[savedSessionUser]) {
                 completeLoginSession(savedSessionUser);
@@ -5405,6 +5770,7 @@ self.addEventListener('fetch', (event) => {
             renderSelectedDayPreview();
             renderAllEventsSummary();
             renderNextEventOnHome();
+            renderActivityFeedUI();
             updateScheduleBudgetSnapshot();
             renderChecklistSection();
             scanRealTimeTides();
