@@ -1,0 +1,15 @@
+node_modules/
+artifacts/
+data/source-samples/
+data/rates-check.json
+data/proxy-probe.json
+*.tmp
+*.temp
+*.log
+*.bak
+*~
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example

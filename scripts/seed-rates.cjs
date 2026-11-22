@@ -1,0 +1,1 @@
+﻿const fs=require('fs');const data=JSON.parse(fs.readFileSync('data/live-rates.json','utf8'));fs.writeFileSync('js/rate-seed.js','const RATE_SEED = '+JSON.stringify(data,null,2)+';\n');console.log('Seed rebuilt from data/live-rates.json');
